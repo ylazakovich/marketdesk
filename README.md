@@ -17,23 +17,23 @@ MarketDesk is an integrated product and listing management system designed to si
 ## Tech Stack
 
 ### Backend
-- **Runtime**: Node.js 20+
+- **Runtime**: Node.js 22+
 - **Language**: TypeScript with ES2020 target
-- **Framework**: Express.js
-- **Database**: PostgreSQL 15
-- **Cache**: Redis 7
+- **Framework**: Express.js 5
+- **Database**: PostgreSQL 18 (Docker image pinned by digest)
+- **Cache**: Redis 8 (Docker image pinned by digest)
 - **Queue**: Bull (Job Queue)
 - **Validation**: Zod (HTTP boundary) + domain invariants
 - **Authentication**: JWT (bcryptjs password hashing)
 
 ### Frontend
-- **Framework**: React 18
+- **Framework**: React 19
 - **State Management**: Redux Toolkit
-- **Routing**: React Router v6
-- **UI Framework**: Material-UI (MUI)
+- **Routing**: React Router v7
+- **UI Framework**: Material-UI (MUI) 6
 - **Data Fetching**: RTK Query (endpoints injected into a shared base API)
-- **Charts**: Recharts
-- **Build Tool**: Vite
+- **Charts**: Recharts 3
+- **Build Tool**: Vite 6
 
 ### Infrastructure
 - **Containerization**: Docker & Docker Compose
@@ -69,7 +69,8 @@ MarketDesk is an integrated product and listing management system designed to si
 │       ├── types/               # Shared type definitions
 │       ├── constants/           # Constants used across app
 │       └── utils/               # Shared utility functions
-├── public/                      # Static assets
+├── docs/
+│   └── design/                  # Static PRD/design prototype and screenshots
 ├── docker-compose.yml           # Docker Compose configuration
 ├── Dockerfile                   # Docker build configuration
 ├── package.json                 # Dependencies and scripts
@@ -78,6 +79,20 @@ MarketDesk is an integrated product and listing management system designed to si
 ├── jest.config.js               # Jest testing configuration
 └── README.md                    # This file
 ```
+
+## Design & Product Docs
+
+Static design artifacts live under `docs/design/` and are excluded from Docker builds:
+
+- `docs/design/MarketDesk PRD.dc.html` — product requirements document
+- `docs/design/MarketDesk.dc.html` — high-fidelity navigable design prototype
+- `docs/design/screenshots/` — curated screenshots for visual reference:
+  - [Products](docs/design/screenshots/products.png)
+  - [Analytics](docs/design/screenshots/analytics.png)
+  - [Dark theme](docs/design/screenshots/dark.png)
+- `docs/design/_ds/`, `doc-page.js`, `support.js` — local runtime/design-system assets required by the HTML docs
+
+Preview the HTML files by opening them directly in a browser from the repository checkout.
 
 ## Prerequisites
 
@@ -280,12 +295,13 @@ backend builds. Any step except lint fails the build.
 
 Migrations are located in `src/backend/persistence/migrations/` as numbered SQL files:
 
-1. `001_create_users_table.sql` - Users and workspaces
-2. `002_create_products_table.sql` - Products and inventory
-3. `003_create_listings_table.sql` - Marketplace listings
-4. `004_create_hermes_events_table.sql` - Event system
-5. `005_create_activity_log_table.sql` - Audit trails
-6. `006_create_price_history_table.sql` - History tracking
+1. `001_workspaces_and_users.sql` - Workspaces, users and auth foundations
+2. `002_products.sql` - Products and inventory
+3. `003_marketplaces.sql` - Marketplace connections
+4. `004_listings_and_price_history.sql` - Listings and price history
+5. `005_hermes_events.sql` - Hermes event system
+6. `006_activity_analytics_apikeys.sql` - Activity logs, analytics and API keys
+7. `007_add_workspace_guardrails.sql` - Workspace guardrails for Hermes decisions
 
 ### Running Migrations
 
@@ -303,7 +319,7 @@ For a complete view of the database schema, see `src/backend/persistence/schema.
 
 ```bash
 # Using Docker
-docker-compose exec postgres psql -U marketdesk -d marketdesk
+docker compose exec postgres psql -U marketdesk -d marketdesk
 
 # Or locally if PostgreSQL is installed
 psql -h localhost -U marketdesk -d marketdesk
@@ -320,8 +336,8 @@ docker build -t hermes-marketdesk:latest .
 ### Docker Compose Services
 
 ```yaml
-- postgres: PostgreSQL 15
-- redis: Redis 7
+- postgres: PostgreSQL 18
+- redis: Redis 8
 - app: Node.js application
 ```
 
@@ -329,25 +345,25 @@ docker build -t hermes-marketdesk:latest .
 
 ```bash
 # All services
-docker-compose logs -f
+docker compose logs -f
 
 # Specific service
-docker-compose logs -f app
-docker-compose logs -f postgres
-docker-compose logs -f redis
+docker compose logs -f app
+docker compose logs -f postgres
+docker compose logs -f redis
 ```
 
 ### Cleanup
 
 ```bash
 # Stop all services
-docker-compose down
+docker compose down
 
 # Remove volumes
-docker-compose down -v
+docker compose down -v
 
 # Rebuild images
-docker-compose build --no-cache
+docker compose build --no-cache
 ```
 
 ## API Endpoints
@@ -445,23 +461,23 @@ The platform is built with multi-tenancy in mind:
 
 ```bash
 # Check if PostgreSQL is running
-docker-compose ps postgres
+docker compose ps postgres
 
 # View PostgreSQL logs
-docker-compose logs postgres
+docker compose logs postgres
 
 # Connect to PostgreSQL
-docker-compose exec postgres psql -U marketdesk -d marketdesk
+docker compose exec postgres psql -U marketdesk -d marketdesk
 ```
 
 ### Redis Connection Issues
 
 ```bash
 # Check if Redis is running
-docker-compose ps redis
+docker compose ps redis
 
 # Test Redis connection
-docker-compose exec redis redis-cli ping
+docker compose exec redis redis-cli ping
 ```
 
 ### Port Already in Use

@@ -5,6 +5,7 @@ npm-debug.log
 .env
 .env.*
 dist
+.tsbuildinfo
 build
 coverage
 .vscode

@@ -33,6 +33,7 @@ import {
   useGetWorkspaceQuery,
   useUpdateWorkspaceMutation,
   useLoginMutation,
+  useRegisterMutation,
   useMeQuery,
 } from '../../state/api/index.js';
 import type {
@@ -124,4 +125,5 @@ export const useUpdateWorkspace = useUpdateWorkspaceMutation;
 
 // ---- Auth ----
 export const useLogin = useLoginMutation;
+export const useRegister = useRegisterMutation;
 export const useMe = useMeQuery;

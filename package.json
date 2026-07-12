@@ -9,7 +9,7 @@
     "dev:backend": "tsx watch src/backend/main.ts",
     "dev:frontend": "vite",
     "build": "npm run build:backend && npm run build:frontend",
-    "build:backend": "tsc --project tsconfig.backend.json",
+    "build:backend": "esbuild src/backend/main.ts --bundle --platform=node --format=esm --target=node20 --packages=external --outfile=dist/backend/main.js",
     "build:frontend": "vite build",
     "start": "node dist/backend/main.js",
     "lint": "eslint src --ext .ts,.tsx",

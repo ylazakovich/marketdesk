@@ -14,7 +14,9 @@ RUN npm ci
 # Copy source and build both the backend (-> dist/backend) and the frontend
 # (-> dist/frontend, served statically by the backend).
 COPY . .
-RUN npm run build
+# The host build-info file can claim the backend is current while `dist` is
+# excluded from the build context; force a fresh TypeScript emit in the image.
+RUN rm -f .tsbuildinfo && npm run build
 
 # Drop devDependencies so only production modules are carried into the runtime image.
 RUN npm prune --omit=dev

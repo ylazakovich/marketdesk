@@ -16,6 +16,10 @@ export interface LoginInput {
   password: string;
 }
 
+export interface RegisterInput extends LoginInput {
+  workspaceName?: string;
+}
+
 export interface LoginResult {
   token: string;
   user: AuthUser;
@@ -28,6 +32,11 @@ export const authApi = baseApi.injectEndpoints({
       transformResponse: (res: ApiResponse<LoginResult>) => unwrap(res),
     }),
 
+    register: builder.mutation<LoginResult, RegisterInput>({
+      query: (body) => ({ url: '/auth/register', method: 'POST', body }),
+      transformResponse: (res: ApiResponse<LoginResult>) => unwrap(res),
+    }),
+
     me: builder.query<AuthUser, void>({
       query: () => '/auth/me',
       transformResponse: (res: ApiResponse<AuthUser>) => unwrap(res),
@@ -35,4 +44,4 @@ export const authApi = baseApi.injectEndpoints({
   }),
 });
 
-export const { useLoginMutation, useMeQuery, useLazyMeQuery } = authApi;
+export const { useLoginMutation, useRegisterMutation, useMeQuery, useLazyMeQuery } = authApi;

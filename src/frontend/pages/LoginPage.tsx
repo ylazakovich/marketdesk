@@ -5,33 +5,45 @@ import { Box, Button, Card, Stack, TextField, Typography } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import type { User } from '@shared/types';
 import { DEFAULT_CURRENCY, DEFAULT_TIMEZONE, AUTONOMY_LEVELS } from '@shared/constants';
-import { useLogin } from '../services/hooks/index.js';
+import { useLogin, useRegister } from '../services/hooks/index.js';
 import { useAppDispatch } from '../state/hooks.js';
 import { setCredentials } from '../state/slices/authSlice.js';
 import { setWorkspace } from '../state/slices/workspaceSlice.js';
 
-function errorMessage(err: unknown): string {
+function errorMessage(err: unknown, fallback: string): string {
   if (err && typeof err === 'object') {
     const e = err as { data?: { error?: { message?: string } }; message?: string };
-    return e.data?.error?.message ?? e.message ?? 'Login failed';
+    return e.data?.error?.message ?? e.message ?? fallback;
   }
-  return 'Login failed';
+  return fallback;
 }
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const [login, { isLoading }] = useLogin();
+  const [register, { isLoading: isRegistering }] = useRegister();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [workspaceName, setWorkspaceName] = useState('');
+  const [isRegistration, setIsRegistration] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (isRegistration && password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+
+    const trimmedWorkspaceName = workspaceName.trim();
     try {
-      const { token, user: apiUser } = await login({ email, password }).unwrap();
+      const result = isRegistration
+        ? register({ email, password, workspaceName: trimmedWorkspaceName || undefined })
+        : login({ email, password });
+      const { token, user: apiUser } = await result.unwrap();
       const user: User = {
         id: apiUser.id,
         email: apiUser.email,
@@ -43,7 +55,7 @@ const LoginPage: React.FC = () => {
         dispatch(
           setWorkspace({
             id: user.workspaceId,
-            name: '',
+            name: isRegistration ? trimmedWorkspaceName : '',
             currency: DEFAULT_CURRENCY,
             timezone: DEFAULT_TIMEZONE,
             autonomyLevel: AUTONOMY_LEVELS.SUGGEST_ONLY,
@@ -52,7 +64,7 @@ const LoginPage: React.FC = () => {
       }
       navigate('/');
     } catch (err) {
-      setError(errorMessage(err));
+      setError(errorMessage(err, isRegistration ? 'Registration failed' : 'Login failed'));
     }
   };
 
@@ -68,10 +80,10 @@ const LoginPage: React.FC = () => {
     >
       <Card sx={{ p: 4, width: '100%', maxWidth: 400 }}>
         <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-          Sign in
+          {isRegistration ? 'Create account' : 'Sign in'}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-          Welcome back to MarketDesk.
+          {isRegistration ? 'Create your MarketDesk workspace.' : 'Welcome back to MarketDesk.'}
         </Typography>
         <form onSubmit={handleSubmit}>
           <Stack spacing={2}>
@@ -84,22 +96,44 @@ const LoginPage: React.FC = () => {
               fullWidth
               required
             />
+            {isRegistration && (
+              <TextField
+                label="Workspace name"
+                value={workspaceName}
+                onChange={(e) => setWorkspaceName(e.target.value)}
+                autoComplete="organization"
+                fullWidth
+              />
+            )}
             <TextField
               label="Password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
+              autoComplete={isRegistration ? 'new-password' : 'current-password'}
               fullWidth
               required
+              inputProps={{ minLength: isRegistration ? 8 : undefined }}
+              helperText={isRegistration ? 'At least 8 characters' : undefined}
             />
             {error && (
               <Typography variant="body2" color="error.main">
                 {error}
               </Typography>
             )}
-            <Button type="submit" variant="contained" size="large" disabled={isLoading} fullWidth>
-              Sign in
+            <Button type="submit" variant="contained" size="large" disabled={isLoading || isRegistering} fullWidth>
+              {isRegistration ? 'Create account' : 'Sign in'}
+            </Button>
+            <Button
+              type="button"
+              variant="text"
+              onClick={() => {
+                setIsRegistration((value) => !value);
+                setError(null);
+              }}
+              disabled={isLoading || isRegistering}
+            >
+              {isRegistration ? 'Already have an account? Sign in' : 'Create an account'}
             </Button>
           </Stack>
         </form>

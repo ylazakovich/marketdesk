@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_ds/mui-material-368b1c7a-515b-4d26-834f-e7bf598e76ca/styles.css">
+<script src="_ds/mui-material-368b1c7a-515b-4d26-834f-e7bf598e76ca/_ds_bundle.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  :root {
+    --md-bg:#f6f7f9; --md-surface:#ffffff; --md-surface-2:#f2f3f6; --md-surface-3:#eceef2;
+    --md-border:#e7e9ef; --md-border-strong:#dcdfe7;
+    --md-text:#191b23; --md-text-2:#5b606e; --md-text-3:#8b90a0;
+    --md-primary:#5b5bd6; --md-primary-hover:#4f4fca; --md-primary-weak:#eeeefb; --md-on-primary:#ffffff;
+    --md-success:#1c9c6b; --md-success-weak:#e6f6ee;
+    --md-warning:#c67a12; --md-warning-weak:#fbf0dd;
+    --md-danger:#d1435b; --md-danger-weak:#fbe9ec;
+    --md-info:#2b7fd4; --md-info-weak:#e7f1fc;
+    --md-shadow-sm:0 1px 2px rgba(19,22,33,.05), 0 1px 1px rgba(19,22,33,.03);
+    --md-shadow:0 4px 14px rgba(19,22,33,.06), 0 1px 3px rgba(19,22,33,.04);
+    --md-shadow-lg:0 18px 48px rgba(19,22,33,.12), 0 4px 12px rgba(19,22,33,.06);
+    --md-sidebar:#ffffff;
+  }
+  html[data-theme="dark"] {
+    --md-bg:#0c0d11; --md-surface:#16171d; --md-surface-2:#1c1e26; --md-surface-3:#23262f;
+    --md-border:#25272f; --md-border-strong:#31343e;
+    --md-text:#eceef4; --md-text-2:#a4a9b8; --md-text-3:#6b7080;
+    --md-primary:#8b8bf2; --md-primary-hover:#9b9bf6; --md-primary-weak:#1f2036; --md-on-primary:#0c0d11;
+    --md-success:#3ecf8e; --md-success-weak:#12261e;
+    --md-warning:#e0a94a; --md-warning-weak:#2a2113;
+    --md-danger:#f2647d; --md-danger-weak:#2c1620;
+    --md-info:#5aa9f0; --md-info-weak:#122132;
+    --md-shadow-sm:0 1px 2px rgba(0,0,0,.4);
+    --md-shadow:0 6px 20px rgba(0,0,0,.4), 0 1px 3px rgba(0,0,0,.3);
+    --md-shadow-lg:0 24px 60px rgba(0,0,0,.6);
+    --md-sidebar:#0f1014;
+  }
+  body { font-family:"Manrope",system-ui,-apple-system,sans-serif; background:var(--md-bg); color:var(--md-text); -webkit-font-smoothing:antialiased; }
+  ::-webkit-scrollbar { width:11px; height:11px; }
+  ::-webkit-scrollbar-thumb { background:var(--md-border-strong); border-radius:8px; border:3px solid var(--md-bg); }
+  ::-webkit-scrollbar-thumb:hover { background:var(--md-text-3); }
+  ::-webkit-scrollbar-track { background:transparent; }
+  @keyframes md-pulse { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:.45;transform:scale(.82);} }
+  @keyframes md-fade { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:none;} }
+  @keyframes md-dash { to { stroke-dashoffset:0; } }
+  .md-screen { animation: md-fade .28s ease both; }
+  .md-navitem:hover { background:var(--md-surface-2) !important; }
+  .md-navitem.active:hover { background:var(--md-primary-weak) !important; }
+  .md-row:hover { background:var(--md-surface-2) !important; }
+  .md-tap { cursor:pointer; transition:background .14s, border-color .14s, transform .14s, box-shadow .14s; }
+  .md-tap:hover { transform:translateY(-2px); box-shadow:var(--md-shadow); }
+  .md-ib { transition:background .14s, color .14s; }
+  .md-ib:hover { background:var(--md-surface-2); }
+</style>
+</helmet>
+<sc-if value="{{ ready }}" hint-placeholder-val="{{ true }}">
+<x-import component-from-global-scope="MuiMaterial.ThemeProvider" theme="{{ theme }}" hint-size="100%,100%">
+<div style="display:flex; min-height:100vh; width:100%; background:var(--md-bg); color:var(--md-text); font-family:'Manrope',system-ui,sans-serif;">
+
+  <aside style="width:250px; flex-shrink:0; background:var(--md-sidebar); border-right:1px solid var(--md-border); height:100vh; position:sticky; top:0; display:flex; flex-direction:column; padding:18px 14px;">
+    <div style="display:flex; align-items:center; gap:11px; padding:6px 8px 20px;">
+      <div style="width:34px; height:34px; border-radius:10px; background:linear-gradient(140deg,var(--md-primary),#8f7bff); display:flex; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(91,91,214,.35); flex-shrink:0;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18V7l6 5 3-7 3 7 6-5v11"></path></svg>
+      </div>
+      <div>
+        <div style="font-weight:800; font-size:15.5px; letter-spacing:-.02em; line-height:1;">MarketDesk</div>
+        <div style="font-size:10.5px; color:var(--md-text-3); font-weight:600; letter-spacing:.04em; margin-top:3px;">MARKETPLACE OS</div>
+      </div>
+    </div>
+
+    <div style="font-size:10.5px; font-weight:700; letter-spacing:.08em; color:var(--md-text-3); padding:6px 10px 8px;">MENU</div>
+    <nav style="display:flex; flex-direction:column; gap:2px;">
+      <sc-for list="{{ navMain }}" as="item" hint-placeholder-count="5">
+        <div class="md-navitem {{ item.activeClass }}" onClick="{{ item.go }}" style="{{ item.style }}">
+          <span style="display:flex; width:20px; height:20px;">{{ item.icon }}</span>
+          <span style="flex:1;">{{ item.label }}</span>
+          <sc-if value="{{ item.badge }}" hint-placeholder-val="">
+            <span style="font-size:11px; font-weight:700; background:var(--md-danger-weak); color:var(--md-danger); padding:1px 7px; border-radius:20px;">{{ item.badge }}</span>
+          </sc-if>
+        </div>
+      </sc-for>
+    </nav>
+
+    <div style="margin-top:auto; display:flex; flex-direction:column; gap:2px;">
+      <div class="md-navitem {{ settingsActive }}" onClick="{{ goSettings }}" style="{{ settingsStyle }}">
+        <span style="display:flex; width:20px; height:20px;">{{ iconSettings }}</span>
+        <span style="flex:1;">Settings</span>
+      </div>
+      <div style="margin-top:12px; padding:13px; border-radius:14px; background:var(--md-surface-2); border:1px solid var(--md-border); display:flex; align-items:center; gap:10px;">
+        <div style="width:34px; height:34px; border-radius:50%; background:linear-gradient(135deg,#5b5bd6,#c86dd7); display:flex; align-items:center; justify-content:center; color:#fff; font-weight:700; font-size:13px; flex-shrink:0;">KМ</div>
+        <div style="min-width:0; flex:1;">
+          <div style="font-size:13px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Kamil M.</div>
+          <div style="font-size:11px; color:var(--md-text-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">Pro workspace</div>
+        </div>
+        <span class="md-ib md-tap" style="display:flex; padding:4px; border-radius:8px; color:var(--md-text-3);">{{ iconChevrons }}</span>
+      </div>
+    </div>
+  </aside>
+
+  <div style="flex:1; min-width:0; display:flex; flex-direction:column; height:100vh; overflow:hidden;">
+    <header style="height:64px; flex-shrink:0; border-bottom:1px solid var(--md-border); background:color-mix(in srgb, var(--md-bg) 72%, transparent); backdrop-filter:blur(10px); display:flex; align-items:center; gap:16px; padding:0 26px; position:sticky; top:0; z-index:20;">
+      <div style="min-width:0;">
+        <div style="font-size:17px; font-weight:800; letter-spacing:-.02em; line-height:1.1; display:flex; align-items:center; gap:9px;">{{ pageTitle }}</div>
+        <div style="font-size:12px; color:var(--md-text-3); margin-top:2px;">{{ pageSubtitle }}</div>
+      </div>
+      <div style="flex:1;"></div>
+      <div style="position:relative; width:270px; max-width:34vw;">
+        <span style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--md-text-3); display:flex;">{{ iconSearch }}</span>
+        <input placeholder="Search products, listings, events…" style="width:100%; height:38px; border-radius:10px; border:1px solid var(--md-border); background:var(--md-surface); color:var(--md-text); padding:0 12px 0 36px; font-family:inherit; font-size:13px; outline:none;"/>
+        <span style="position:absolute; right:9px; top:50%; transform:translateY(-50%); color:var(--md-text-3); font-size:11px; font-weight:600; border:1px solid var(--md-border); border-radius:6px; padding:1px 6px;">⌘K</span>
+      </div>
+      <button class="md-ib md-tap" onClick="{{ toggleTheme }}" title="Toggle theme" style="width:38px; height:38px; border-radius:10px; border:1px solid var(--md-border); background:var(--md-surface); color:var(--md-text-2); display:flex; align-items:center; justify-content:center; cursor:pointer;">{{ themeIcon }}</button>
+      <button class="md-ib md-tap" title="Notifications" style="width:38px; height:38px; border-radius:10px; border:1px solid var(--md-border); background:var(--md-surface); color:var(--md-text-2); display:flex; align-items:center; justify-content:center; cursor:pointer; position:relative;">{{ iconBell }}<span style="position:absolute; top:8px; right:9px; width:7px; height:7px; border-radius:50%; background:var(--md-danger); border:2px solid var(--md-surface);"></span></button>
+      <x-import component-from-global-scope="MuiMaterial.Button" variant="contained" disable-elevation="{{ true }}" start-icon="{{ iconPlus }}" onClick="{{ goWizard }}" hint-size="auto,38px" sx="{{ sxNewBtn }}">New product</x-import>
+    </header>
+
+    <main style="flex:1; overflow-y:auto; padding:26px;">
+
+      <!-- DASHBOARD -->
+      <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
+      <div class="md-screen" style="max-width:1280px; margin:0 auto; display:flex; flex-direction:column; gap:20px;">
+
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+          <sc-for list="{{ statCards }}" as="s" hint-placeholder-count="4">
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:16px; padding:18px 18px 16px; box-shadow:var(--md-shadow-sm); display:flex; flex-direction:column; gap:12px;">
+              <div style="display:flex; align-items:center; justify-content:space-between;">
+                <span style="font-size:12.5px; color:var(--md-text-2); font-weight:600;">{{ s.label }}</span>
+                <span style="width:32px; height:32px; border-radius:9px; background:{{ s.iconBg }}; color:{{ s.iconColor }}; display:flex; align-items:center; justify-content:center;">{{ s.icon }}</span>
+              </div>
+              <div>
+                <div style="font-size:25px; font-weight:800; letter-spacing:-.03em; font-variant-numeric:tabular-nums; white-space:nowrap;">{{ s.value }}</div>
+                <div style="display:flex; align-items:center; gap:6px; margin-top:7px;">
+                  <span style="display:inline-flex; align-items:center; gap:3px; font-size:12px; font-weight:700; color:{{ s.deltaColor }};">{{ s.deltaIcon }}{{ s.delta }}</span>
+                  <span style="font-size:12px; color:var(--md-text-3);">vs last month</span>
+                </div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1.62fr 1fr; gap:20px;">
+          <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:22px; box-shadow:var(--md-shadow-sm);">
+            <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:6px;">
+              <div>
+                <div style="font-size:15px; font-weight:800; letter-spacing:-.01em;">Sales overview</div>
+                <div style="font-size:12.5px; color:var(--md-text-3); margin-top:3px;">Revenue and profit · last 30 days</div>
+              </div>
+              <div style="display:flex; gap:16px; align-items:center;">
+                <span style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--md-text-2); font-weight:600;"><span style="width:9px;height:9px;border-radius:3px;background:var(--md-primary);"></span>Revenue</span>
+                <span style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--md-text-2); font-weight:600;"><span style="width:9px;height:9px;border-radius:3px;background:#c86dd7;"></span>Profit</span>
+              </div>
+            </div>
+            {{ salesChart }}
+          </div>
+
+          <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:22px; box-shadow:var(--md-shadow-sm); display:flex; flex-direction:column;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px;">
+              <div style="font-size:15px; font-weight:800;">Marketplace overview</div>
+              <span onClick="{{ goMarketplaces }}" class="md-tap" style="font-size:12px; font-weight:700; color:var(--md-primary); cursor:pointer;">Manage</span>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:15px;">
+              <sc-for list="{{ marketplaceOverview }}" as="m" hint-placeholder-count="4">
+                <div style="display:flex; align-items:center; gap:12px;">
+                  <span style="width:30px; height:30px; border-radius:8px; background:{{ m.bg }}; color:{{ m.fg }}; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px; flex-shrink:0;">{{ m.short }}</span>
+                  <div style="flex:1; min-width:0;">
+                    <div style="display:flex; justify-content:space-between; font-size:12.5px; margin-bottom:5px;"><span style="font-weight:700;">{{ m.name }}</span><span style="color:var(--md-text-3); font-variant-numeric:tabular-nums;">{{ m.listings }} listings</span></div>
+                    <div style="height:6px; border-radius:6px; background:var(--md-surface-3); overflow:hidden;"><div style="height:100%; width:{{ m.pct }}; background:{{ m.bar }}; border-radius:6px;"></div></div>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px;">
+
+          <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:20px; box-shadow:var(--md-shadow-sm); grid-column:span 2; display:flex; flex-direction:column;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+              <div style="display:flex; align-items:center; gap:9px;">
+                <span style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#5b5bd6,#c86dd7);display:flex;align-items:center;justify-content:center;">{{ iconSparkWhite }}</span>
+                <div style="font-size:15px; font-weight:800;">Hermes AI activity</div>
+                <span style="display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; color:var(--md-success); background:var(--md-success-weak); padding:2px 9px; border-radius:20px;"><span style="width:6px;height:6px;border-radius:50%;background:var(--md-success);animation:md-pulse 1.6s infinite;"></span>Live</span>
+              </div>
+              <span onClick="{{ goHermes }}" class="md-tap" style="font-size:12px; font-weight:700; color:var(--md-primary); cursor:pointer;">View all</span>
+            </div>
+            <div style="display:flex; flex-direction:column;">
+              <sc-for list="{{ hermesFeed }}" as="h" hint-placeholder-count="4">
+                <div style="display:flex; gap:13px; padding:13px 0; border-bottom:1px solid var(--md-border);">
+                  <span style="width:34px; height:34px; border-radius:9px; background:{{ h.bg }}; color:{{ h.fg }}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ h.icon }}</span>
+                  <div style="flex:1; min-width:0;">
+                    <div style="font-size:13px; font-weight:700; display:flex; align-items:center; gap:8px;">{{ h.title }}<span style="font-size:10.5px; font-weight:700; color:{{ h.fg }}; background:{{ h.bg }}; padding:1px 7px; border-radius:6px;">{{ h.tag }}</span></div>
+                    <div style="font-size:12px; color:var(--md-text-2); margin-top:3px; line-height:1.45;">{{ h.detail }}</div>
+                  </div>
+                  <span style="font-size:11.5px; color:var(--md-text-3); white-space:nowrap; flex-shrink:0;">{{ h.time }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:20px;">
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:20px; box-shadow:var(--md-shadow-sm);">
+              <div style="font-size:15px; font-weight:800; margin-bottom:14px;">Quick actions</div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <sc-for list="{{ quickActions }}" as="q" hint-placeholder-count="4">
+                  <div class="md-tap" onClick="{{ q.go }}" style="border:1px solid var(--md-border); border-radius:13px; padding:14px 12px; display:flex; flex-direction:column; gap:9px; cursor:pointer; background:var(--md-surface);">
+                    <span style="width:32px; height:32px; border-radius:9px; background:var(--md-primary-weak); color:var(--md-primary); display:flex; align-items:center; justify-content:center;">{{ q.icon }}</span>
+                    <span style="font-size:12.5px; font-weight:700; line-height:1.2;">{{ q.label }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:20px; box-shadow:var(--md-shadow-sm); flex:1;">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                <div style="font-size:15px; font-weight:800;">Needs attention</div>
+                <span style="font-size:11px; font-weight:700; color:var(--md-warning); background:var(--md-warning-weak); padding:2px 9px; border-radius:20px;">{{ attentionCount }}</span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:12px;">
+                <sc-for list="{{ attentionItems }}" as="a" hint-placeholder-count="3">
+                  <div onClick="{{ goListing }}" class="md-tap" style="display:flex; align-items:center; gap:11px; cursor:pointer;">
+                    <span style="width:8px; height:8px; border-radius:50%; background:{{ a.dot }}; flex-shrink:0;"></span>
+                    <div style="flex:1; min-width:0;"><div style="font-size:12.5px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ a.name }}</div><div style="font-size:11.5px; color:var(--md-text-3);">{{ a.reason }}</div></div>
+                    <span style="color:var(--md-text-3); display:flex;">{{ iconChevR }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:20px 22px; box-shadow:var(--md-shadow-sm);">
+          <div style="font-size:15px; font-weight:800; margin-bottom:6px;">Recent events</div>
+          <div style="display:flex; flex-direction:column;">
+            <sc-for list="{{ recentEvents }}" as="e" hint-placeholder-count="4">
+              <div style="display:flex; align-items:center; gap:13px; padding:11px 0; border-bottom:1px solid var(--md-border);">
+                <span style="width:9px; height:9px; border-radius:50%; background:{{ e.dot }}; flex-shrink:0;"></span>
+                <span style="font-size:13px; font-weight:600; flex:1;">{{ e.text }}</span>
+                <span style="font-size:11.5px; color:var(--md-text-3); background:var(--md-surface-2); border-radius:6px; padding:2px 8px;">{{ e.source }}</span>
+                <span style="font-size:11.5px; color:var(--md-text-3); white-space:nowrap; width:70px; text-align:right;">{{ e.time }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+      </div>
+      </sc-if>
+
+      <!-- PRODUCTS -->
+      <sc-if value="{{ isProducts }}" hint-placeholder-val="{{ false }}">
+      <div class="md-screen" style="max-width:1280px; margin:0 auto; display:flex; flex-direction:column; gap:18px;">
+        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+          <div style="display:inline-flex; gap:4px; background:var(--md-surface-2); padding:4px; border-radius:12px; border:1px solid var(--md-border);">
+            <sc-for list="{{ productTabs }}" as="tb" hint-placeholder-count="4">
+              <span onClick="{{ tb.go }}" style="{{ tb.style }}">{{ tb.label }}<span style="font-size:11px; font-weight:700; background:{{ tb.cbg }}; color:{{ tb.cfg }}; padding:0 7px; border-radius:20px; min-width:20px; text-align:center;">{{ tb.count }}</span></span>
+            </sc-for>
+          </div>
+          <div style="flex:1;"></div>
+          <div style="position:relative; width:230px;">
+            <span style="position:absolute; left:11px; top:50%; transform:translateY(-50%); color:var(--md-text-3); display:flex;">{{ iconSearch }}</span>
+            <input placeholder="Search products…" style="width:100%; height:38px; border-radius:10px; border:1px solid var(--md-border); background:var(--md-surface); color:var(--md-text); padding:0 12px 0 34px; font-family:inherit; font-size:13px; outline:none;"/>
+          </div>
+          <x-import component-from-global-scope="MuiMaterial.Button" variant="outlined" color="inherit" start-icon="{{ iconFilter }}" hint-size="auto,38px" sx="{{ sxGhostBtn }}">Filters</x-import>
+          <x-import component-from-global-scope="MuiMaterial.Button" variant="outlined" color="inherit" start-icon="{{ iconSort }}" hint-size="auto,38px" sx="{{ sxGhostBtn }}">Sort</x-import>
+          <div style="display:inline-flex; border:1px solid var(--md-border); border-radius:10px; overflow:hidden;">
+            <span style="display:flex; align-items:center; justify-content:center; width:38px; height:38px; background:var(--md-surface-2); color:var(--md-primary); border-right:1px solid var(--md-border); cursor:pointer;">{{ iconList }}</span>
+            <span class="md-ib" style="display:flex; align-items:center; justify-content:center; width:38px; height:38px; background:var(--md-surface); color:var(--md-text-3); cursor:pointer;">{{ iconCards }}</span>
+          </div>
+        </div>
+
+        <sc-if value="{{ hasSel }}" hint-placeholder-val="">
+          <div style="display:flex; align-items:center; gap:14px; padding:11px 16px; background:var(--md-primary); border-radius:12px; box-shadow:var(--md-shadow);">
+            <span style="font-size:13px; font-weight:700; color:#fff;">{{ selText }}</span>
+            <div style="width:1px; height:20px; background:rgba(255,255,255,.25);"></div>
+            <x-import component-from-global-scope="MuiMaterial.Button" variant="text" size="small" start-icon="{{ iconTag }}" hint-size="auto,32px" sx="{{ sxWhiteBtn }}">Add tag</x-import>
+            <x-import component-from-global-scope="MuiMaterial.Button" variant="text" size="small" start-icon="{{ iconEdit }}" hint-size="auto,32px" sx="{{ sxWhiteBtn }}">Edit price</x-import>
+            <x-import component-from-global-scope="MuiMaterial.Button" variant="text" size="small" start-icon="{{ iconDownload }}" hint-size="auto,32px" sx="{{ sxWhiteBtn }}">Export</x-import>
+            <x-import component-from-global-scope="MuiMaterial.Button" variant="text" size="small" start-icon="{{ iconTrash }}" hint-size="auto,32px" sx="{{ sxWhiteBtn }}">Delete</x-import>
+            <div style="flex:1;"></div>
+            <span onClick="{{ clearSelFn }}" class="md-tap" style="font-size:12.5px; font-weight:700; color:#fff; cursor:pointer; opacity:.85;">Clear</span>
+          </div>
+        </sc-if>
+
+        <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:16px; box-shadow:var(--md-shadow-sm); overflow:hidden;">
+          <div style="display:grid; grid-template-columns:40px 2.4fr 1fr 0.9fr 1fr 1fr 1.1fr 1.4fr 0.9fr 40px; align-items:center; gap:10px; padding:12px 18px; border-bottom:1px solid var(--md-border); font-size:11.5px; font-weight:700; letter-spacing:.03em; color:var(--md-text-3); text-transform:uppercase;">
+            <span></span><span>Product</span><span>Status</span><span>Markets</span><span>Cost</span><span>Price</span><span>Profit</span><span>Tags</span><span>Updated</span><span></span>
+          </div>
+          <sc-for list="{{ filteredProds }}" as="p" hint-placeholder-count="8">
+            <div class="md-row" style="display:grid; grid-template-columns:40px 2.4fr 1fr 0.9fr 1fr 1fr 1.1fr 1.4fr 0.9fr 40px; align-items:center; gap:10px; padding:12px 18px; border-bottom:1px solid var(--md-border); transition:background .12s;">
+              <x-import component-from-global-scope="MuiMaterial.Checkbox" checked="{{ p.selected }}" onChange="{{ p.toggle }}" size="small" hint-size="30px,30px" sx="{{ sxCbx }}"></x-import>
+              <div onClick="{{ p.open }}" class="md-tap" style="display:flex; align-items:center; gap:12px; cursor:pointer; min-width:0; border-radius:8px;">
+                <span style="width:42px; height:42px; border-radius:10px; background:{{ p.initBg }}; color:#4b3ea8; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:14px; flex-shrink:0;">{{ p.init }}</span>
+                <div style="min-width:0;"><div style="font-size:13.5px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ p.name }}</div><div style="font-size:11.5px; color:var(--md-text-3); font-family:'JetBrains Mono',monospace;">{{ p.sku }}</div></div>
+              </div>
+              <span><span style="display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:{{ p.statusColor }}; background:{{ p.statusBg }}; padding:3px 9px; border-radius:7px;"><span style="width:6px;height:6px;border-radius:50%;background:{{ p.statusColor }};"></span>{{ p.statusLabel }}</span></span>
+              <span style="font-size:13px; color:var(--md-text-2); font-weight:600;">{{ p.mk }}</span>
+              <span style="font-size:13px; color:var(--md-text-2); font-variant-numeric:tabular-nums;">{{ p.cost }}</span>
+              <span style="font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;">{{ p.price }}</span>
+              <span style="display:flex; flex-direction:column;"><span style="font-size:13px; font-weight:700; color:var(--md-success); font-variant-numeric:tabular-nums;">{{ p.profit }}</span><span style="font-size:11px; color:var(--md-text-3);">{{ p.margin }} margin</span></span>
+              <span style="display:flex; gap:5px; flex-wrap:wrap;"><sc-for list="{{ p.tags }}" as="tg" hint-placeholder-count="2"><span style="font-size:11px; font-weight:600; color:var(--md-text-2); background:var(--md-surface-3); padding:2px 8px; border-radius:6px;">{{ tg }}</span></sc-for></span>
+              <span style="font-size:12px; color:var(--md-text-3);">{{ p.upd }}</span>
+              <span class="md-ib md-tap" style="display:flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:8px; color:var(--md-text-3); cursor:pointer;">{{ iconMore }}</span>
+            </div>
+          </sc-for>
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:13px 18px; font-size:12.5px; color:var(--md-text-3);">
+            <span>Showing {{ productCount }} products</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span class="md-ib md-tap" style="display:flex;width:30px;height:30px;border-radius:8px;align-items:center;justify-content:center;border:1px solid var(--md-border);cursor:pointer;">{{ iconChevL }}</span>
+              <span style="display:flex;width:30px;height:30px;border-radius:8px;align-items:center;justify-content:center;background:var(--md-primary);color:#fff;font-weight:700;">1</span>
+              <span class="md-ib md-tap" style="display:flex;width:30px;height:30px;border-radius:8px;align-items:center;justify-content:center;border:1px solid var(--md-border);cursor:pointer;">2</span>
+              <span class="md-ib md-tap" style="display:flex;width:30px;height:30px;border-radius:8px;align-items:center;justify-content:center;border:1px solid var(--md-border);cursor:pointer;">{{ iconChevR }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- LISTING DETAILS -->
+      <sc-if value="{{ isListing }}" hint-placeholder-val="{{ false }}">
+      <div class="md-screen" style="max-width:1220px; margin:0 auto; display:flex; flex-direction:column; gap:18px;">
+        <div onClick="{{ goProducts }}" class="md-tap" style="display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:600; color:var(--md-text-2); cursor:pointer; width:fit-content;">{{ iconChevL }}<span>Back to products</span></div>
+
+        <div style="display:grid; grid-template-columns:1.55fr 1fr; gap:20px; align-items:start;">
+          <div style="display:flex; flex-direction:column; gap:20px;">
+
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:20px; box-shadow:var(--md-shadow-sm);">
+              <div style="display:flex; gap:14px;">
+                <div style="flex:1; aspect-ratio:4/3; border-radius:14px; background:linear-gradient(135deg,#ede9fe,#e0e7ff); display:flex; align-items:center; justify-content:center; color:#8b7bd8;">{{ iconPhoto }}</div>
+                <div style="width:92px; display:flex; flex-direction:column; gap:10px;">
+                  <sc-for list="{{ lImgs }}" as="c" hint-placeholder-count="4">
+                    <div style="aspect-ratio:1; border-radius:10px; background:{{ c }}; border:1px solid var(--md-border);"></div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:22px; box-shadow:var(--md-shadow-sm);">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+                <div style="font-size:15px; font-weight:800;">Description</div>
+                <x-import component-from-global-scope="MuiMaterial.Button" variant="outlined" color="inherit" size="small" start-icon="{{ iconEdit }}" hint-size="auto,32px" sx="{{ sxGhostBtn }}">Edit</x-import>
+              </div>
+              <p style="margin:0; font-size:13.5px; line-height:1.7; color:var(--md-text-2);">Premium over-ear wireless headphones with active noise cancellation, 40-hour battery life and plush memory-foam ear cushions. Bluetooth 5.3 with multipoint pairing, USB-C fast charge, and a foldable travel design. Includes hard case and 3.5mm cable. Barely used, in excellent condition — a great value versus retail.</p>
+              <div style="display:flex; gap:7px; margin-top:16px; flex-wrap:wrap;">
+                <span style="font-size:11.5px; font-weight:600; color:var(--md-text-2); background:var(--md-surface-3); padding:3px 10px; border-radius:7px;">audio</span>
+                <span style="font-size:11.5px; font-weight:600; color:var(--md-text-2); background:var(--md-surface-3); padding:3px 10px; border-radius:7px;">wireless</span>
+                <span style="font-size:11.5px; font-weight:600; color:var(--md-primary); background:var(--md-primary-weak); padding:3px 10px; border-radius:7px;">featured</span>
+              </div>
+            </div>
+
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:22px; box-shadow:var(--md-shadow-sm);">
+              <div style="font-size:15px; font-weight:800; margin-bottom:14px;">Marketplace status</div>
+              <div style="display:flex; flex-direction:column;">
+                <sc-for list="{{ lMarketRows }}" as="m" hint-placeholder-count="4">
+                  <div style="display:grid; grid-template-columns:1.6fr 1fr 1fr 0.8fr; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid var(--md-border);">
+                    <div style="display:flex; align-items:center; gap:11px;"><span style="width:28px; height:28px; border-radius:8px; background:{{ m.bg }}; color:{{ m.fg }}; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px;">{{ m.short }}</span><span style="font-size:13px; font-weight:700;">{{ m.name }}</span></div>
+                    <span style="font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;">{{ m.price }}</span>
+                    <span style="font-size:12.5px; color:var(--md-text-3); display:inline-flex; align-items:center; gap:6px;">{{ iconEye }}{{ m.views }} views</span>
+                    <span style="justify-self:end;"><span style="font-size:11.5px; font-weight:700; color:{{ m.statusColor }}; background:{{ m.statusBg }}; padding:3px 10px; border-radius:7px;">{{ m.status }}</span></span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:22px; box-shadow:var(--md-shadow-sm);">
+              <div style="display:flex; align-items:baseline; justify-content:space-between;">
+                <div style="font-size:15px; font-weight:800;">Price history</div>
+                <div style="font-size:12.5px; color:var(--md-text-3);">Current: <span style="color:var(--md-text); font-weight:700;">329 zł</span></div>
+              </div>
+              {{ priceHistoryChart }}
+            </div>
+
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:22px; box-shadow:var(--md-shadow-sm);">
+              <div style="font-size:15px; font-weight:800; margin-bottom:16px;">Timeline</div>
+              <div style="display:flex; flex-direction:column;">
+                <sc-for list="{{ lTimeline }}" as="tl" hint-placeholder-count="4">
+                  <div style="display:flex; gap:14px; padding-bottom:18px; position:relative;">
+                    <div style="display:flex; flex-direction:column; align-items:center;"><span style="width:11px; height:11px; border-radius:50%; background:{{ tl.c }}; border:2px solid var(--md-surface); box-shadow:0 0 0 2px {{ tl.c }};"></span><span style="flex:1; width:2px; background:var(--md-border); margin-top:3px;"></span></div>
+                    <div style="flex:1; margin-top:-3px;"><div style="font-size:13px; font-weight:700;">{{ tl.t }}</div><div style="font-size:12px; color:var(--md-text-3); margin-top:2px;">{{ tl.s }}</div></div>
+                    <span style="font-size:11.5px; color:var(--md-text-3); white-space:nowrap;">{{ tl.time }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+          </div>
+
+          <div style="display:flex; flex-direction:column; gap:20px; position:sticky; top:0;">
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:20px; box-shadow:var(--md-shadow-sm);">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;">
+                <div style="font-size:13px; color:var(--md-text-3); font-weight:600;">Selling price</div>
+                <span style="font-size:11.5px; font-weight:700; color:var(--md-success); background:var(--md-success-weak); padding:3px 9px; border-radius:7px;">Active</span>
+              </div>
+              <div style="font-size:30px; font-weight:800; letter-spacing:-.03em; font-variant-numeric:tabular-nums;">329 zł</div>
+              <div style="font-size:12.5px; color:var(--md-text-3); margin-top:3px;">Cost 149 zł · Profit <span style="color:var(--md-success); font-weight:700;">180 zł</span> · 55% margin</div>
+              <div style="display:flex; gap:10px; margin-top:16px;">
+                <x-import component-from-global-scope="MuiMaterial.Button" variant="contained" disable-elevation="{{ true }}" fullWidth="{{ true }}" hint-size="100%,40px" sx="{{ sxNewBtn }}">Edit listing</x-import>
+                <x-import component-from-global-scope="MuiMaterial.Button" variant="outlined" color="inherit" hint-size="auto,40px" sx="{{ sxGhostBtn }}">Share</x-import>
+              </div>
+            </div>
+
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:20px; box-shadow:var(--md-shadow-sm);">
+              <div style="font-size:15px; font-weight:800; margin-bottom:14px;">Statistics</div>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                <sc-for list="{{ lStats }}" as="s" hint-placeholder-count="4">
+                  <div style="border:1px solid var(--md-border); border-radius:12px; padding:13px;">
+                    <div style="font-size:12px; color:var(--md-text-3); font-weight:600;">{{ s.l }}</div>
+                    <div style="font-size:20px; font-weight:800; letter-spacing:-.02em; margin-top:4px; font-variant-numeric:tabular-nums;">{{ s.v }}</div>
+                    <div style="font-size:11.5px; font-weight:700; color:{{ s.dColor }}; margin-top:2px;">{{ s.d }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="background:linear-gradient(160deg,var(--md-primary-weak),var(--md-surface)); border:1px solid var(--md-border); border-radius:18px; padding:20px; box-shadow:var(--md-shadow-sm);">
+              <div style="display:flex; align-items:center; gap:9px; margin-bottom:14px;">
+                <span style="width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#5b5bd6,#c86dd7);display:flex;align-items:center;justify-content:center;">{{ iconSparkWhite }}</span>
+                <div style="font-size:15px; font-weight:800;">Hermes recommends</div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:12px;">
+                <sc-for list="{{ lRecs }}" as="r" hint-placeholder-count="3">
+                  <div style="display:flex; gap:11px; background:var(--md-surface); border:1px solid var(--md-border); border-radius:12px; padding:12px;">
+                    <span style="width:30px; height:30px; border-radius:8px; background:var(--md-primary-weak); color:var(--md-primary); display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ r.icon }}</span>
+                    <div><div style="font-size:12.5px; font-weight:700;">{{ r.t }}</div><div style="font-size:11.5px; color:var(--md-text-2); margin-top:2px; line-height:1.4;">{{ r.d }}</div></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:20px; box-shadow:var(--md-shadow-sm);">
+              <div style="font-size:15px; font-weight:800; margin-bottom:14px;">Activity log</div>
+              <div style="display:flex; flex-direction:column; gap:14px;">
+                <sc-for list="{{ lActivity }}" as="a" hint-placeholder-count="4">
+                  <div style="display:flex; gap:11px; align-items:flex-start;">
+                    <span style="width:26px; height:26px; border-radius:50%; background:var(--md-surface-3); color:var(--md-text-2); display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:700; flex-shrink:0;">{{ a.ini }}</span>
+                    <div style="flex:1; font-size:12.5px; line-height:1.45;"><span style="font-weight:700;">{{ a.a }}</span> <span style="color:var(--md-text-2);">{{ a.t }}</span><div style="font-size:11px; color:var(--md-text-3); margin-top:1px;">{{ a.time }}</div></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- ANALYTICS -->
+      <sc-if value="{{ isAnalytics }}" hint-placeholder-val="{{ false }}">
+      <div class="md-screen" style="max-width:1280px; margin:0 auto; display:flex; flex-direction:column; gap:20px;">
+        <div style="display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:16px;">
+          <sc-for list="{{ anKpis }}" as="k" hint-placeholder-count="4">
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:16px; padding:18px; box-shadow:var(--md-shadow-sm);">
+              <div style="display:flex; align-items:center; justify-content:space-between;"><span style="font-size:12.5px; color:var(--md-text-2); font-weight:600;">{{ k.l }}</span><span style="color:var(--md-text-3); display:flex;">{{ k.icon }}</span></div>
+              <div style="font-size:24px; font-weight:800; letter-spacing:-.03em; margin-top:10px; font-variant-numeric:tabular-nums; white-space:nowrap;">{{ k.v }}</div>
+              <div style="font-size:12px; font-weight:700; color:{{ k.dColor }}; margin-top:5px;">{{ k.d }} vs last month</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:22px; box-shadow:var(--md-shadow-sm);">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between;">
+            <div><div style="font-size:15px; font-weight:800;">Revenue &amp; profit</div><div style="font-size:12.5px; color:var(--md-text-3); margin-top:3px;">Monthly · last 10 months</div></div>
+            <div style="display:flex; gap:16px; align-items:center;"><span style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--md-text-2); font-weight:600;"><span style="width:9px;height:9px;border-radius:3px;background:var(--md-primary);"></span>Revenue</span><span style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--md-text-2); font-weight:600;"><span style="width:9px;height:9px;border-radius:3px;background:#c86dd7;"></span>Profit</span></div>
+          </div>
+          {{ anRevChart }}
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:20px;">
+          <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:20px; box-shadow:var(--md-shadow-sm); min-width:0;">
+            <div style="font-size:14px; font-weight:800;">Views</div><div style="font-size:12px; color:var(--md-text-3); margin-top:2px;">42.8k total · +18%</div>
+            {{ viewsChart }}
+          </div>
+          <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:20px; box-shadow:var(--md-shadow-sm);">
+            <div style="font-size:14px; font-weight:800;">Conversion rate</div><div style="font-size:12px; color:var(--md-text-3); margin-top:2px;">3.6% avg · +0.5%</div>
+            {{ convChart }}
+          </div>
+          <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:20px; box-shadow:var(--md-shadow-sm);">
+            <div style="font-size:14px; font-weight:800; margin-bottom:6px;">Revenue by marketplace</div>
+            <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+              <div style="flex-shrink:0; position:relative;">{{ anDonut }}<div style="position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;"><span style="font-size:18px; font-weight:800;">4</span><span style="font-size:10px; color:var(--md-text-3);">markets</span></div></div>
+              <div style="display:flex; flex-direction:column; gap:8px; flex:1; min-width:120px;">
+                <div style="display:flex; align-items:center; gap:8px; font-size:12px;"><span style="width:9px;height:9px;border-radius:3px;background:#12b6ab;"></span>OLX<span style="margin-left:auto; font-weight:700; color:var(--md-text-2);">42%</span></div>
+                <div style="display:flex; align-items:center; gap:8px; font-size:12px;"><span style="width:9px;height:9px;border-radius:3px;background:#ff5a00;"></span>Allegro<span style="margin-left:auto; font-weight:700; color:var(--md-text-2);">27%</span></div>
+                <div style="display:flex; align-items:center; gap:8px; font-size:12px;"><span style="width:9px;height:9px;border-radius:3px;background:#09b1ba;"></span>Vinted<span style="margin-left:auto; font-weight:700; color:var(--md-text-2);">19%</span></div>
+                <div style="display:flex; align-items:center; gap:8px; font-size:12px;"><span style="width:9px;height:9px;border-radius:3px;background:#1877f2;"></span>Facebook<span style="margin-left:auto; font-weight:700; color:var(--md-text-2);">12%</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:20px;">
+          <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:22px; box-shadow:var(--md-shadow-sm); min-width:0;">
+            <div style="display:flex; align-items:center; gap:9px; margin-bottom:14px;"><span style="color:var(--md-success); display:flex;">{{ iconFlame }}</span><div style="font-size:15px; font-weight:800;">Best performing</div></div>
+            <div style="display:flex; flex-direction:column;">
+              <sc-for list="{{ bestProducts }}" as="b" hint-placeholder-count="4">
+                <div style="display:flex; align-items:center; gap:12px; padding:11px 0; border-bottom:1px solid var(--md-border);">
+                  <span style="width:22px; text-align:center; font-size:12px; font-weight:800; color:var(--md-text-3);">{{ b.rank }}</span>
+                  <div style="flex:1; min-width:0;"><div style="font-size:13px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ b.n }}</div><div style="font-size:11.5px; color:var(--md-text-3);">{{ b.v }}</div></div>
+                  <span style="font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;">{{ b.rev }}</span>
+                  <span style="font-size:11.5px; font-weight:700; color:var(--md-success); width:52px; text-align:right;">{{ b.up }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+          <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:22px; box-shadow:var(--md-shadow-sm);">
+            <div style="display:flex; align-items:center; gap:9px; margin-bottom:14px;"><span style="color:var(--md-danger); display:flex;">{{ iconTrendDown }}</span><div style="font-size:15px; font-weight:800;">Worst performing</div></div>
+            <div style="display:flex; flex-direction:column;">
+              <sc-for list="{{ worstProducts }}" as="w" hint-placeholder-count="4">
+                <div style="display:flex; align-items:center; gap:12px; padding:11px 0; border-bottom:1px solid var(--md-border);">
+                  <span style="width:22px; text-align:center; font-size:12px; font-weight:800; color:var(--md-text-3);">{{ w.rank }}</span>
+                  <div style="flex:1; min-width:0;"><div style="font-size:13px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ w.n }}</div><div style="font-size:11.5px; color:var(--md-text-3);">{{ w.v }}</div></div>
+                  <span style="font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;">{{ w.rev }}</span>
+                  <span style="font-size:11.5px; font-weight:700; color:var(--md-danger); width:52px; text-align:right;">{{ w.up }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:22px; box-shadow:var(--md-shadow-sm);">
+          <div style="font-size:15px; font-weight:800; margin-bottom:8px;">Marketplace comparison</div>
+          <div style="display:grid; grid-template-columns:2fr minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 1.4fr; gap:12px; padding:10px 0; border-bottom:1px solid var(--md-border); font-size:11.5px; font-weight:700; letter-spacing:.03em; color:var(--md-text-3); text-transform:uppercase;">
+            <span>Marketplace</span><span>Listings</span><span>Revenue</span><span>Conv.</span><span>Share</span>
+          </div>
+          <sc-for list="{{ mkCompare }}" as="m" hint-placeholder-count="4">
+            <div style="display:grid; grid-template-columns:2fr minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 1.4fr; gap:12px; align-items:center; padding:13px 0; border-bottom:1px solid var(--md-border);">
+              <div style="display:flex; align-items:center; gap:11px;"><span style="width:28px; height:28px; border-radius:8px; background:{{ m.bg }}; color:{{ m.fg }}; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px;">{{ m.short }}</span><span style="font-size:13px; font-weight:700;">{{ m.name }}</span></div>
+              <span style="font-size:13px; font-variant-numeric:tabular-nums;">{{ m.listings }}</span>
+              <span style="font-size:13px; font-weight:700; font-variant-numeric:tabular-nums;">{{ m.revenue }}</span>
+              <span style="font-size:13px; color:var(--md-text-2);">{{ m.conv }}</span>
+              <div style="display:flex; align-items:center; gap:9px;"><div style="flex:1; height:7px; border-radius:6px; background:var(--md-surface-3); overflow:hidden;"><div style="height:100%; width:{{ m.pctStr }}; background:{{ m.bar }}; border-radius:6px;"></div></div><span style="font-size:12px; font-weight:700; width:36px; text-align:right;">{{ m.pctStr }}</span></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- HERMES ACTIVITY -->
+      <sc-if value="{{ isHermes }}" hint-placeholder-val="{{ false }}">
+      <div class="md-screen" style="max-width:1080px; margin:0 auto; display:flex; flex-direction:column; gap:20px;">
+        <div style="display:flex; align-items:center; gap:16px; background:linear-gradient(120deg,#5b5bd6,#8b5cf6 55%,#c86dd7); border-radius:20px; padding:22px 24px; color:#fff; box-shadow:0 12px 30px rgba(91,91,214,.3);">
+          <div style="width:52px; height:52px; border-radius:14px; background:rgba(255,255,255,.16); display:flex; align-items:center; justify-content:center; backdrop-filter:blur(4px);">{{ iconSparkBig }}</div>
+          <div style="flex:1;">
+            <div style="font-size:18px; font-weight:800; display:flex; align-items:center; gap:10px;">Hermes AI<span style="display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; background:rgba(255,255,255,.2); padding:3px 10px; border-radius:20px;"><span style="width:6px;height:6px;border-radius:50%;background:#7bffb0;animation:md-pulse 1.6s infinite;"></span>Active</span></div>
+            <div style="font-size:13px; opacity:.9; margin-top:3px;">Your AI agent is monitoring 345 listings across 4 marketplaces in real time.</div>
+          </div>
+          <x-import component-from-global-scope="MuiMaterial.Button" variant="contained" disable-elevation="{{ true }}" hint-size="auto,40px" sx="{{ sxOnGradientBtn }}">Configure</x-import>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:16px;">
+          <sc-for list="{{ hermesStats }}" as="s" hint-placeholder-count="4">
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:16px; padding:16px 18px; box-shadow:var(--md-shadow-sm);">
+              <div style="font-size:12.5px; color:var(--md-text-2); font-weight:600;">{{ s.l }}</div>
+              <div style="font-size:23px; font-weight:800; letter-spacing:-.03em; margin-top:6px;">{{ s.v }}</div>
+              <div style="font-size:11.5px; color:var(--md-text-3); margin-top:2px;">{{ s.s }}</div>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="display:inline-flex; gap:4px; background:var(--md-surface-2); padding:4px; border-radius:11px; border:1px solid var(--md-border);">
+            <span style="padding:6px 13px; border-radius:8px; font-size:12.5px; font-weight:700; background:var(--md-surface); box-shadow:var(--md-shadow-sm); cursor:pointer;">All activity</span>
+            <span class="md-ib" style="padding:6px 13px; border-radius:8px; font-size:12.5px; font-weight:600; color:var(--md-text-2); cursor:pointer;">Suggestions</span>
+            <span class="md-ib" style="padding:6px 13px; border-radius:8px; font-size:12.5px; font-weight:600; color:var(--md-text-2); cursor:pointer;">Alerts</span>
+            <span class="md-ib" style="padding:6px 13px; border-radius:8px; font-size:12.5px; font-weight:600; color:var(--md-text-2); cursor:pointer;">Completed</span>
+          </div>
+          <div style="flex:1;"></div>
+          <x-import component-from-global-scope="MuiMaterial.Button" variant="outlined" color="inherit" size="small" start-icon="{{ iconFilter }}" hint-size="auto,36px" sx="{{ sxGhostBtn }}">Filter</x-import>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <sc-for list="{{ hermesAll }}" as="h" hint-placeholder-count="6">
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:16px; padding:18px 20px; box-shadow:var(--md-shadow-sm); display:flex; gap:15px;">
+              <span style="width:40px; height:40px; border-radius:11px; background:{{ h.bg }}; color:{{ h.fg }}; display:flex; align-items:center; justify-content:center; flex-shrink:0;">{{ h.icon }}</span>
+              <div style="flex:1; min-width:0;">
+                <div style="display:flex; align-items:center; gap:9px; flex-wrap:wrap;">
+                  <span style="font-size:14px; font-weight:800;">{{ h.title }}</span>
+                  <span style="font-size:10.5px; font-weight:700; color:{{ h.fg }}; background:{{ h.bg }}; padding:2px 9px; border-radius:6px;">{{ h.tag }}</span>
+                  <span style="font-size:11.5px; color:var(--md-text-3); display:inline-flex; align-items:center; gap:5px;">{{ iconClock }}{{ h.time }}</span>
+                </div>
+                <div style="font-size:13px; color:var(--md-text-2); line-height:1.5; margin-top:6px;">{{ h.detail }}</div>
+                <div style="display:flex; align-items:center; gap:10px; margin-top:13px;">
+                  <span style="font-size:11.5px; color:var(--md-text-3);">Product:</span><span style="font-size:12px; font-weight:700;">{{ h.product }}</span>
+                  <span style="margin-left:auto; font-size:11.5px; font-weight:700; color:{{ h.fg }}; display:inline-flex; align-items:center; gap:5px;"><span style="width:7px;height:7px;border-radius:50%;background:{{ h.fg }};"></span>{{ h.status }}</span>
+                </div>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:8px; justify-content:center; flex-shrink:0;">
+                <sc-if value="{{ h.actionNeeded }}" hint-placeholder-val="">
+                  <x-import component-from-global-scope="MuiMaterial.Button" variant="contained" disable-elevation="{{ true }}" size="small" start-icon="{{ iconCheck }}" hint-size="110px,34px" sx="{{ sxNewBtn }}">Approve</x-import>
+                  <x-import component-from-global-scope="MuiMaterial.Button" variant="outlined" color="inherit" size="small" hint-size="110px,34px" sx="{{ sxGhostBtn }}">Dismiss</x-import>
+                </sc-if>
+                <sc-if value="{{ h.done }}" hint-placeholder-val="">
+                  <x-import component-from-global-scope="MuiMaterial.Button" variant="outlined" color="inherit" size="small" hint-size="110px,34px" sx="{{ sxGhostBtn }}">View</x-import>
+                </sc-if>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- WIZARD -->
+      <sc-if value="{{ isWizard }}" hint-placeholder-val="{{ false }}">
+      <div class="md-screen" style="max-width:820px; margin:0 auto; display:flex; flex-direction:column; gap:24px;">
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <sc-for list="{{ wizardSteps }}" as="w" hint-placeholder-count="6">
+            <div style="display:flex; align-items:center; flex:1; min-width:0;">
+              <div onClick="{{ w.go }}" style="display:flex; flex-direction:column; align-items:center; gap:7px; cursor:pointer; flex-shrink:0;">
+                <span style="width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; {{ w.circleStyle }}"><sc-if value="{{ w.check }}" hint-placeholder-val="">{{ iconCheck }}</sc-if><sc-if value="{{ w.showNum }}" hint-placeholder-val="{{ true }}">{{ w.n }}</sc-if></span>
+                <span style="font-size:11.5px; font-weight:700; color:{{ w.labelColor }}; white-space:nowrap;">{{ w.label }}</span>
+              </div>
+              <sc-if value="{{ w.showLine }}" hint-placeholder-val="{{ true }}"><span style="flex:1; height:2px; background:{{ w.lineColor }}; margin:0 6px; margin-bottom:22px;"></span></sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:20px; padding:30px; box-shadow:var(--md-shadow);">
+          <div style="margin-bottom:22px;"><div style="font-size:19px; font-weight:800; letter-spacing:-.02em;">{{ wizardTitle }}</div><div style="font-size:13px; color:var(--md-text-3); margin-top:4px;">{{ wizardSub }}</div></div>
+
+          <sc-if value="{{ isStep0 }}" hint-placeholder-val="{{ true }}">
+            <div style="border:2px dashed var(--md-border-strong); border-radius:16px; padding:44px; display:flex; flex-direction:column; align-items:center; gap:12px; text-align:center; background:var(--md-surface-2);">
+              <span style="width:56px; height:56px; border-radius:14px; background:var(--md-primary-weak); color:var(--md-primary); display:flex; align-items:center; justify-content:center;">{{ iconPhoto }}</span>
+              <div style="font-size:15px; font-weight:700;">Drag photos here</div>
+              <div style="font-size:12.5px; color:var(--md-text-3);">or click to browse · JPG, PNG up to 12 images</div>
+              <x-import component-from-global-scope="MuiMaterial.Button" variant="contained" disable-elevation="{{ true }}" hint-size="auto,38px" sx="{{ sxNewBtn }}">Upload photos</x-import>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin-top:16px;">
+              <div style="aspect-ratio:1; border-radius:11px; background:linear-gradient(135deg,#ede9fe,#e0e7ff); border:2px solid var(--md-primary); position:relative;"><span style="position:absolute; top:4px; left:6px; font-size:9px; font-weight:800; color:var(--md-primary); background:var(--md-surface); padding:1px 6px; border-radius:5px;">Cover</span></div>
+              <div style="aspect-ratio:1; border-radius:11px; background:#f3e8ff; border:1px solid var(--md-border);"></div>
+              <div style="aspect-ratio:1; border-radius:11px; background:#eef2ff; border:1px solid var(--md-border);"></div>
+              <div style="aspect-ratio:1; border-radius:11px; background:#e0f2fe; border:1px solid var(--md-border);"></div>
+              <div style="aspect-ratio:1; border-radius:11px; background:var(--md-surface-3); border:1px dashed var(--md-border-strong); display:flex; align-items:center; justify-content:center; color:var(--md-text-3);">{{ iconPlusSm }}</div>
+              <div></div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isStep1 }}" hint-placeholder-val="">
+            <div style="display:flex; flex-direction:column; gap:18px;">
+              <x-import component-from-global-scope="MuiMaterial.TextField" label="Product name" variant="outlined" fullWidth="{{ true }}" default-value="Wireless Headphones Pro" hint-size="100%,56px"></x-import>
+              <x-import component-from-global-scope="MuiMaterial.TextField" label="Description" variant="outlined" fullWidth="{{ true }}" multiline="{{ true }}" rows="{{ 4 }}" default-value="Premium over-ear wireless headphones with active noise cancellation and 40-hour battery." hint-size="100%,120px"></x-import>
+              <div style="display:flex; gap:16px;">
+                <x-import component-from-global-scope="MuiMaterial.TextField" label="Condition" variant="outlined" fullWidth="{{ true }}" default-value="Like new" hint-size="100%,56px"></x-import>
+                <x-import component-from-global-scope="MuiMaterial.TextField" label="Brand" variant="outlined" fullWidth="{{ true }}" default-value="Generic" hint-size="100%,56px"></x-import>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isStep2 }}" hint-placeholder-val="">
+            <div style="display:flex; flex-direction:column; gap:18px;">
+              <div style="display:flex; gap:16px;">
+                <x-import component-from-global-scope="MuiMaterial.TextField" label="Cost price (zł)" variant="outlined" fullWidth="{{ true }}" default-value="149" hint-size="100%,56px"></x-import>
+                <x-import component-from-global-scope="MuiMaterial.TextField" label="Selling price (zł)" variant="outlined" fullWidth="{{ true }}" default-value="329" hint-size="100%,56px"></x-import>
+              </div>
+              <div style="display:flex; gap:14px;">
+                <div style="flex:1; background:var(--md-success-weak); border:1px solid var(--md-border); border-radius:13px; padding:16px;"><div style="font-size:12px; color:var(--md-text-2); font-weight:600;">Profit per sale</div><div style="font-size:24px; font-weight:800; color:var(--md-success); margin-top:4px;">180 zł</div></div>
+                <div style="flex:1; background:var(--md-primary-weak); border:1px solid var(--md-border); border-radius:13px; padding:16px;"><div style="font-size:12px; color:var(--md-text-2); font-weight:600;">Margin</div><div style="font-size:24px; font-weight:800; color:var(--md-primary); margin-top:4px;">55%</div></div>
+              </div>
+              <div style="display:flex; align-items:center; gap:11px; background:var(--md-surface-2); border:1px solid var(--md-border); border-radius:12px; padding:13px 15px;"><span style="color:var(--md-primary); display:flex;">{{ iconWand }}</span><span style="font-size:12.5px; color:var(--md-text-2);"><span style="font-weight:700; color:var(--md-text);">Hermes suggests 329 zł</span> — competitive within your category, projected 12-day sell-through.</span></div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isStep3 }}" hint-placeholder-val="">
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+              <sc-for list="{{ wizardCategories }}" as="c" hint-placeholder-count="6">
+                <div class="md-tap" style="border:1px solid {{ c.border }}; background:{{ c.bg }}; border-radius:13px; padding:16px; cursor:pointer; display:flex; flex-direction:column; gap:9px;"><span style="width:34px; height:34px; border-radius:9px; background:var(--md-surface); color:{{ c.color }}; display:flex; align-items:center; justify-content:center; box-shadow:var(--md-shadow-sm);">{{ c.icon }}</span><span style="font-size:13px; font-weight:700;">{{ c.name }}</span><span style="font-size:11.5px; color:var(--md-text-3);">{{ c.sub }}</span></div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isStep4 }}" hint-placeholder-val="">
+            <div style="display:flex; flex-direction:column; gap:11px;">
+              <sc-for list="{{ wizardMarkets }}" as="m" hint-placeholder-count="5">
+                <div style="display:flex; align-items:center; gap:13px; border:1px solid {{ m.rowBorder }}; background:{{ m.rowBg }}; border-radius:13px; padding:13px 16px;">
+                  <span style="width:32px; height:32px; border-radius:9px; background:{{ m.bg }}; color:{{ m.fg }}; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;">{{ m.short }}</span>
+                  <div style="flex:1;"><div style="font-size:13.5px; font-weight:700;">{{ m.name }}</div><div style="font-size:11.5px; color:var(--md-text-3);">{{ m.note }}</div></div>
+                  <x-import component-from-global-scope="MuiMaterial.Switch" checked="{{ m.checked }}" disabled="{{ m.disabled }}" hint-size="52px,38px" sx="{{ sxSwitch }}"></x-import>
+                </div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isStep5 }}" hint-placeholder-val="">
+            <div style="display:flex; gap:20px;">
+              <div style="width:150px; aspect-ratio:1; border-radius:14px; background:linear-gradient(135deg,#ede9fe,#e0e7ff); flex-shrink:0; display:flex; align-items:center; justify-content:center; color:#8b7bd8;">{{ iconPhoto }}</div>
+              <div style="flex:1;">
+                <div style="font-size:17px; font-weight:800;">Wireless Headphones Pro</div>
+                <div style="font-size:13px; color:var(--md-text-2); margin-top:4px; line-height:1.5;">Premium over-ear wireless headphones with active noise cancellation and 40-hour battery.</div>
+                <div style="display:flex; gap:22px; margin-top:16px;">
+                  <div><div style="font-size:11.5px; color:var(--md-text-3);">Price</div><div style="font-size:16px; font-weight:800;">329 zł</div></div>
+                  <div><div style="font-size:11.5px; color:var(--md-text-3);">Profit</div><div style="font-size:16px; font-weight:800; color:var(--md-success);">180 zł</div></div>
+                  <div><div style="font-size:11.5px; color:var(--md-text-3);">Category</div><div style="font-size:16px; font-weight:800;">Electronics</div></div>
+                </div>
+                <div style="margin-top:16px;"><div style="font-size:11.5px; color:var(--md-text-3); margin-bottom:7px;">Publishing to</div><div style="display:flex; gap:8px;"><span style="width:30px; height:30px; border-radius:8px; background:#e6f7f6; color:#0a7a72; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px;">OL</span><span style="width:30px; height:30px; border-radius:8px; background:#ffece1; color:#d94100; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px;">AL</span><span style="width:30px; height:30px; border-radius:8px; background:#e3f4f5; color:#0a6a72; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px;">VI</span><span style="width:30px; height:30px; border-radius:8px; background:#e8f0ff; color:#1560d6; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:11px;">FB</span></div></div>
+              </div>
+            </div>
+          </sc-if>
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between;">
+          <x-import component-from-global-scope="MuiMaterial.Button" variant="outlined" color="inherit" disabled="{{ isFirstStep }}" onClick="{{ wizardBack }}" start-icon="{{ iconChevLsm }}" hint-size="auto,42px" sx="{{ sxGhostBtn }}">Back</x-import>
+          <span style="font-size:12.5px; color:var(--md-text-3);">Step {{ wizardStepNum }} of 6</span>
+          <sc-if value="{{ isLastStep }}" hint-placeholder-val="">
+            <x-import component-from-global-scope="MuiMaterial.Button" variant="contained" disable-elevation="{{ true }}" start-icon="{{ iconCheck }}" hint-size="auto,42px" sx="{{ sxNewBtn }}">Publish product</x-import>
+          </sc-if>
+          <sc-if value="{{ notLastStep }}" hint-placeholder-val="{{ true }}">
+            <x-import component-from-global-scope="MuiMaterial.Button" variant="contained" disable-elevation="{{ true }}" onClick="{{ wizardNext }}" hint-size="auto,42px" sx="{{ sxNewBtn }}">Continue</x-import>
+          </sc-if>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- MARKETPLACES -->
+      <sc-if value="{{ isMarketplaces }}" hint-placeholder-val="{{ false }}">
+      <div class="md-screen" style="max-width:1180px; margin:0 auto; display:flex; flex-direction:column; gap:20px;">
+        <div style="display:flex; align-items:center; gap:14px; background:var(--md-surface); border:1px solid var(--md-border); border-radius:16px; padding:16px 20px; box-shadow:var(--md-shadow-sm);">
+          <span style="width:40px; height:40px; border-radius:11px; background:var(--md-success-weak); color:var(--md-success); display:flex; align-items:center; justify-content:center;">{{ iconLink }}</span>
+          <div style="flex:1;"><div style="font-size:14px; font-weight:800;">4 of 7 marketplaces connected</div><div style="font-size:12.5px; color:var(--md-text-3);">345 active listings · last full sync 2 minutes ago</div></div>
+          <x-import component-from-global-scope="MuiMaterial.Button" variant="outlined" color="inherit" start-icon="{{ iconRefreshBtn }}" hint-size="auto,38px" sx="{{ sxGhostBtn }}">Sync all</x-import>
+        </div>
+
+        <div style="display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:18px;">
+          <sc-for list="{{ mkCards }}" as="m" hint-placeholder-count="6">
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:20px; box-shadow:var(--md-shadow-sm); display:flex; flex-direction:column; gap:16px; min-width:0;">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="width:44px; height:44px; border-radius:12px; background:{{ m.bg }}; color:{{ m.fg }}; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:15px;">{{ m.short }}</span>
+                <div style="flex:1; min-width:0;"><div style="font-size:14.5px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ m.name }}</div><div style="font-size:11.5px; font-weight:700; color:{{ m.statusColor }}; display:inline-flex; align-items:center; gap:5px; margin-top:2px;"><span style="width:7px;height:7px;border-radius:50%;background:{{ m.statusColor }};{{ m.pulse }}"></span>{{ m.status }}</div></div>
+                <x-import component-from-global-scope="MuiMaterial.Switch" checked="{{ m.connected }}" hint-size="52px,38px" sx="{{ sxSwitch }}"></x-import>
+              </div>
+
+              <sc-if value="{{ m.connected }}" hint-placeholder-val="{{ true }}">
+                <div style="display:flex; flex-direction:column; gap:11px;">
+                  <div style="display:flex; align-items:center; justify-content:space-between; font-size:12.5px;"><span style="color:var(--md-text-2);">Listings</span><span style="font-weight:700; font-variant-numeric:tabular-nums;">{{ m.listings }}</span></div>
+                  <div style="display:flex; align-items:center; justify-content:space-between; font-size:12.5px;"><span style="color:var(--md-text-2);">Synchronization</span><span style="font-weight:700; color:var(--md-success); display:inline-flex; align-items:center; gap:5px;">{{ iconCheck2 }}Auto</span></div>
+                  <div style="display:flex; align-items:center; justify-content:space-between; font-size:12.5px;"><span style="color:var(--md-text-2);">Errors</span><span style="font-weight:700; color:{{ m.errColor }};">{{ m.errText }}</span></div>
+                  <div style="display:flex; align-items:center; justify-content:space-between; font-size:12.5px;"><span style="color:var(--md-text-2);">Last sync</span><span style="font-weight:700; color:var(--md-text-3);">{{ m.sync }}</span></div>
+                </div>
+                <x-import component-from-global-scope="MuiMaterial.Button" variant="outlined" color="inherit" fullWidth="{{ true }}" start-icon="{{ iconSettingsBtn }}" hint-size="100%,38px" sx="{{ sxGhostBtn }}">Configure</x-import>
+              </sc-if>
+
+              <sc-if value="{{ m.disconnected }}" hint-placeholder-val="">
+                <div style="padding:14px 0; text-align:center;">
+                  <div style="font-size:12.5px; color:var(--md-text-3); line-height:1.5;">Connect your {{ m.name }} account to start publishing listings automatically.</div>
+                </div>
+                <x-import component-from-global-scope="MuiMaterial.Button" variant="contained" disable-elevation="{{ true }}" fullWidth="{{ true }}" start-icon="{{ iconLinkBtn }}" hint-size="100%,38px" sx="{{ sxNewBtn }}">Connect</x-import>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- SETTINGS -->
+      <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+      <div class="md-screen" style="max-width:1120px; margin:0 auto; display:grid; grid-template-columns:236px 1fr; gap:26px; align-items:start;">
+        <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:16px; padding:10px; box-shadow:var(--md-shadow-sm); display:flex; flex-direction:column; gap:2px; position:sticky; top:0;">
+          <sc-for list="{{ settingsNav }}" as="s" hint-placeholder-count="8">
+            <div onClick="{{ s.go }}" style="{{ s.style }}"><span style="display:flex; width:18px; height:18px;">{{ s.icon }}</span><span>{{ s.label }}</span></div>
+          </sc-for>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:20px;">
+
+          <sc-if value="{{ isSetGeneral }}" hint-placeholder-val="{{ true }}">
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:26px; box-shadow:var(--md-shadow-sm);">
+              <div style="font-size:16px; font-weight:800; margin-bottom:4px;">General</div>
+              <div style="font-size:12.5px; color:var(--md-text-3); margin-bottom:22px;">Basic workspace configuration.</div>
+              <div style="display:flex; flex-direction:column; gap:18px;">
+                <x-import component-from-global-scope="MuiMaterial.TextField" label="Workspace name" variant="outlined" fullWidth="{{ true }}" default-value="MarketDesk Pro" hint-size="100%,56px"></x-import>
+                <div style="display:flex; gap:16px;">
+                  <x-import component-from-global-scope="MuiMaterial.TextField" label="Default currency" variant="outlined" fullWidth="{{ true }}" default-value="PLN — Polish złoty" hint-size="100%,56px"></x-import>
+                  <x-import component-from-global-scope="MuiMaterial.TextField" label="Timezone" variant="outlined" fullWidth="{{ true }}" default-value="Europe/Warsaw (GMT+1)" hint-size="100%,56px"></x-import>
+                </div>
+                <x-import component-from-global-scope="MuiMaterial.TextField" label="Language" variant="outlined" fullWidth="{{ true }}" default-value="English" hint-size="100%,56px"></x-import>
+              </div>
+              <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:24px;">
+                <x-import component-from-global-scope="MuiMaterial.Button" variant="outlined" color="inherit" hint-size="auto,40px" sx="{{ sxGhostBtn }}">Cancel</x-import>
+                <x-import component-from-global-scope="MuiMaterial.Button" variant="contained" disable-elevation="{{ true }}" hint-size="auto,40px" sx="{{ sxNewBtn }}">Save changes</x-import>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isSetAi }}" hint-placeholder-val="">
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:26px; box-shadow:var(--md-shadow-sm);">
+              <div style="font-size:16px; font-weight:800; margin-bottom:4px;">Hermes AI</div>
+              <div style="font-size:12.5px; color:var(--md-text-3); margin-bottom:22px;">Control how autonomous your AI agent is.</div>
+              <div style="font-size:12.5px; font-weight:700; margin-bottom:10px;">Autonomy level</div>
+              <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:22px;">
+                <div style="border:1px solid var(--md-border); border-radius:12px; padding:14px;"><div style="font-size:13px; font-weight:700;">Suggest only</div><div style="font-size:11.5px; color:var(--md-text-3); margin-top:3px;">Nothing changes without approval</div></div>
+                <div style="border:2px solid var(--md-primary); background:var(--md-primary-weak); border-radius:12px; padding:14px;"><div style="font-size:13px; font-weight:700; color:var(--md-primary);">Balanced</div><div style="font-size:11.5px; color:var(--md-text-2); margin-top:3px;">Auto-run safe tasks, ask on pricing</div></div>
+                <div style="border:1px solid var(--md-border); border-radius:12px; padding:14px;"><div style="font-size:13px; font-weight:700;">Full auto</div><div style="font-size:11.5px; color:var(--md-text-3); margin-top:3px;">Hermes acts on everything</div></div>
+              </div>
+              <sc-for list="{{ aiToggles }}" as="t" hint-placeholder-count="4">
+                <div style="display:flex; align-items:center; gap:14px; padding:14px 0; border-top:1px solid var(--md-border);"><div style="flex:1;"><div style="font-size:13.5px; font-weight:700;">{{ t.t }}</div><div style="font-size:12px; color:var(--md-text-3); margin-top:2px;">{{ t.d }}</div></div><x-import component-from-global-scope="MuiMaterial.Switch" checked="{{ t.on }}" hint-size="52px,38px" sx="{{ sxSwitch }}"></x-import></div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isSetNotif }}" hint-placeholder-val="">
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:26px; box-shadow:var(--md-shadow-sm);">
+              <div style="font-size:16px; font-weight:800; margin-bottom:4px;">Notifications</div>
+              <div style="font-size:12.5px; color:var(--md-text-3); margin-bottom:14px;">Choose what you get notified about.</div>
+              <div style="display:grid; grid-template-columns:1fr 70px 70px 80px; gap:8px; padding:10px 0; border-bottom:1px solid var(--md-border); font-size:11px; font-weight:700; color:var(--md-text-3); text-transform:uppercase;"><span>Event</span><span style="text-align:center;">Email</span><span style="text-align:center;">Push</span><span style="text-align:center;">Telegram</span></div>
+              <sc-for list="{{ notifRows }}" as="n" hint-placeholder-count="5">
+                <div style="display:grid; grid-template-columns:1fr 70px 70px 80px; gap:8px; align-items:center; padding:10px 0; border-bottom:1px solid var(--md-border);"><span style="font-size:13px; font-weight:600;">{{ n.t }}</span><span style="text-align:center;"><x-import component-from-global-scope="MuiMaterial.Checkbox" checked="{{ n.email }}" size="small" hint-size="30px,30px" sx="{{ sxCbx }}"></x-import></span><span style="text-align:center;"><x-import component-from-global-scope="MuiMaterial.Checkbox" checked="{{ n.push }}" size="small" hint-size="30px,30px" sx="{{ sxCbx }}"></x-import></span><span style="text-align:center;"><x-import component-from-global-scope="MuiMaterial.Checkbox" checked="{{ n.tg }}" size="small" hint-size="30px,30px" sx="{{ sxCbx }}"></x-import></span></div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isSetAccounts }}" hint-placeholder-val="">
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:26px; box-shadow:var(--md-shadow-sm);">
+              <div style="font-size:16px; font-weight:800; margin-bottom:4px;">Marketplace Accounts</div>
+              <div style="font-size:12.5px; color:var(--md-text-3); margin-bottom:18px;">Linked seller accounts and their scopes.</div>
+              <sc-for list="{{ settingsMarketRows }}" as="m" hint-placeholder-count="4">
+                <div style="display:flex; align-items:center; gap:13px; padding:14px 0; border-top:1px solid var(--md-border);"><span style="width:36px; height:36px; border-radius:10px; background:{{ m.bg }}; color:{{ m.fg }}; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:12px;">{{ m.short }}</span><div style="flex:1;"><div style="font-size:13.5px; font-weight:700;">{{ m.name }}</div><div style="font-size:11.5px; color:var(--md-text-3);">{{ m.account }}</div></div><span style="font-size:11.5px; font-weight:700; color:{{ m.statusColor }}; background:{{ m.statusBg }}; padding:3px 10px; border-radius:7px;">{{ m.statusLabel }}</span><x-import component-from-global-scope="MuiMaterial.Button" variant="text" color="inherit" size="small" hint-size="auto,32px" sx="{{ sxTextBtn }}">Manage</x-import></div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isSetApi }}" hint-placeholder-val="">
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:26px; box-shadow:var(--md-shadow-sm);">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:18px;"><div><div style="font-size:16px; font-weight:800;">API Keys</div><div style="font-size:12.5px; color:var(--md-text-3); margin-top:2px;">Programmatic access to your MarketDesk data.</div></div><x-import component-from-global-scope="MuiMaterial.Button" variant="contained" disable-elevation="{{ true }}" start-icon="{{ iconKey }}" hint-size="auto,38px" sx="{{ sxNewBtn }}">Generate key</x-import></div>
+              <sc-for list="{{ apiKeys }}" as="k" hint-placeholder-count="3">
+                <div style="display:flex; align-items:center; gap:13px; padding:14px 0; border-top:1px solid var(--md-border);"><div style="flex:1; min-width:0;"><div style="font-size:13.5px; font-weight:700;">{{ k.name }}</div><div style="font-size:12px; color:var(--md-text-3); font-family:'JetBrains Mono',monospace; margin-top:3px;">{{ k.key }}</div></div><span style="font-size:11.5px; color:var(--md-text-3);">{{ k.created }}</span><span class="md-ib md-tap" style="display:flex; width:32px; height:32px; border-radius:8px; align-items:center; justify-content:center; border:1px solid var(--md-border); color:var(--md-text-2); cursor:pointer;">{{ iconCopy }}</span></div>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isSetAppear }}" hint-placeholder-val="">
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:26px; box-shadow:var(--md-shadow-sm);">
+              <div style="font-size:16px; font-weight:800; margin-bottom:4px;">Appearance</div>
+              <div style="font-size:12.5px; color:var(--md-text-3); margin-bottom:20px;">Personalize how MarketDesk looks.</div>
+              <div style="font-size:12.5px; font-weight:700; margin-bottom:10px;">Theme</div>
+              <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:24px;">
+                <div onClick="{{ setLight }}" style="border:2px solid {{ lightSel }}; border-radius:13px; padding:6px; cursor:pointer;"><div style="height:64px; border-radius:9px; background:#f6f7f9; border:1px solid #e7e9ef; display:flex; padding:6px; gap:4px;"><div style="width:16px; background:#fff; border-radius:4px; border:1px solid #e7e9ef;"></div><div style="flex:1; background:#fff; border-radius:4px; border:1px solid #e7e9ef;"></div></div><div style="font-size:12.5px; font-weight:700; text-align:center; padding:8px 0 4px;">Light</div></div>
+                <div onClick="{{ setDark }}" style="border:2px solid {{ darkSel }}; border-radius:13px; padding:6px; cursor:pointer;"><div style="height:64px; border-radius:9px; background:#0c0d11; border:1px solid #25272f; display:flex; padding:6px; gap:4px;"><div style="width:16px; background:#16171d; border-radius:4px; border:1px solid #25272f;"></div><div style="flex:1; background:#16171d; border-radius:4px; border:1px solid #25272f;"></div></div><div style="font-size:12.5px; font-weight:700; text-align:center; padding:8px 0 4px;">Dark</div></div>
+                <div style="border:2px solid var(--md-border); border-radius:13px; padding:6px; cursor:pointer;"><div style="height:64px; border-radius:9px; background:linear-gradient(90deg,#f6f7f9 50%,#0c0d11 50%); border:1px solid var(--md-border);"></div><div style="font-size:12.5px; font-weight:700; text-align:center; padding:8px 0 4px;">System</div></div>
+              </div>
+              <div style="font-size:12.5px; font-weight:700; margin-bottom:10px;">Accent color</div>
+              <div style="display:flex; gap:12px;">
+                <span style="width:34px; height:34px; border-radius:10px; background:#5b5bd6; box-shadow:0 0 0 2px var(--md-surface),0 0 0 4px #5b5bd6; cursor:pointer;"></span>
+                <span style="width:34px; height:34px; border-radius:10px; background:#2b7fd4; cursor:pointer;"></span>
+                <span style="width:34px; height:34px; border-radius:10px; background:#1c9c6b; cursor:pointer;"></span>
+                <span style="width:34px; height:34px; border-radius:10px; background:#191b23; cursor:pointer;"></span>
+                <span style="width:34px; height:34px; border-radius:10px; background:#d1435b; cursor:pointer;"></span>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isSetTelegram }}" hint-placeholder-val="">
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:26px; box-shadow:var(--md-shadow-sm);">
+              <div style="display:flex; align-items:center; gap:13px; margin-bottom:20px;"><span style="width:44px; height:44px; border-radius:12px; background:#e6f2fb; color:#2b7fd4; display:flex; align-items:center; justify-content:center;">{{ iconTelegram }}</span><div><div style="font-size:16px; font-weight:800;">Telegram</div><div style="font-size:12.5px; color:var(--md-text-3);">Get alerts and manage listings from a chat.</div></div><span style="margin-left:auto; font-size:11.5px; font-weight:700; color:var(--md-success); background:var(--md-success-weak); padding:4px 11px; border-radius:20px;">Connected</span></div>
+              <div style="display:flex; flex-direction:column; gap:16px;">
+                <x-import component-from-global-scope="MuiMaterial.TextField" label="Bot" variant="outlined" fullWidth="{{ true }}" default-value="@marketdesk_bot" hint-size="100%,56px"></x-import>
+                <x-import component-from-global-scope="MuiMaterial.TextField" label="Chat ID" variant="outlined" fullWidth="{{ true }}" default-value="8842019" hint-size="100%,56px"></x-import>
+              </div>
+              <div style="margin-top:18px;">
+                <sc-for list="{{ telegramToggles }}" as="t" hint-placeholder-count="3">
+                  <div style="display:flex; align-items:center; gap:14px; padding:13px 0; border-top:1px solid var(--md-border);"><span style="font-size:13.5px; font-weight:600; flex:1;">{{ t.t }}</span><x-import component-from-global-scope="MuiMaterial.Switch" checked="{{ t.on }}" hint-size="52px,38px" sx="{{ sxSwitch }}"></x-import></div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isSetSecurity }}" hint-placeholder-val="">
+            <div style="background:var(--md-surface); border:1px solid var(--md-border); border-radius:18px; padding:26px; box-shadow:var(--md-shadow-sm);">
+              <div style="font-size:16px; font-weight:800; margin-bottom:4px;">Security</div>
+              <div style="font-size:12.5px; color:var(--md-text-3); margin-bottom:20px;">Protect your account and data.</div>
+              <div style="display:flex; align-items:center; gap:14px; padding:16px 0; border-top:1px solid var(--md-border);"><div style="flex:1;"><div style="font-size:13.5px; font-weight:700;">Password</div><div style="font-size:12px; color:var(--md-text-3); margin-top:2px;">Last changed 3 months ago</div></div><x-import component-from-global-scope="MuiMaterial.Button" variant="outlined" color="inherit" size="small" hint-size="auto,34px" sx="{{ sxGhostBtn }}">Change</x-import></div>
+              <div style="display:flex; align-items:center; gap:14px; padding:16px 0; border-top:1px solid var(--md-border);"><div style="flex:1;"><div style="font-size:13.5px; font-weight:700; display:flex; align-items:center; gap:8px;">Two-factor authentication<span style="font-size:10.5px; font-weight:700; color:var(--md-success); background:var(--md-success-weak); padding:1px 8px; border-radius:6px;">On</span></div><div style="font-size:12px; color:var(--md-text-3); margin-top:2px;">Authenticator app enabled</div></div><x-import component-from-global-scope="MuiMaterial.Switch" checked="{{ true }}" hint-size="52px,38px" sx="{{ sxSwitch }}"></x-import></div>
+              <div style="display:flex; align-items:center; gap:14px; padding:16px 0; border-top:1px solid var(--md-border);"><div style="flex:1;"><div style="font-size:13.5px; font-weight:700;">Active sessions</div><div style="font-size:12px; color:var(--md-text-3); margin-top:2px;">2 devices · Warsaw, Kraków</div></div><x-import component-from-global-scope="MuiMaterial.Button" variant="text" color="error" size="small" hint-size="auto,34px" sx="{{ sxTextBtn }}">Sign out all</x-import></div>
+            </div>
+          </sc-if>
+
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- SCREENS_ANCHOR -->
+
+    </main>
+  </div>
+</div>
+</x-import>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:940}}">
+class Component extends DCLogic {
+  state = { ready:false, dark:false, screen:'dashboard', wizardStep:0, productTab:'all', selected:[], settingsTab:'general' };
+
+  componentDidMount(){
+    const check=()=>{ if(window.MuiMaterial&&window.MuiMaterial.createTheme){ this.setState({ready:true}); } else { setTimeout(check,40); } };
+    check();
+    this._applyTheme();
+  }
+  componentDidUpdate(){ this._applyTheme(); }
+  _applyTheme(){ try{ document.documentElement.setAttribute('data-theme', this.state.dark?'dark':'light'); }catch(e){} }
+
+  // ---------- icons ----------
+  _svg(paths, size, sw){
+    return React.createElement('svg',{width:size||20,height:size||20,viewBox:'0 0 24 24',fill:'none',stroke:'currentColor',strokeWidth:sw||1.7,strokeLinecap:'round',strokeLinejoin:'round'},
+      paths.map((p,i)=>typeof p==='string'?React.createElement('path',{key:i,d:p}):React.createElement(p.t,{key:i,...p.a})));
+  }
+  ic(name,size,sw){
+    const P={
+      dashboard:['M4 4h7v7H4z','M13 4h7v7h-7z','M13 13h7v7h-7z','M4 13h7v7H4z'],
+      products:['M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z','M3.3 7 12 12l8.7-5','M12 22V12'],
+      analytics:['M3 3v18h18','M7 15l3-4 3 3 4-6'],
+      hermes:['M12 3l1.9 5.6L19.5 10l-5.6 1.4L12 17l-1.9-5.6L4.5 10l5.6-1.4z',{t:'circle',a:{cx:18.5,cy:5.5,r:1.4}}],
+      store:['M3 9l1.2-5h15.6L21 9','M4.5 9v10.5a.5.5 0 0 0 .5.5h14a.5.5 0 0 0 .5-.5V9','M9 20v-5.5h6V20','M3 9h18'],
+      settings:[{t:'circle',a:{cx:12,cy:12,r:3}},'M19.4 13a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 0 1-4 0v-.2a1.6 1.6 0 0 0-2.7-1.1l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H3a2 2 0 0 1 0-4h.2a1.6 1.6 0 0 0 1.1-2.7l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 2.7-1.1V3a2 2 0 0 1 4 0v.2a1.6 1.6 0 0 0 2.7 1.1l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8Z'],
+      search:[{t:'circle',a:{cx:11,cy:11,r:7}},'M21 21l-4.3-4.3'],
+      bell:['M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9','M10.3 21a1.9 1.9 0 0 0 3.4 0'],
+      plus:['M12 5v14','M5 12h14'],
+      sun:[{t:'circle',a:{cx:12,cy:12,r:4}},'M12 2v2','M12 20v2','M4.9 4.9l1.4 1.4','M17.7 17.7l1.4 1.4','M2 12h2','M20 12h2','M4.9 19.1l1.4-1.4','M17.7 6.3l1.4-1.4'],
+      moon:['M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z'],
+      chevrons:['M7 15l5 5 5-5','M7 9l5-5 5 5'],
+      chevR:['M9 18l6-6-6-6'],
+      chevL:['M15 18l-6-6 6-6'],
+      chevD:['M6 9l6 6 6-6'],
+      revenue:['M12 2v20','M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'],
+      profit:['M3 17l6-6 4 4 8-8','M17 7h4v4'],
+      box:['M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z','M3.3 7 12 12l8.7-5','M12 22V12'],
+      alert:['M12 9v4','M12 17h.01','M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z'],
+      edit:['M12 20h9','M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z'],
+      tag:['M20.6 13.4 12 22 3.4 13.4A2 2 0 0 1 3 12V4a1 1 0 0 1 1-1h8a2 2 0 0 1 1.4.6l6.2 6.2a2 2 0 0 1 0 2.6z',{t:'circle',a:{cx:7.5,cy:7.5,r:1}}],
+      trendDown:['M3 7l6 6 4-4 8 8','M21 17v-4h-4'],
+      eye:['M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z',{t:'circle',a:{cx:12,cy:12,r:3}}],
+      clock:[{t:'circle',a:{cx:12,cy:12,r:9}},'M12 7v5l3 2'],
+      copy:['M8 8h11a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z','M4 16V4a1 1 0 0 1 1-1h10'],
+      check:['M20 6L9 17l-5-5'],
+      photo:['M3 5h18v14H3z','M3 15l5-5 4 4 3-3 6 6',{t:'circle',a:{cx:8.5,cy:8.5,r:1.5}}],
+      layers:['M12 2 2 7l10 5 10-5-10-5z','M2 17l10 5 10-5','M2 12l10 5 10-5'],
+      dollar:['M12 1v22','M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6'],
+      grid:['M4 4h7v7H4z','M13 4h7v7h-7z','M13 13h7v7h-7z','M4 13h7v7H4z'],
+      shield:['M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'],
+      bell2:['M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9'],
+      send:['M22 2 11 13','M22 2 15 22l-4-9-9-4 20-7z'],
+      key:['M15.5 8.5a4.5 4.5 0 1 1-6.4 6.4L3 21l1-4 4.1-4.1a4.5 4.5 0 0 1 7.4-4.4z',{t:'circle',a:{cx:16.5,cy:7.5,r:1}}],
+      palette:[{t:'circle',a:{cx:13.5,cy:6.5,r:1.3}},{t:'circle',a:{cx:17.5,cy:10.5,r:1.3}},{t:'circle',a:{cx:8.5,cy:7.5,r:1.3}},{t:'circle',a:{cx:6.5,cy:12.5,r:1.3}},'M12 2a10 10 0 0 0 0 20 2.5 2.5 0 0 0 2-4 2.5 2.5 0 0 1 2-4h1a5 5 0 0 0 5-5 10 10 0 0 0-10-7z'],
+      sliders:['M4 21v-7','M4 10V3','M12 21v-9','M12 8V3','M20 21v-5','M20 12V3','M1 14h6','M9 8h6','M17 16h6'],
+      link:['M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1','M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1'],
+      refresh:['M21 12a9 9 0 1 1-3-6.7L21 8','M21 3v5h-5'],
+      x:['M18 6 6 18','M6 6l12 12'],
+      filter:['M4 4h16l-6.5 8v6l-3 2v-8L4 4z'],
+      sort:['M11 5h10','M11 9h7','M11 13h4','M3 17l3 3 3-3','M6 6v14'],
+      download:['M12 3v12','M7 10l5 5 5-5','M4 21h16'],
+      list:['M8 6h13','M8 12h13','M8 18h13','M3 6h.01','M3 12h.01','M3 18h.01'],
+      cards:['M3 4h8v7H3z','M13 4h8v7h-8z','M3 13h8v7H3z','M13 13h8v7h-8z'],
+      wand:['M15 4V2','M15 16v-2','M8 9h2','M20 9h2','M17.8 11.8 19 13','M15 9 3 21','M12.2 6.2 11 5','M17.8 6.2 19 5'],
+      more:[{t:'circle',a:{cx:12,cy:5,r:1}},{t:'circle',a:{cx:12,cy:12,r:1}},{t:'circle',a:{cx:12,cy:19,r:1}}],
+      arrowUp:['M12 19V5','M6 11l6-6 6 6'],
+      arrowDown:['M12 5v14','M6 13l6 6 6-6'],
+      telegram:['M22 3 2 11l6 2 2 6 3-4 5 4z'],
+      globe:[{t:'circle',a:{cx:12,cy:12,r:9}},'M3 12h18','M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z'],
+      lock:['M5 11h14v10H5z','M8 11V7a4 4 0 0 1 8 0v4'],
+      trash:['M3 6h18','M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2','M6 6l1 14a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-14'],
+      flame:['M12 2s5 4 5 9a5 5 0 0 1-10 0c0-2 1-3 1-3s0 2 2 2c1.5 0 1-4 2-5 1 1 0 0 0 0z']
+    };
+    return this._svg(P[name]||P.box,size,sw);
+  }
+
+  fmt(n){ return new Intl.NumberFormat('pl-PL').format(Math.round(n)); }
+  zl(n){ return this.fmt(n)+' zł'; }
+
+  go(s){ return ()=>this.setState({screen:s, wizardStep:0}); }
+  toggleTheme(){ this.setState(s=>({dark:!s.dark})); }
+  setProductTab(t){ return ()=>this.setState({productTab:t}); }
+  toggleSel(sku){ return ()=>this.setState(s=>({ selected: s.selected.includes(sku)? s.selected.filter(x=>x!==sku): [...s.selected,sku] })); }
+  clearSel(){ this.setState({selected:[]}); }
+  wizardNext(){ this.setState(s=>({wizardStep:Math.min(5,s.wizardStep+1)})); }
+  wizardBack(){ this.setState(s=>({wizardStep:Math.max(0,s.wizardStep-1)})); }
+  wizardGo(i){ return ()=>this.setState({wizardStep:i}); }
+  setSettingsTab(t){ return ()=>this.setState({settingsTab:t}); }
+
+  buildTheme(){
+    const M=window.MuiMaterial; if(!M) return undefined; const d=this.state.dark;
+    return M.createTheme({
+      palette:{ mode:d?'dark':'light',
+        primary:{ main:d?'#8b8bf2':'#5b5bd6', contrastText:'#ffffff' },
+        secondary:{ main:'#c86dd7' },
+        success:{ main:d?'#3ecf8e':'#1c9c6b' }, warning:{ main:d?'#e0a94a':'#c67a12' },
+        error:{ main:d?'#f2647d':'#d1435b' }, info:{ main:d?'#5aa9f0':'#2b7fd4' },
+        background:{ default:d?'#0c0d11':'#f6f7f9', paper:d?'#16171d':'#ffffff' },
+        text:{ primary:d?'#eceef4':'#191b23', secondary:d?'#a4a9b8':'#5b606e' },
+        divider:d?'#25272f':'#e7e9ef'
+      },
+      shape:{ borderRadius:11 },
+      typography:{ fontFamily:'"Manrope",system-ui,-apple-system,sans-serif', fontWeightBold:800, button:{ textTransform:'none', fontWeight:700 } },
+      components:{ MuiButton:{ styleOverrides:{ root:{ borderRadius:10 } } }, MuiChip:{ styleOverrides:{ root:{ fontWeight:600 } } } }
+    });
+  }
+
+  // shared data ------------------------------------------------------------
+  markets(){
+    return [
+      { key:'olx', name:'OLX', short:'OL', bg:'#e6f7f6', fg:'#0a7a72', bar:'#12b6ab', listings:142, cap:150, connected:true, status:'Synced', errors:0, sync:'2 min ago' },
+      { key:'allegro', name:'Allegro', short:'AL', bg:'#ffece1', fg:'#d94100', bar:'#ff5a00', listings:98, cap:150, connected:true, status:'2 errors', errors:2, sync:'5 min ago' },
+      { key:'vinted', name:'Vinted', short:'VI', bg:'#e3f4f5', fg:'#0a6a72', bar:'#09b1ba', listings:64, cap:150, connected:true, status:'Syncing…', errors:0, sync:'now' },
+      { key:'fb', name:'Facebook Marketplace', short:'FB', bg:'#e8f0ff', fg:'#1560d6', bar:'#1877f2', listings:41, cap:150, connected:true, status:'1 error', errors:1, sync:'12 min ago' },
+      { key:'ebay', name:'eBay', short:'EB', bg:'#fdeef0', fg:'#c62436', bar:'#e53238', listings:0, cap:150, connected:false, status:'Not connected', errors:0, sync:'—' },
+      { key:'etsy', name:'Etsy', short:'ET', bg:'#ffefe3', fg:'#d15400', bar:'#f56400', listings:0, cap:150, connected:false, status:'Not connected', errors:0, sync:'—' },
+      { key:'amazon', name:'Amazon', short:'AM', bg:'#fff3df', fg:'#b06d00', bar:'#ff9900', listings:0, cap:150, connected:false, status:'Not connected', errors:0, sync:'—' }
+    ];
+  }
+  products(){
+    const c=(name,cost,price,mk,status,tags,upd,views,initBg)=>({name,sku:'SKU-'+Math.abs(this._hash(name)).toString().slice(0,5),cost,price,profit:price-cost,mk,status,tags,upd,views,initBg,init:name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase()});
+    return [
+      c('Wireless Headphones Pro',149,329,4,'active',['audio','featured'],'2h ago',1284,'#ede9fe'),
+      c('Vintage Denim Jacket',60,189,3,'active',['fashion','vintage'],'5h ago',742,'#fee2e2'),
+      c('Mechanical Keyboard 75%',95,249,2,'attention',['tech','keyboard'],'1d ago',998,'#dbeafe'),
+      c('Ceramic Plant Pot Set',28,79,4,'active',['home','decor'],'3h ago',430,'#dcfce7'),
+      c('Leather Weekend Bag',120,299,1,'draft',['fashion','leather'],'6h ago',0,'#fef3c7'),
+      c('Smart LED Strip 5m',22,69,3,'active',['home','smart'],'8h ago',611,'#fae8ff'),
+      c('Running Shoes GT-2',88,199,2,'attention',['sport','shoes'],'2d ago',356,'#e0f2fe'),
+      c('Espresso Machine Mini',210,459,3,'active',['kitchen','coffee'],'12h ago',889,'#ffe4e6'),
+      c('Wooden Desk Organizer',18,49,2,'sold',['home','office'],'1d ago',204,'#f0fdf4'),
+      c('Bluetooth Speaker Cube',44,119,4,'active',['audio','portable'],'4h ago',527,'#ecfeff')
+    ];
+  }
+  _hash(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h<<5)-h+s.charCodeAt(i); h|=0; } return h; }
+
+  statusChip(status){
+    const map={ active:{l:'Active',c:'var(--md-success)',b:'var(--md-success-weak)'}, draft:{l:'Draft',c:'var(--md-text-2)',b:'var(--md-surface-3)'}, attention:{l:'Attention',c:'var(--md-warning)',b:'var(--md-warning-weak)'}, sold:{l:'Sold',c:'var(--md-info)',b:'var(--md-info-weak)'} };
+    return map[status]||map.draft;
+  }
+
+  hermesEvents(){
+    return [
+      { type:'Created listing', title:'Created listing on Vinted', tag:'Created', sev:'success', status:'Completed', detail:'Auto-published "Bluetooth Speaker Cube" to Vinted with optimized title and 6 photos.', product:'Bluetooth Speaker Cube', time:'2 min ago', icon:'plus' },
+      { type:'Competitor price detected', title:'Competitor price drop detected', tag:'Alert', sev:'critical', status:'Action needed', detail:'A competing "Mechanical Keyboard 75%" listing dropped to 219 zł — 30 zł below yours on Allegro.', product:'Mechanical Keyboard 75%', time:'18 min ago', icon:'alert' },
+      { type:'Suggested lower price', title:'Suggested lower price', tag:'Suggestion', sev:'warning', status:'Pending review', detail:'Views up 40% but 0 sales in 7 days. Hermes suggests lowering "Running Shoes GT-2" from 199 zł to 179 zł.', product:'Running Shoes GT-2', time:'44 min ago', icon:'trendDown' },
+      { type:'Suggested better title', title:'Suggested a better title', tag:'Suggestion', sev:'info', status:'Pending review', detail:'Rewrote "Espresso Machine Mini" title for SEO: added "15 Bar · Milk Frother · Compact".', product:'Espresso Machine Mini', time:'1h ago', icon:'wand' },
+      { type:'Updated description', title:'Updated description', tag:'Updated', sev:'success', status:'Completed', detail:'Refreshed "Ceramic Plant Pot Set" description across 4 marketplaces with unified copy.', product:'Ceramic Plant Pot Set', time:'2h ago', icon:'edit' },
+      { type:'Needs relisting', title:'Listing expired — needs relisting', tag:'Alert', sev:'warning', status:'Action needed', detail:'"Leather Weekend Bag" expired on OLX after 30 days. Relist to keep visibility.', product:'Leather Weekend Bag', time:'3h ago', icon:'refresh' },
+      { type:'Created listing', title:'Created listing on Facebook Marketplace', tag:'Created', sev:'success', status:'Completed', detail:'Published "Smart LED Strip 5m" with localized pricing and category mapping.', product:'Smart LED Strip 5m', time:'5h ago', icon:'plus' },
+      { type:'Suggested better title', title:'Optimized 3 titles in bulk', tag:'Suggestion', sev:'info', status:'Applied', detail:'Improved keyword coverage on 3 fashion listings, projected +18% impressions.', product:'3 products', time:'6h ago', icon:'wand' }
+    ];
+  }
+  sevStyle(sev){
+    const m={ success:{c:'var(--md-success)',b:'var(--md-success-weak)'}, critical:{c:'var(--md-danger)',b:'var(--md-danger-weak)'}, warning:{c:'var(--md-warning)',b:'var(--md-warning-weak)'}, info:{c:'var(--md-info)',b:'var(--md-info-weak)'} };
+    return m[sev]||m.info;
+  }
+
+  // charts -----------------------------------------------------------------
+  _linePath(vals,w,h,pad){
+    const max=Math.max(...vals), min=Math.min(...vals); const rng=(max-min)||1;
+    const step=(w-pad*2)/(vals.length-1);
+    return vals.map((v,i)=>{ const x=pad+i*step; const y=h-pad-((v-min)/rng)*(h-pad*2); return (i?'L':'M')+x.toFixed(1)+' '+y.toFixed(1); }).join(' ');
+  }
+  _areaPath(vals,w,h,pad){ const line=this._linePath(vals,w,h,pad); return line+' L '+(w-pad)+' '+(h-pad)+' L '+pad+' '+(h-pad)+' Z'; }
+
+  areaChart(rev,prof,h){
+    const w=640; const H=h||260; const pad=14;
+    const gid1='g'+(this.state.dark?'d':'l')+'r'; const gid2='g'+(this.state.dark?'d':'l')+'p';
+    const grid=[0,1,2,3].map(i=>React.createElement('line',{key:'g'+i,x1:pad,x2:w-pad,y1:pad+i*((H-pad*2)/3),y2:pad+i*((H-pad*2)/3),stroke:'var(--md-border)',strokeWidth:1}));
+    return React.createElement('svg',{viewBox:'0 0 '+w+' '+H,width:'100%',height:H,preserveAspectRatio:'none',style:{display:'block',marginTop:'14px'}},[
+      React.createElement('defs',{key:'d'},[
+        React.createElement('linearGradient',{key:1,id:gid1,x1:0,y1:0,x2:0,y2:1},[React.createElement('stop',{key:'a',offset:'0%',stopColor:'#5b5bd6',stopOpacity:.28}),React.createElement('stop',{key:'b',offset:'100%',stopColor:'#5b5bd6',stopOpacity:0})]),
+        React.createElement('linearGradient',{key:2,id:gid2,x1:0,y1:0,x2:0,y2:1},[React.createElement('stop',{key:'a',offset:'0%',stopColor:'#c86dd7',stopOpacity:.22}),React.createElement('stop',{key:'b',offset:'100%',stopColor:'#c86dd7',stopOpacity:0})])
+      ]),
+      ...grid,
+      React.createElement('path',{key:'ar',d:this._areaPath(rev,w,H,pad),fill:'url(#'+gid1+')'}),
+      React.createElement('path',{key:'ap',d:this._areaPath(prof,w,H,pad),fill:'url(#'+gid2+')'}),
+      React.createElement('path',{key:'lp',d:this._linePath(prof,w,H,pad),fill:'none',stroke:'#c86dd7',strokeWidth:2.4,strokeLinecap:'round',strokeLinejoin:'round'}),
+      React.createElement('path',{key:'lr',d:this._linePath(rev,w,H,pad),fill:'none',stroke:this.state.dark?'#8b8bf2':'#5b5bd6',strokeWidth:2.6,strokeLinecap:'round',strokeLinejoin:'round'})
+    ]);
+  }
+  barChart(vals,color,h){
+    const w=640; const H=h||220; const pad=14; const max=Math.max(...vals)||1; const n=vals.length;
+    const bw=(w-pad*2)/n*0.56; const step=(w-pad*2)/n;
+    return React.createElement('svg',{viewBox:'0 0 '+w+' '+H,width:'100%',height:H,preserveAspectRatio:'none',style:{display:'block',marginTop:'8px'}},
+      vals.map((v,i)=>{ const bh=(v/max)*(H-pad*2); const x=pad+i*step+(step-bw)/2; const y=H-pad-bh; return React.createElement('rect',{key:i,x:x,y:y,width:bw,height:bh,rx:5,fill:color||(this.state.dark?'#8b8bf2':'#5b5bd6'),opacity:.85}); }));
+  }
+  donut(segs,size){
+    const s=size||150; const r=s/2-14; const cx=s/2, cy=s/2; const C=2*Math.PI*r; let off=0;
+    const arcs=segs.map((sg,i)=>{ const len=C*sg.v; const el=React.createElement('circle',{key:i,cx:cx,cy:cy,r:r,fill:'none',stroke:sg.c,strokeWidth:14,strokeDasharray:len+' '+(C-len),strokeDashoffset:-off,transform:'rotate(-90 '+cx+' '+cy+')',strokeLinecap:'butt'}); off+=len; return el; });
+    return React.createElement('svg',{width:s,height:s,viewBox:'0 0 '+s+' '+s},[React.createElement('circle',{key:'bg',cx:cx,cy:cy,r:r,fill:'none',stroke:'var(--md-surface-3)',strokeWidth:14}),...arcs]);
+  }
+  spark(vals,color){
+    const w=110,h=34,pad=3;
+    return React.createElement('svg',{viewBox:'0 0 '+w+' '+h,width:w,height:h},[React.createElement('path',{key:1,d:this._linePath(vals,w,h,pad),fill:'none',stroke:color,strokeWidth:2,strokeLinecap:'round',strokeLinejoin:'round'})]);
+  }
+  spark2(vals,color){
+    const w=560,h=120,pad=10;
+    return React.createElement('svg',{viewBox:'0 0 '+w+' '+h,width:'100%',height:h,preserveAspectRatio:'none',style:{display:'block',marginTop:'10px'}},[
+      React.createElement('defs',{key:'d'},[React.createElement('linearGradient',{key:1,id:'phg',x1:0,y1:0,x2:0,y2:1},[React.createElement('stop',{key:'a',offset:'0%',stopColor:color,stopOpacity:.2}),React.createElement('stop',{key:'b',offset:'100%',stopColor:color,stopOpacity:0})])]),
+      React.createElement('path',{key:'a',d:this._areaPath(vals,w,h,pad),fill:'url(#phg)'}),
+      React.createElement('path',{key:1,d:this._linePath(vals,w,h,pad),fill:'none',stroke:this.state.dark?'#8b8bf2':color,strokeWidth:2.4,strokeLinecap:'round',strokeLinejoin:'round'})
+    ]);
+  }
+
+  renderVals(){
+    const d=this.state.dark, scr=this.state.screen;
+    const nav=[
+      {key:'dashboard',label:'Dashboard',icon:'dashboard'},
+      {key:'products',label:'Products',icon:'products'},
+      {key:'analytics',label:'Analytics',icon:'analytics'},
+      {key:'hermes',label:'Hermes AI',icon:'hermes',badge:'3'},
+      {key:'marketplaces',label:'Marketplaces',icon:'store'}
+    ];
+    const activeMap={ listing:'products', wizard:'products' };
+    const activeKey=activeMap[scr]||scr;
+    const navStyleBase='display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:11px; font-size:13.5px; font-weight:600; cursor:pointer; transition:background .14s; color:var(--md-text-2);';
+    const navStyleActive='display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:11px; font-size:13.5px; font-weight:700; cursor:pointer; background:var(--md-primary-weak); color:var(--md-primary);';
+    const navMain=nav.map(n=>({ label:n.label, badge:n.badge, icon:this.ic(n.icon), go:this.go(n.key), activeClass:activeKey===n.key?'active':'', style:activeKey===n.key?navStyleActive:navStyleBase }));
+
+    const titles={ dashboard:['Dashboard','Welcome back — here\u2019s what moved today'], products:['Products','Manage your catalogue across every marketplace'], listing:['Wireless Headphones Pro','Listing detail · SKU-38412'], analytics:['Analytics','Performance across marketplaces'], hermes:['Hermes AI','Everything your AI agent did'], wizard:['New product','Create and publish in a few steps'], marketplaces:['Marketplaces','Connections, sync status and configuration'], settings:['Settings','Workspace and account preferences'] };
+    const t=titles[scr]||titles.dashboard;
+
+    const mk=this.markets();
+    const activeListings=mk.reduce((a,b)=>a+b.listings,0);
+
+    const statCards=[
+      { label:'Revenue', value:this.zl(148230), delta:'12.4%', deltaColor:'var(--md-success)', deltaIcon:this.ic('arrowUp',13,2.4), icon:this.ic('revenue',17), iconBg:'var(--md-primary-weak)', iconColor:'var(--md-primary)' },
+      { label:'Profit', value:this.zl(52940), delta:'8.1%', deltaColor:'var(--md-success)', deltaIcon:this.ic('arrowUp',13,2.4), icon:this.ic('profit',17), iconBg:'var(--md-success-weak)', iconColor:'var(--md-success)' },
+      { label:'Active listings', value:this.fmt(activeListings), delta:'23', deltaColor:'var(--md-success)', deltaIcon:this.ic('arrowUp',13,2.4), icon:this.ic('box',17), iconBg:'var(--md-info-weak)', iconColor:'var(--md-info)' },
+      { label:'Needs attention', value:'6', delta:'2', deltaColor:'var(--md-danger)', deltaIcon:this.ic('arrowUp',13,2.4), icon:this.ic('alert',17), iconBg:'var(--md-warning-weak)', iconColor:'var(--md-warning)' }
+    ];
+
+    const revSeries=[62,68,66,74,71,82,79,88,95,91,104,112,108,120,128,124,138,146,142,155,163,158,172,168,180,192,188,201,214,222].map(v=>v*680);
+    const profSeries=revSeries.map(v=>v*0.36);
+    const marketplaceOverview=mk.filter(m=>m.connected).map(m=>({ name:m.name, short:m.short, bg:m.bg, fg:m.fg, bar:m.bar, listings:m.listings, pct:Math.round(m.listings/m.cap*100)+'%' }));
+
+    const hev=this.hermesEvents();
+    const hermesFeed=hev.slice(0,4).map(h=>{ const s=this.sevStyle(h.sev); return { title:h.title, tag:h.tag, detail:h.detail, time:h.time, icon:this.ic(h.icon,17), bg:s.b, fg:s.c }; });
+
+    const quickActions=[
+      { label:'Add product', icon:this.ic('plus'), go:this.go('wizard') },
+      { label:'Sync all', icon:this.ic('refresh'), go:this.go('marketplaces') },
+      { label:'Run Hermes', icon:this.ic('hermes'), go:this.go('hermes') },
+      { label:'View analytics', icon:this.ic('analytics'), go:this.go('analytics') }
+    ];
+
+    const attentionItems=[
+      { name:'Mechanical Keyboard 75%', reason:'Competitor undercut on Allegro', dot:'var(--md-danger)' },
+      { name:'Running Shoes GT-2', reason:'High views, no sales in 7 days', dot:'var(--md-warning)' },
+      { name:'Leather Weekend Bag', reason:'Listing expired on OLX', dot:'var(--md-warning)' }
+    ];
+
+    const recentEvents=[
+      { text:'Order confirmed — Espresso Machine Mini sold on Vinted', source:'Vinted', time:'3 min ago', dot:'var(--md-success)' },
+      { text:'Hermes created a listing for Bluetooth Speaker Cube', source:'Hermes', time:'2 min ago', dot:'var(--md-primary)' },
+      { text:'Price sync completed across 4 marketplaces', source:'System', time:'11 min ago', dot:'var(--md-info)' },
+      { text:'Allegro returned 2 category errors', source:'Allegro', time:'5 min ago', dot:'var(--md-danger)' },
+      { text:'New offer received on Vintage Denim Jacket', source:'OLX', time:'26 min ago', dot:'var(--md-success)' }
+    ];
+
+    // ---- PRODUCTS ----
+    const prods=this.products();
+    const tab=this.state.productTab;
+    const tabCounts={ all:prods.length, active:prods.filter(p=>p.status==='active').length, attention:prods.filter(p=>p.status==='attention').length, draft:prods.filter(p=>p.status==='draft').length };
+    const productTabs=[ {k:'all',l:'All'},{k:'active',l:'Active'},{k:'attention',l:'Attention'},{k:'draft',l:'Drafts'} ].map(x=>({ label:x.l, count:tabCounts[x.k], go:this.setProductTab(x.k), active:tab===x.k, style: tab===x.k?'display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:9px;font-size:13px;font-weight:700;cursor:pointer;background:var(--md-surface);color:var(--md-text);box-shadow:var(--md-shadow-sm);border:1px solid var(--md-border);':'display:inline-flex;align-items:center;gap:7px;padding:7px 13px;border-radius:9px;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--md-text-2);border:1px solid transparent;', cbg: tab===x.k?'var(--md-primary-weak)':'var(--md-surface-3)', cfg: tab===x.k?'var(--md-primary)':'var(--md-text-3)' }));
+    const filteredProds=(tab==='all'?prods:prods.filter(p=>p.status===tab)).map(p=>{ const sc=this.statusChip(p.status); return { name:p.name, sku:p.sku, init:p.init, initBg:p.initBg, statusLabel:sc.l, statusColor:sc.c, statusBg:sc.b, mk:p.mk+' markets', cost:this.zl(p.cost), price:this.zl(p.price), profit:this.zl(p.profit), margin:Math.round(p.profit/p.price*100)+'%', tags:p.tags, upd:p.upd, selected:this.state.selected.includes(p.sku), toggle:this.toggleSel(p.sku), open:this.go('listing') }; });
+    const selCount=this.state.selected.length;
+
+    // ---- ANALYTICS ----
+    const rv=[92,101,98,110,124,133,128,141,155,168].map(x=>x*1000);
+    const pv=rv.map(x=>x*0.35);
+    const viewsSeries=[420,510,480,560,610,590,680,720,700,760,810,880];
+    const convSeries=[2.1,2.4,2.2,2.8,3.1,2.9,3.4,3.6,3.3,3.8,4.1,4.4];
+    const bestProducts=[ {n:'Espresso Machine Mini',v:'42 sold',rev:this.zl(19278),up:'+34%'},{n:'Wireless Headphones Pro',v:'38 sold',rev:this.zl(12502),up:'+28%'},{n:'Ceramic Plant Pot Set',v:'61 sold',rev:this.zl(4819),up:'+22%'},{n:'Bluetooth Speaker Cube',v:'29 sold',rev:this.zl(3451),up:'+17%'} ].map((x,i)=>({...x,rank:i+1}));
+    const worstProducts=[ {n:'Running Shoes GT-2',v:'2 sold',rev:this.zl(398),up:'-41%'},{n:'Leather Weekend Bag',v:'1 sold',rev:this.zl(299),up:'-33%'},{n:'Mechanical Keyboard 75%',v:'4 sold',rev:this.zl(996),up:'-19%'},{n:'Smart LED Strip 5m',v:'6 sold',rev:this.zl(414),up:'-8%'} ].map((x,i)=>({...x,rank:i+1}));
+    const mkCompare=mk.filter(m=>m.connected).map(m=>{ const pct=Math.round(m.listings/145*100); return { name:m.name, short:m.short, bg:m.bg, fg:m.fg, bar:m.bar, listings:m.listings, revenue:this.zl(m.listings*640), conv:(2+ (this._hash(m.name)%22)/10).toFixed(1)+'%', pctStr:pct+'%' }; });
+
+    // ---- HERMES ----
+    const hermesAll=hev.map(h=>{ const s=this.sevStyle(h.sev); const an=h.status==='Action needed'||h.status==='Pending review'; return { title:h.title, tag:h.tag, detail:h.detail, time:h.time, product:h.product, status:h.status, icon:this.ic(h.icon,18), bg:s.b, fg:s.c, actionNeeded:an, done:!an }; });
+    const hermesStats=[ {l:'Actions today',v:'128',s:'automated'},{l:'Awaiting review',v:'3',s:'suggestions'},{l:'Listings created',v:'42',s:'this week'},{l:'Time saved',v:'~14h',s:'this week'} ];
+
+    // ---- WIZARD ----
+    const ws=this.state.wizardStep;
+    const wizardSteps=['Photos','Basic info','Pricing','Category','Marketplaces','Preview'].map((l,i)=>({ label:l, n:i+1, go:this.wizardGo(i), circleStyle: i<ws?'background:var(--md-primary);color:#fff;border:none;': i===ws?'background:var(--md-primary-weak);color:var(--md-primary);border:2px solid var(--md-primary);':'background:var(--md-surface);color:var(--md-text-3);border:2px solid var(--md-border);', labelColor: i<=ws?'var(--md-text)':'var(--md-text-3)', lineColor: i<ws?'var(--md-primary)':'var(--md-border)', check:i<ws, showNum:i>=ws, showLine:i<5 }));
+    const wizardCategories=[ {name:'Electronics',sub:'Audio, phones, PC',i:'box',color:'#5b5bd6',sel:true},{name:'Fashion',sub:'Clothing, shoes',i:'tag',color:'#c86dd7',sel:false},{name:'Home & Garden',sub:'Decor, tools',i:'store',color:'#1c9c6b',sel:false},{name:'Sports',sub:'Fitness, outdoor',i:'flame',color:'#c67a12',sel:false},{name:'Kitchen',sub:'Appliances',i:'layers',color:'#2b7fd4',sel:false},{name:'Other',sub:'Everything else',i:'grid',color:'#5b606e',sel:false} ].map(c=>({ name:c.name, sub:c.sub, icon:this.ic(c.i,18), color:c.color, border:c.sel?'var(--md-primary)':'var(--md-border)', bg:c.sel?'var(--md-primary-weak)':'var(--md-surface)' }));
+
+    // ---- MARKETPLACES ----
+    const mkCards=mk.map(m=>({ name:m.name, short:m.short, bg:m.bg, fg:m.fg, bar:m.bar, connected:m.connected, disconnected:!m.connected, status:m.status, listings:m.listings, errors:m.errors, sync:m.sync, statusColor: !m.connected?'var(--md-text-3)': m.errors>0?'var(--md-danger)': m.status==='Syncing…'?'var(--md-info)':'var(--md-success)', pulse: m.status==='Syncing…'?'animation:md-pulse 1.4s infinite;':'', errColor: m.errors>0?'var(--md-danger)':'var(--md-success)', errText: m.errors>0? m.errors+(m.errors===1?' error':' errors'):'No errors' }));
+
+    // ---- SETTINGS ----
+    const st=this.state.settingsTab;
+    const settingsNav=[ {k:'general',l:'General',i:'sliders'},{k:'ai',l:'Hermes AI',i:'hermes'},{k:'notifications',l:'Notifications',i:'bell2'},{k:'accounts',l:'Marketplace Accounts',i:'store'},{k:'api',l:'API Keys',i:'key'},{k:'appearance',l:'Appearance',i:'palette'},{k:'telegram',l:'Telegram',i:'telegram'},{k:'security',l:'Security',i:'shield'} ].map(x=>({ label:x.l, icon:this.ic(x.i,18), go:this.setSettingsTab(x.k), active:st===x.k, style: st===x.k?'display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;background:var(--md-primary-weak);color:var(--md-primary);':'display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:10px;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--md-text-2);' }));
+
+    return {
+      ready:this.state.ready, theme:this.buildTheme(), dark:d,
+      pageTitle:t[0], pageSubtitle:t[1],
+      navMain,
+      goSettings:this.go('settings'), settingsActive:scr==='settings'?'active':'', settingsStyle:scr==='settings'?navStyleActive:navStyleBase, iconSettings:this.ic('settings'),
+      iconChevrons:this.ic('chevrons',16), iconSearch:this.ic('search',17), iconBell:this.ic('bell',18), themeIcon:this.ic(d?'sun':'moon',18), iconPlus:this.ic('plus',18,2.3),
+      iconSparkWhite:this._colorIc('hermes','#fff',15),
+      iconChevR:this.ic('chevR',16,2), sxNewBtn:{ borderRadius:'10px', fontWeight:700, boxShadow:'0 4px 12px rgba(91,91,214,.28)', px:2 },
+      toggleTheme:()=>this.toggleTheme(),
+      goWizard:this.go('wizard'), goHermes:this.go('hermes'), goMarketplaces:this.go('marketplaces'), goListing:this.go('listing'),
+      isDashboard:scr==='dashboard', isProducts:scr==='products', isListing:scr==='listing', isAnalytics:scr==='analytics', isHermes:scr==='hermes', isWizard:scr==='wizard', isMarketplaces:scr==='marketplaces', isSettings:scr==='settings',
+      statCards, salesChart:this.areaChart(revSeries,profSeries,270), marketplaceOverview,
+      hermesFeed, quickActions, attentionItems, attentionCount:'6 items', recentEvents,
+      // products
+      productTabs, filteredProds, selCount, hasSel:selCount>0, selText:selCount+' selected', productCount:filteredProds.length, clearSelFn:()=>this.clearSel(),
+      sxGhostBtn:{ borderRadius:'10px', borderColor:'var(--md-border)', color:'var(--md-text-2)', textTransform:'none', fontWeight:600, bgcolor:'var(--md-surface)', '&:hover':{ borderColor:'var(--md-border-strong)', bgcolor:'var(--md-surface-2)' } },
+      sxWhiteBtn:{ color:'#fff', textTransform:'none', fontWeight:600, '&:hover':{ bgcolor:'rgba(255,255,255,.14)' } },
+      sxCbx:{ color:'var(--md-text-3)', '&.Mui-checked':{ color:'var(--md-primary)' } },
+      iconFilter:this.ic('filter',16), iconSort:this.ic('sort',16), iconList:this.ic('list',16), iconCards:this.ic('cards',16), iconTrash:this.ic('trash',16), iconTag:this.ic('tag',15), iconMore:this.ic('more',18), iconDownload:this.ic('download',16), iconEdit:this.ic('edit',16),
+      // listing
+      lImgs:['#ede9fe','#e0e7ff','#f3e8ff','#eef2ff'],
+      lStats:[ {l:'Total views',v:'1 284',d:'+12%',dColor:'var(--md-success)'},{l:'Watchers',v:'86',d:'+9',dColor:'var(--md-success)'},{l:'Messages',v:'23',d:'+4',dColor:'var(--md-success)'},{l:'Conversion',v:'3.1%',d:'-0.4%',dColor:'var(--md-danger)'} ],
+      goProducts:this.go('products'),
+      lMarketRows:mk.filter(m=>m.connected).map(m=>({ name:m.name, short:m.short, bg:m.bg, fg:m.fg, price:this.zl(329+(this._hash(m.name)%40)), status: m.errors>0?'Error':'Live', statusColor:m.errors>0?'var(--md-danger)':'var(--md-success)', statusBg:m.errors>0?'var(--md-danger-weak)':'var(--md-success-weak)', views:120+(this._hash(m.name)%400) })),
+      priceHistoryChart:this.spark2([349,349,339,329,329,319,329,329],'#5b5bd6'),
+      lTimeline:[ {t:'Sold on Vinted',s:'Order #V-8841 · 329 zł',time:'2h ago',c:'var(--md-success)'},{t:'Hermes lowered price',s:'339 zł → 329 zł to match market',time:'1d ago',c:'var(--md-primary)'},{t:'Price synced to 4 marketplaces',s:'System',time:'2d ago',c:'var(--md-info)'},{t:'Listing created',s:'Published across OLX, Allegro, Vinted, FB',time:'6d ago',c:'var(--md-text-3)'} ],
+      lRecs:[ {t:'Add 2 more photos',d:'Listings with 6+ photos sell 24% faster.',ic:'photo'},{t:'Enable auto-relist',d:'This item expired once. Auto-relist keeps it live.',ic:'refresh'},{t:'Bundle suggestion',d:'Pair with a carrying case to lift average order value.',ic:'layers'} ],
+      lActivity:[ {a:'Kamil M.',ini:'KM',t:'edited the description',time:'5h ago'},{a:'Hermes AI',ini:'H',t:'updated the price to 329 zł',time:'1d ago'},{a:'Kamil M.',ini:'KM',t:'added 2 photos',time:'2d ago'},{a:'Hermes AI',ini:'H',t:'published to Facebook Marketplace',time:'6d ago'} ],
+      iconEye:this.ic('eye',16), iconClock:this.ic('clock',15), iconChevL:this.ic('chevL',18,2),
+      // analytics
+      anRevChart:this.areaChart(rv,pv,240), viewsChart:this.barChart(viewsSeries,d?'#8b8bf2':'#5b5bd6',200), convChart:this.areaChart(convSeries.map(x=>x*40),convSeries.map(x=>x*40),200),
+      anDonut:this.donut([{v:.42,c:'#12b6ab'},{v:.27,c:'#ff5a00'},{v:.19,c:'#09b1ba'},{v:.12,c:'#1877f2'}],150),
+      bestProducts, worstProducts, mkCompare,
+      anKpis:[ {l:'Revenue',v:this.zl(148230),d:'+12.4%',dColor:'var(--md-success)',icon:this.ic('revenue',16)},{l:'Profit',v:this.zl(52940),d:'+8.1%',dColor:'var(--md-success)',icon:this.ic('profit',16)},{l:'Total views',v:'42.8k',d:'+18%',dColor:'var(--md-success)',icon:this.ic('eye',16)},{l:'Avg. conversion',v:'3.6%',d:'+0.5%',dColor:'var(--md-success)',icon:this.ic('analytics',16)} ],
+      iconFlame:this.ic('flame',18), iconTrendDown:this.ic('trendDown',18),
+      // hermes
+      hermesAll, hermesStats, iconSparkBig:this._colorIc('hermes','#fff',22), iconCheck:this.ic('check',15,2.2), iconX:this.ic('x',15,2.2),
+      sxOnGradientBtn:{ bgcolor:'#fff', color:'#5b5bd6', textTransform:'none', fontWeight:700, borderRadius:'10px', '&:hover':{ bgcolor:'rgba(255,255,255,.9)' } },
+      // wizard
+      wizardSteps, wizardStep:ws, wizardTitle:['Add photos','Basic information','Pricing','Category','Marketplace selection','Review & publish'][ws], wizardSub:['Drag in up to 12 images. The first is your cover.','Give your product a clear name and description.','Set your cost and selling price.','Help buyers find it with the right category.','Choose where to publish this listing.','Everything looks good? Publish across your marketplaces.'][ws],
+      isStep0:ws===0,isStep1:ws===1,isStep2:ws===2,isStep3:ws===3,isStep4:ws===4,isStep5:ws===5, isFirstStep:ws===0, isLastStep:ws===5,
+      wizardNext:()=>this.wizardNext(), wizardBack:()=>this.wizardBack(), iconWand:this.ic('wand',16), iconPhoto:this.ic('photo',22), iconPlusSm:this.ic('plus',16,2.2), iconChevLsm:this.ic('chevL',16,2.2),
+      wizardCategories, wizardStepNum:ws+1, notLastStep:ws<5,
+      sxSwitch:{ '& .MuiSwitch-switchBase.Mui-checked':{ color:'var(--md-primary)' }, '& .MuiSwitch-switchBase.Mui-checked + .MuiSwitch-track':{ backgroundColor:'var(--md-primary)' } },
+      wizardMarkets:mk.map(m=>({ name:m.name, short:m.short, bg:m.bg, fg:m.fg, checked:m.connected, disabled:!m.connected, note: m.connected?'Connected · auto-sync enabled':'Connect this marketplace first', rowBorder:m.connected?'var(--md-border)':'var(--md-border)', rowBg:m.connected?'var(--md-surface)':'var(--md-surface-2)' })),
+      // marketplaces
+      mkCards, iconLink:this.ic('link',18), iconRefreshBtn:this.ic('refresh',16), iconCheck2:this.ic('check',13,2.4), iconSettingsBtn:this.ic('settings',15), iconLinkBtn:this.ic('link',15),
+      // settings
+      settingsNav, settingsTab:st, sxTextBtn:{ textTransform:'none', fontWeight:700 },
+      aiToggles:[ {t:'Auto-create listings',d:'Publish new products to connected marketplaces automatically',on:true},{t:'Auto-adjust pricing',d:'Match competitor prices within your margin rules',on:false},{t:'Auto-relist expired items',d:'Keep listings live without manual work',on:true},{t:'Smart title & SEO',d:'Rewrite titles for better discoverability',on:true} ],
+      notifRows:[ {t:'New sale',email:true,push:true,tg:true},{t:'Competitor price change',email:true,push:false,tg:true},{t:'Listing needs attention',email:true,push:true,tg:false},{t:'Sync errors',email:true,push:true,tg:true},{t:'Weekly performance report',email:true,push:false,tg:false} ],
+      settingsMarketRows:mk.filter(m=>m.connected).map(m=>({ name:m.name, short:m.short, bg:m.bg, fg:m.fg, account:'seller_'+m.key+'@marketdesk', statusLabel: m.errors>0?'Needs attention':'Active', statusColor: m.errors>0?'var(--md-warning)':'var(--md-success)', statusBg: m.errors>0?'var(--md-warning-weak)':'var(--md-success-weak)' })),
+      apiKeys:[ {name:'Production key',key:'mk_live_••••••••••••3f8a',created:'Created Mar 2026'},{name:'Development key',key:'mk_test_••••••••••••b21c',created:'Created Jan 2026'},{name:'Zapier integration',key:'mk_live_••••••••••••9d40',created:'Created Nov 2025'} ],
+      telegramToggles:[ {t:'Sale notifications',on:true},{t:'Daily summary',on:true},{t:'Hermes suggestions',on:false} ],
+      iconTelegram:this.ic('telegram',22),
+      setLight:()=>this.setState({dark:false}), setDark:()=>this.setState({dark:true}), lightSel: d?'var(--md-border)':'var(--md-primary)', darkSel: d?'var(--md-primary)':'var(--md-border)',
+      isSetGeneral:st==='general',isSetAi:st==='ai',isSetNotif:st==='notifications',isSetAccounts:st==='accounts',isSetApi:st==='api',isSetAppear:st==='appearance',isSetTelegram:st==='telegram',isSetSecurity:st==='security',
+      settingsMarkets:mk, iconKey:this.ic('key',16), iconCopy:this.ic('copy',15)
+    };
+  }
+  _colorIc(name,color,size){ const el=this.ic(name,size); return React.cloneElement(el,{stroke:color}); }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="_ds/mui-material-368b1c7a-515b-4d26-834f-e7bf598e76ca/styles.css">
+<script src="_ds/mui-material-368b1c7a-515b-4d26-834f-e7bf598e76ca/_ds_bundle.js"></script>
+<style>
+  doc-page:not(:defined){ visibility:hidden; }
+  :root{ --a:#5b5bd6; --a-weak:#eeeefb; --ink:#1a1c24; --ink2:#4d5261; --ink3:#7d8290; --line:#e6e8ef; --line2:#d9dce4; }
+  doc-page{ color:var(--ink); font-family:"Manrope",system-ui,-apple-system,sans-serif; font-size:15px; line-height:1.62; }
+  h1,h2,h3,h4{ font-family:"Manrope",sans-serif; letter-spacing:-.02em; color:var(--ink); }
+  h1{ font-size:33px; font-weight:800; line-height:1.1; margin:0 0 6px; }
+  h2{ font-size:22px; font-weight:800; margin:38px 0 12px; padding-top:15px; border-top:2px solid var(--ink); }
+  h3{ font-size:16.5px; font-weight:800; margin:24px 0 7px; }
+  h4{ font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.07em; color:var(--a); margin:18px 0 6px; }
+  p{ margin:0 0 11px; }
+  ul,ol{ margin:0 0 12px; padding-left:20px; }
+  li{ margin:0 0 5px; }
+  strong{ font-weight:700; }
+  a{ color:var(--a); text-decoration:none; }
+  a:hover{ text-decoration:underline; }
+  code{ font-family:"JetBrains Mono",monospace; font-size:.86em; background:#f3f4f8; border:1px solid var(--line); border-radius:5px; padding:1px 5px; color:#3a3f66; }
+  table{ width:100%; border-collapse:collapse; margin:8px 0 16px; font-size:13px; }
+  thead th{ background:#f5f6fa; text-align:left; font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--ink3); padding:8px 10px; border-bottom:1.5px solid var(--line2); }
+  tbody td{ padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tbody tr:last-child td{ border-bottom:none; }
+  .lede{ font-size:16.5px; line-height:1.55; color:var(--ink2); margin:0 0 14px; }
+  .meta{ display:flex; flex-wrap:wrap; gap:6px 22px; font-size:12.5px; color:var(--ink3); margin:14px 0 4px; padding-bottom:16px; border-bottom:1px solid var(--line); }
+  .meta b{ color:var(--ink); font-weight:700; }
+  .callout{ break-inside:avoid; orphans:3; widows:3; background:var(--a-weak); border:1px solid #dcdcf6; border-left:3px solid var(--a); border-radius:9px; padding:12px 15px; margin:8px 0 16px; font-size:13.5px; line-height:1.55; }
+  .callout b{ color:#3a3f66; }
+  .note{ break-inside:avoid; background:#fbfbfd; border:1px solid var(--line); border-radius:9px; padding:12px 15px; margin:8px 0 16px; font-size:13.5px; }
+  .pill{ display:inline-block; font-size:11px; font-weight:700; border-radius:20px; padding:1px 9px; border:1px solid var(--line2); color:var(--ink2); }
+  .toc{ font-size:14px; line-height:1.9; }
+  .toc a{ color:var(--ink); }
+  .toc .n{ color:var(--a); font-weight:800; font-variant-numeric:tabular-nums; margin-right:10px; }
+  .kv{ font-size:13.5px; }
+  .kv b{ display:inline-block; min-width:112px; color:var(--ink2); font-weight:700; }
+  .scr{ break-before:page; }
+  .swatch{ display:inline-block; width:12px; height:12px; border-radius:3px; border:1px solid rgba(0,0,0,.15); vertical-align:-1px; margin-right:6px; }
+  .rh{ display:flex; justify-content:space-between; align-items:center; font-size:11.5px; color:var(--ink3); font-weight:600; }
+  .rf{ display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--ink3); }
+</style>
+</helmet>
+<x-import component-from-global-scope="doc-page" from="./doc-page.js" size="letter" margin="0.7in" hint-size="100%,100%">
+
+  <div slot="header" class="rh"><span>MarketDesk — Product Requirements</span><span>Confidential · v1.0</span></div>
+  <div slot="footer" class="rf"><span>MarketDesk PRD</span><span>Implementation specification</span></div>
+
+  <h1>MarketDesk — Product Requirements Document</h1>
+  <p class="lede">A multi-marketplace listing &amp; sales management platform with an embedded AI agent (“Hermes”). This document specifies every screen, component, state, interaction, validation rule and user flow required to implement the application. It is written to be consumed directly by an implementing engineer or AI engineer.</p>
+  <div class="meta">
+    <span><b>Product</b> MarketDesk</span>
+    <span><b>Version</b> 1.0 (MVP scope)</span>
+    <span><b>Surface</b> Responsive web app (desktop-first)</span>
+    <span><b>Design system</b> MUI Material</span>
+    <span><b>Primary currency</b> PLN (zł)</span>
+    <span><b>Themes</b> Light (default) + Dark</span>
+  </div>
+
+  <h2 id="toc">Contents</h2>
+  <div class="toc">
+    <div><span class="n">1</span>Product overview, goals &amp; non-goals</div>
+    <div><span class="n">2</span>Users &amp; personas</div>
+    <div><span class="n">3</span>Information architecture &amp; navigation</div>
+    <div><span class="n">4</span>Design system &amp; global components</div>
+    <div><span class="n">5</span>Global app shell &amp; patterns</div>
+    <div><span class="n">6</span>Screen — Dashboard</div>
+    <div><span class="n">7</span>Screen — Products</div>
+    <div><span class="n">8</span>Screen — Listing Details</div>
+    <div><span class="n">9</span>Screen — Analytics</div>
+    <div><span class="n">10</span>Screen — Hermes AI Activity</div>
+    <div><span class="n">11</span>Screen — Product Creation Wizard</div>
+    <div><span class="n">12</span>Screen — Marketplace Management</div>
+    <div><span class="n">13</span>Screen — Settings</div>
+    <div><span class="n">14</span>Hermes AI event model</div>
+    <div><span class="n">15</span>Core user flows</div>
+    <div><span class="n">16</span>Consolidated validation rules</div>
+    <div><span class="n">17</span>Data model</div>
+    <div><span class="n">18</span>States, edge cases &amp; acceptance criteria</div>
+  </div>
+
+  <h2 id="s1">1 · Product overview, goals &amp; non-goals</h2>
+  <p>MarketDesk is a SaaS control panel that lets a seller manage one product catalogue and publish, monitor and optimize listings across many marketplaces from a single place. The product must feel premium and minimal — comparable in polish to Linear, Stripe Dashboard, Vercel and GitHub — prioritizing usability and whitespace over decoration.</p>
+  <p><strong>Supported marketplaces.</strong> The platform is built to be marketplace-agnostic. Launch integrations, in connection priority: <strong>OLX, Allegro, Vinted, Facebook Marketplace</strong> (connected at launch) and <strong>eBay, Etsy, Amazon</strong> (future-ready — surfaces present, connection deferred). MarketDesk is <em>not</em> any one of these marketplaces; it is a management layer above them.</p>
+  <h4>Goals</h4>
+  <ul>
+    <li>One catalogue → many marketplaces: create a product once, publish and sync everywhere.</li>
+    <li>Give the seller a single source of truth for revenue, profit, listing health and marketplace status.</li>
+    <li>Automate repetitive selling work via the Hermes AI agent (create/optimize/relist/price), always with an auditable trail and human-in-the-loop approval where money is involved.</li>
+    <li>Surface problems (competitor undercuts, expired listings, sync errors) before they cost sales.</li>
+  </ul>
+  <h4>Non-goals (v1)</h4>
+  <ul>
+    <li>No payment processing, shipping-label purchase or order fulfilment inside MarketDesk (order events are read-only references).</li>
+    <li>No multi-user roles/permissions beyond a single workspace owner (team management is post-v1).</li>
+    <li>No native mobile app; the web app is responsive but desktop-first.</li>
+  </ul>
+  <div class="callout"><b>Quality bar.</b> Rounded cards (12–20px radii), soft layered shadows, generous whitespace, a single restrained accent (indigo), and no visual clutter. Every element must earn its place. Both light and dark themes are first-class and must be fully specified for each screen.</div>
+
+  <h2 id="s2">2 · Users &amp; personas</h2>
+  <h3>Primary — “The power reseller” (Kamil)</h3>
+  <p>Runs a small commerce operation, 100–500 active listings across 3–4 marketplaces. Time-poor, price-sensitive, checks the app several times a day. Wants to spend minutes not hours: bulk edits, fast triage of what needs attention, and trust that the AI is working while they are away. Comfortable with dashboards; impatient with clutter and latency.</p>
+  <h3>Secondary — “The scaling seller”</h3>
+  <p>Growing catalogue, evaluating whether to add eBay/Etsy/Amazon. Needs marketplace comparison analytics and confidence that connecting a new channel is low-effort and reversible.</p>
+  <h4>Design implications</h4>
+  <ul>
+    <li>Optimize for scanning: strong number hierarchy, tabular figures, status colour-coding.</li>
+    <li>Every destructive or money-affecting action needs confirmation; every AI action needs a visible status and an undo/approve path.</li>
+    <li>Keyboard affordances (global search <code>⌘K</code>) and bulk operations are expected, not luxuries.</li>
+  </ul>
+
+  <h2 id="s3">3 · Information architecture &amp; navigation</h2>
+  <p>The app is a single persistent shell: a fixed left sidebar, a sticky top bar, and a scrolling content region. Navigation never full-page reloads; switching a destination swaps only the content region.</p>
+  <h4>Primary navigation (sidebar)</h4>
+  <table>
+    <thead><tr><th>Item</th><th>Route</th><th>Purpose</th><th>Badge</th></tr></thead>
+    <tbody>
+      <tr><td>Dashboard</td><td><code>/</code></td><td>Daily overview &amp; triage</td><td>—</td></tr>
+      <tr><td>Products</td><td><code>/products</code></td><td>Catalogue management</td><td>—</td></tr>
+      <tr><td>Analytics</td><td><code>/analytics</code></td><td>Performance reporting</td><td>—</td></tr>
+      <tr><td>Hermes AI</td><td><code>/hermes</code></td><td>AI activity &amp; approvals</td><td>Count of items needing action (e.g. “3”)</td></tr>
+      <tr><td>Marketplaces</td><td><code>/marketplaces</code></td><td>Connections &amp; sync</td><td>—</td></tr>
+      <tr><td>Settings</td><td><code>/settings</code></td><td>Workspace &amp; account</td><td>— (pinned to sidebar bottom)</td></tr>
+    </tbody>
+  </table>
+  <h4>Contextual (not in sidebar)</h4>
+  <ul>
+    <li><strong>Listing Details</strong> <code>/products/:id</code> — reached by opening a product row. Sidebar keeps <em>Products</em> highlighted.</li>
+    <li><strong>Product Creation Wizard</strong> <code>/products/new</code> — reached from the “New product” button (top bar) or Dashboard quick action. Sidebar keeps <em>Products</em> highlighted.</li>
+  </ul>
+  <p>The sidebar footer shows the workspace/account card (avatar, workspace name, plan) with a menu affordance. The active item uses the accent-weak background + accent text; inactive items use secondary text and a surface-2 hover.</p>
+
+  <h2 id="s4">4 · Design system &amp; global components</h2>
+  <p>Built on <strong>MUI Material</strong>. Component behaviour and accessibility follow MUI defaults; the tokens below theme it. Typography is Manrope (UI + numerals, with <code>tabular-nums</code> on all figures) and JetBrains Mono for SKUs, keys and code. The theme must be produced with MUI <code>createTheme</code> and applied via <code>ThemeProvider</code> + <code>CssBaseline</code>; the two palettes below map to <code>palette.mode</code> light/dark.</p>
+
+  <h3>4.1 Colour tokens</h3>
+  <table>
+    <thead><tr><th>Token</th><th>Role</th><th>Light</th><th>Dark</th></tr></thead>
+    <tbody>
+      <tr><td><code>bg</code></td><td>App background</td><td><span class="swatch" style="background:#f6f7f9"></span>#F6F7F9</td><td><span class="swatch" style="background:#0c0d11"></span>#0C0D11</td></tr>
+      <tr><td><code>surface</code></td><td>Card surface</td><td><span class="swatch" style="background:#fff"></span>#FFFFFF</td><td><span class="swatch" style="background:#16171d"></span>#16171D</td></tr>
+      <tr><td><code>surface-2 / 3</code></td><td>Insets, tracks, hovers</td><td>#F2F3F6 / #ECEEF2</td><td>#1C1E26 / #23262F</td></tr>
+      <tr><td><code>border</code></td><td>Hairlines</td><td>#E7E9EF</td><td>#25272F</td></tr>
+      <tr><td><code>text 1/2/3</code></td><td>Primary / secondary / muted</td><td>#191B23 / #5B606E / #8B90A0</td><td>#ECEEF4 / #A4A9B8 / #6B7080</td></tr>
+      <tr><td><code>primary</code></td><td>Accent (brand)</td><td><span class="swatch" style="background:#5b5bd6"></span>#5B5BD6</td><td><span class="swatch" style="background:#8b8bf2"></span>#8B8BF2</td></tr>
+      <tr><td><code>success</code></td><td>Positive / live</td><td>#1C9C6B</td><td>#3ECF8E</td></tr>
+      <tr><td><code>warning</code></td><td>Needs attention</td><td>#C67A12</td><td>#E0A94A</td></tr>
+      <tr><td><code>danger</code></td><td>Error / critical</td><td>#D1435B</td><td>#F2647D</td></tr>
+      <tr><td><code>info</code></td><td>Neutral status</td><td>#2B7FD4</td><td>#5AA9F0</td></tr>
+    </tbody>
+  </table>
+  <p>Each semantic colour has a paired <em>weak</em> tint (used as chip/badge and soft-icon backgrounds). Marketplace brand colours are used only as small logo chips: OLX #12B6AB, Allegro #FF5A00, Vinted #09B1BA, Facebook #1877F2, eBay #E53238, Etsy #F56400, Amazon #FF9900.</p>
+
+  <h3>4.2 Type scale, spacing, radius, elevation</h3>
+  <ul>
+    <li><strong>Type:</strong> Display/section 30–33px/800; card title 15–16px/800; body 13–15px/1.6; label 12–12.5px/600; micro/uppercase 10.5–11.5px/700 tracked. Never below 11px.</li>
+    <li><strong>Spacing:</strong> 4px base grid; common steps 8/12/16/20/26px. Page gutter 26px; card padding 18–26px; card-to-card gap 16–20px.</li>
+    <li><strong>Radius:</strong> inputs/buttons 10px; chips/badges 6–7px; cards 16–20px; avatars/logo chips 8–12px; pills/dots full.</li>
+    <li><strong>Elevation:</strong> <code>sm</code> (resting card), <code>md</code> (hover/lift), <code>lg</code> (popovers/modals). Shadows are soft and low-opacity; dark theme uses deeper, higher-opacity shadows.</li>
+  </ul>
+
+  <h3>4.3 Component inventory</h3>
+  <table>
+    <thead><tr><th>Component</th><th>Variants / states</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td>Button</td><td>Contained (primary), Outlined (neutral), Text; sizes sm/md; disabled; with leading icon; full-width</td><td>Primary carries a soft accent glow shadow. No uppercase.</td></tr>
+      <tr><td>Icon button</td><td>Default, hover (surface-2), active</td><td>36–38px square, 10px radius. Used for theme toggle, notifications, row overflow.</td></tr>
+      <tr><td>Status badge</td><td>Success / Warning / Danger / Info / Neutral; optional leading dot</td><td>Weak-tint background + solid semantic text. 6–7px radius.</td></tr>
+      <tr><td>Tag / chip</td><td>Neutral (surface-3) and accent</td><td>Freeform product tags; small, 600 weight.</td></tr>
+      <tr><td>Table row</td><td>Default, hover (surface-2), selected (checkbox), pressed→navigates</td><td>Hairline row separators; sticky header on long tables.</td></tr>
+      <tr><td>Text field</td><td>Outlined; label; helper text; error; multiline; disabled</td><td>MUI TextField. Error state shows danger border + helper message.</td></tr>
+      <tr><td>Select / segmented</td><td>Dropdown; segmented control for 2–4 options</td><td>Segmented used for tabs/filters.</td></tr>
+      <tr><td>Switch</td><td>On / off / disabled</td><td>Accent when on. Used for connections &amp; preferences.</td></tr>
+      <tr><td>Checkbox</td><td>Unchecked / checked / indeterminate</td><td>Row select + header select-all (indeterminate for partial).</td></tr>
+      <tr><td>Modal / dialog</td><td>Confirm, form, destructive</td><td>Backdrop blur; <code>lg</code> elevation; Esc + backdrop-click to dismiss (except mid-submit).</td></tr>
+      <tr><td>Toast / snackbar</td><td>Success / error / info; optional Undo action</td><td>Bottom, auto-dismiss ~5s; errors persist until dismissed.</td></tr>
+      <tr><td>Charts</td><td>Area (revenue/profit), Bar (views), Donut (mix), Sparkline (price)</td><td>Accent + secondary (violet) series; gridlines on <code>border</code>; tabular tooltips.</td></tr>
+      <tr><td>Skeleton</td><td>Card, row, chart, stat</td><td>Shown during loading in place of each block.</td></tr>
+      <tr><td>Empty state</td><td>Icon + title + description + primary CTA</td><td>Per list/table when zero results.</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="s5">5 · Global app shell &amp; patterns</h2>
+  <h4>Sidebar (250px, fixed, full height)</h4>
+  <p>Brand lockup (logo mark + “MarketDesk” + “MARKETPLACE OS” eyebrow), a “MENU” group with primary nav, Settings pinned to the bottom, then the account card. Collapses to icons-only below the medium breakpoint (see §18).</p>
+  <h4>Top bar (64px, sticky, translucent + blur)</h4>
+  <ul>
+    <li><strong>Left:</strong> page title + one-line subtitle, contextual to the current screen.</li>
+    <li><strong>Right:</strong> global search field with <code>⌘K</code> hint; theme toggle (sun/moon); notifications icon with unread dot; primary <strong>New product</strong> button.</li>
+  </ul>
+  <h4>Global search (<code>⌘K</code>)</h4>
+  <p>Opens a command palette searching products, listings and Hermes events. Debounced 200ms; grouped results; <kbd>↑/↓</kbd> to move, <kbd>Enter</kbd> to open, <kbd>Esc</kbd> to close. Empty query shows recent items and quick actions.</p>
+  <h4>Theme</h4>
+  <p>Light is the default. The toggle flips the whole app instantly (no reload) and persists the choice (per §17 preferences). A “System” option follows OS preference. Theme changes must re-theme MUI components and all custom surfaces together.</p>
+  <h4>Notifications</h4>
+  <p>Icon opens a popover list of recent events (sales, alerts, sync errors, Hermes actions) with relative timestamps and deep links. Unread dot clears on open.</p>
+  <div class="note"><strong>Loading &amp; error conventions (apply everywhere).</strong> Each block loads independently with a skeleton; a failed block shows an inline retry card rather than blanking the screen. Network mutations are optimistic where safe (toggles, tag add) with rollback + error toast on failure; money-affecting mutations are pessimistic (await server confirm).</p>
+
+  <h2 id="s6" class="scr">6 · Screen — Dashboard</h2>
+  <p><strong>Purpose.</strong> A daily-glance overview and triage surface: how the business is doing, what the AI did, and what needs the seller now.</p>
+  <h4>Layout (top → bottom, max-width 1280px, centered)</h4>
+  <ol>
+    <li><strong>Stat row</strong> — 4 KPI cards: Revenue, Profit, Active listings, Needs attention. Each: label, semantic soft icon, big tabular value, delta chip (arrow + % vs last month) and “vs last month” caption. Delta is green for positive, red for negative; for <em>Needs attention</em> an increase is red.</li>
+    <li><strong>Sales overview</strong> (≈62% width) — area chart of Revenue &amp; Profit over the last 30 days, with a legend. + <strong>Marketplace overview</strong> (≈38%) — connected marketplaces as logo chip + name + listing count + a fill bar (listings/capacity), with a “Manage” link to Marketplaces.</li>
+    <li><strong>Hermes AI activity</strong> (2/3 width) — “Live” pulse badge, latest 4 events (icon, title, severity tag, one-line detail, relative time), “View all” → Hermes. + right column: <strong>Quick actions</strong> (Add product, Sync all, Run Hermes, View analytics) and <strong>Needs attention</strong> list (dot severity, product name, reason, chevron → Listing).</li>
+    <li><strong>Recent events</strong> — chronological feed (dot, text, source chip, time): orders, Hermes actions, syncs, marketplace errors.</li>
+  </ol>
+  <h4>Data / bindings</h4>
+  <p>Revenue &amp; profit totals + deltas (period = current month vs previous); active-listings count = sum of connected-marketplace listings; attention count = products in <code>attention</code> + expired + competitor-alert. Series: 30 daily points each for revenue and profit.</p>
+  <h4>States</h4>
+  <ul>
+    <li><strong>Loading:</strong> skeletons per card/chart/list.</li>
+    <li><strong>Empty (new account):</strong> KPIs show 0 / “—”; charts show an empty illustration; Hermes card invites “Connect a marketplace to start”; Needs-attention shows “All clear”.</li>
+    <li><strong>Error:</strong> per-block retry card.</li>
+  </ul>
+  <h4>Interactions</h4>
+  <ul>
+    <li>Quick-action cards and links route to the relevant screen/wizard.</li>
+    <li>Attention items and marketplace rows are clickable (open Listing / Marketplaces).</li>
+    <li>The Live badge pulses only while a background Hermes run is active.</li>
+  </ul>
+
+  <h2 id="s7" class="scr">7 · Screen — Products</h2>
+  <p><strong>Purpose.</strong> Manage the whole catalogue: find, filter, sort, inspect, bulk-edit and create products. A table/card hybrid dense enough to scan hundreds of rows.</p>
+  <h4>Toolbar</h4>
+  <ul>
+    <li><strong>Status tabs</strong> (segmented): All, Active, Attention, Drafts — each with a live count chip. Selecting filters the list.</li>
+    <li><strong>Search</strong> (name/SKU/tag, debounced 200ms), <strong>Filters</strong> (marketplace, price range, margin, tags, date), <strong>Sort</strong> (name, price, profit, margin, views, updated — asc/desc), and a <strong>list / card view</strong> toggle.</li>
+  </ul>
+  <h4>Row / card fields</h4>
+  <p>Select checkbox · image (thumbnail; falls back to a coloured initials tile) · name + SKU (mono) · status badge · marketplace count · cost · selling price · profit + margin% · tags · last updated · row overflow menu.</p>
+  <h4>Bulk actions</h4>
+  <p>Selecting ≥1 row reveals a sticky accent action bar: “<em>N</em> selected”, then Add tag, Edit price, Export, Delete, and Clear. Header checkbox selects all / indeterminate for partial. Delete opens a destructive confirm modal; Edit price opens a bulk-price modal (set absolute, or +/‑ by amount/percent, with a live preview of resulting margins and a warning if any would go negative).</p>
+  <h4>Footer</h4>
+  <p>“Showing <em>N</em> products” + pagination (prev, numbered pages, next). Default page size 25; server-side paginate + sort + filter.</p>
+  <h4>States</h4>
+  <ul>
+    <li><strong>Empty catalogue:</strong> empty state with “Create your first product” CTA → wizard.</li>
+    <li><strong>Empty filter result:</strong> “No products match” + “Clear filters”.</li>
+    <li><strong>Loading:</strong> 8 skeleton rows. <strong>Row busy:</strong> spinner in the affected cell during inline update.</li>
+  </ul>
+  <h4>Interactions / validation</h4>
+  <ul>
+    <li>Clicking the product cell opens Listing Details; the checkbox and overflow menu do not navigate.</li>
+    <li>Sort state is reflected in the column header (arrow) and the URL query.</li>
+    <li>Bulk price edit: reject non-numeric / negative selling price; warn (don’t block) on sub-cost prices.</li>
+  </ul>
+
+  <h2 id="s8" class="scr">8 · Screen — Listing Details</h2>
+  <p><strong>Purpose.</strong> The single-product hub: everything about one product and its listings across marketplaces, plus AI recommendations and a full audit trail.</p>
+  <h4>Layout — two columns</h4>
+  <p><strong>Left (main):</strong></p>
+  <ul>
+    <li><strong>Image gallery</strong> — large cover + thumbnail strip; drag to reorder; first image is the cover.</li>
+    <li><strong>Description</strong> — rich text with an Edit affordance; tags below.</li>
+    <li><strong>Marketplace status</strong> — one row per connected marketplace: logo, name, per-marketplace price, views, and a Live/Error status badge.</li>
+    <li><strong>Price history</strong> — sparkline/area of price over time with the current price called out.</li>
+    <li><strong>Timeline</strong> — vertical, newest first: sales, Hermes price changes, syncs, creation. Node colour encodes source/severity.</li>
+  </ul>
+  <p><strong>Right (sticky sidebar):</strong></p>
+  <ul>
+    <li><strong>Price/summary card</strong> — status badge, big selling price, cost / profit / margin line, primary “Edit listing” + “Share”.</li>
+    <li><strong>Statistics</strong> — Total views, Watchers, Messages, Conversion, each with a delta.</li>
+    <li><strong>Hermes recommends</strong> — actionable suggestion cards (e.g. add photos, enable auto-relist, bundle) each with Apply/Dismiss.</li>
+    <li><strong>Activity log</strong> — who/what/when (human + Hermes actors with avatars/initials).</li>
+  </ul>
+  <h4>States</h4>
+  <ul>
+    <li><strong>Draft:</strong> marketplace rows show “Not published”; primary CTA becomes “Publish”.</li>
+    <li><strong>Attention:</strong> banner summarizing the issue (competitor undercut / expired) with a one-click resolve.</li>
+    <li><strong>Loading / error:</strong> per-block skeleton / retry.</li>
+  </ul>
+  <h4>Interactions</h4>
+  <ul>
+    <li>Back link returns to Products preserving the prior filter/sort.</li>
+    <li>Applying a Hermes recommendation writes to the timeline + activity log and toasts with Undo.</li>
+    <li>Edit listing opens the same field set as the wizard’s Basic info + Pricing steps in a modal/drawer.</li>
+  </ul>
+
+  <h2 id="s9" class="scr">9 · Screen — Analytics</h2>
+  <p><strong>Purpose.</strong> Professional performance reporting across the business and per marketplace. Read-only, exportable.</p>
+  <h4>Layout</h4>
+  <ol>
+    <li><strong>KPI row</strong> — Revenue, Profit, Total views, Avg. conversion, each with delta vs previous period.</li>
+    <li><strong>Revenue &amp; profit</strong> — large dual-series area chart over the selected range.</li>
+    <li><strong>Three-up</strong> — Views (bar), Conversion rate (area), Revenue-by-marketplace (donut + legend with %).</li>
+    <li><strong>Best performing</strong> &amp; <strong>Worst performing</strong> — ranked product lists (rank, name, units sold, revenue, trend%).</li>
+    <li><strong>Marketplace comparison</strong> — table: marketplace, listings, revenue, conversion, share (bar + %).</li>
+  </ol>
+  <h4>Controls</h4>
+  <p>Global <strong>date-range</strong> selector (7d / 30d / 90d / YTD / custom) and a marketplace filter apply to every chart on the screen. A <strong>Export</strong> action (CSV + PNG of charts).</p>
+  <h4>States</h4>
+  <ul>
+    <li><strong>Insufficient data:</strong> charts show a “Not enough data yet” placeholder with the minimum period needed.</li>
+    <li><strong>Loading:</strong> skeleton charts. <strong>Error:</strong> per-chart retry.</li>
+  </ul>
+  <h4>Interactions</h4>
+  <ul>
+    <li>Hovering a chart shows a tabular tooltip (date, series values in zł).</li>
+    <li>Best/worst product rows link to Listing Details.</li>
+    <li>Changing range/filter updates all charts together and reflects in the URL.</li>
+  </ul>
+
+  <h2 id="s10" class="scr">10 · Screen — Hermes AI Activity</h2>
+  <p><strong>Purpose.</strong> A complete, auditable stream of everything the Hermes agent does or proposes, with human-in-the-loop approval for anything sensitive.</p>
+  <h4>Layout</h4>
+  <ol>
+    <li><strong>Agent banner</strong> (accent gradient) — Hermes identity, an “Active” pulse badge, a one-line status (“monitoring N listings across M marketplaces”), and a “Configure” button → Settings › Hermes AI.</li>
+    <li><strong>Stat row</strong> — Actions today, Awaiting review, Listings created, Time saved.</li>
+    <li><strong>Filter bar</strong> — segmented All / Suggestions / Alerts / Completed, plus a Filter (type, marketplace, product, date).</li>
+    <li><strong>Event list</strong> — one card per event.</li>
+  </ol>
+  <h4>Event card anatomy</h4>
+  <p>Severity-tinted icon · title · type tag · timestamp (with clock icon) · detail sentence · “Product: <em>name</em>” · status indicator (dot + label). <strong>Action buttons</strong> depend on status: items <em>needing action / pending review</em> show <strong>Approve</strong> (primary) + <strong>Dismiss</strong>; completed/applied items show <strong>View</strong>.</p>
+  <h4>Copy tone</h4>
+  <p>Hermes is a <strong>proactive, concise, confident assistant</strong>: plain language, no jargon, always states the “why” and the projected impact (“views up 40%, 0 sales in 7 days → suggest −20 zł”). It never sounds uncertain or chatty.</p>
+  <h4>Interactions &amp; states</h4>
+  <ul>
+    <li><strong>Approve</strong> executes the proposed change (e.g. apply new price/title), moves the event to Completed, writes to the product’s timeline, and toasts with Undo.</li>
+    <li><strong>Dismiss</strong> marks the suggestion rejected (kept in history, filterable) and optionally teaches Hermes (“don’t suggest price drops on this product”).</li>
+    <li><strong>Empty:</strong> “Hermes hasn’t done anything yet” + enable-autonomy hint. <strong>Loading:</strong> 6 skeleton cards.</li>
+    <li>New events can arrive live (prepend with a subtle highlight); the sidebar badge count = events awaiting action.</li>
+  </ul>
+
+  <h2 id="s11" class="scr">11 · Screen — Product Creation Wizard</h2>
+  <p><strong>Purpose.</strong> Create and publish a product in six guided steps. Centered, focused layout (max-width ≈820px) with a step indicator, a content card, and a Back / progress / Continue footer.</p>
+  <h4>Step indicator</h4>
+  <p>Six numbered nodes with connectors: <strong>Photos → Basic info → Pricing → Category → Marketplaces → Preview</strong>. Completed steps show a check and are clickable to jump back; the current step is accent-ringed; future steps are muted. Footer shows “Step N of 6”.</p>
+  <h4>Steps &amp; validation</h4>
+  <table>
+    <thead><tr><th>Step</th><th>Fields</th><th>Validation to advance</th></tr></thead>
+    <tbody>
+      <tr><td>1 · Photos</td><td>Drag/drop or browse; up to 12 images; first = cover; reorder; remove</td><td>≥1 image required; each ≤10MB, JPG/PNG/WebP; warn if &lt;3 photos (“sells faster with more”).</td></tr>
+      <tr><td>2 · Basic info</td><td>Name, Description, Condition, Brand</td><td>Name required (3–120 chars); Description required (≥20 chars); Condition required (enum).</td></tr>
+      <tr><td>3 · Pricing</td><td>Cost price (zł), Selling price (zł); live Profit + Margin; Hermes price suggestion</td><td>Both numeric &gt; 0; selling ≥ cost else block with “Price is below cost”; currency = PLN.</td></tr>
+      <tr><td>4 · Category</td><td>Category picker (cards); optional sub-category</td><td>One category required.</td></tr>
+      <tr><td>5 · Marketplaces</td><td>Per-marketplace toggle; connected ones enabled, unconnected disabled with “Connect first”</td><td>≥1 connected marketplace selected.</td></tr>
+      <tr><td>6 · Preview</td><td>Read-only summary: cover, name, description, price/profit/category, target marketplaces</td><td>Primary CTA becomes <strong>Publish product</strong>.</td></tr>
+    </tbody>
+  </table>
+  <h4>Behaviour</h4>
+  <ul>
+    <li>Continue is disabled until the current step validates; inline field errors appear on blur and on attempted advance.</li>
+    <li>Progress is auto-saved as a <strong>Draft</strong> after each step; leaving the wizard prompts “Save draft / Discard”.</li>
+    <li>Back never loses entered data. Jumping via the step indicator is allowed only to completed steps.</li>
+    <li>Publish shows a progress state per marketplace (queued → publishing → live/failed); partial failure keeps successes and lists retryable failures. On success → Listing Details with a success toast.</li>
+  </ul>
+
+  <h2 id="s12" class="scr">12 · Screen — Marketplace Management</h2>
+  <p><strong>Purpose.</strong> Connect, monitor, configure and disconnect marketplaces. Future-ready: unconnected channels are shown as first-class “Connect” cards.</p>
+  <h4>Layout</h4>
+  <ul>
+    <li><strong>Summary bar</strong> — “<em>X</em> of 7 connected”, total active listings, last full sync time, and a <strong>Sync all</strong> action.</li>
+    <li><strong>Card grid</strong> — one card per marketplace (3-up, responsive).</li>
+  </ul>
+  <h4>Card — connected</h4>
+  <p>Logo chip + name + status (Synced / Syncing… / <em>N</em> errors) with a status dot (pulsing while syncing) · a connection <strong>Switch</strong> · rows for Listings, Synchronization (Auto), Errors (green “No errors” or red count), Last sync · a <strong>Configure</strong> button.</p>
+  <h4>Card — not connected (eBay, Etsy, Amazon)</h4>
+  <p>Muted surface, off switch, a one-line invitation, and a primary <strong>Connect</strong> button (starts OAuth/credentials flow in a modal).</p>
+  <h4>Configure drawer</h4>
+  <p>Per-marketplace settings: sync frequency (real-time / hourly / manual), price rules (markup/rounding per channel), category mapping, default shipping profile, and a “Disconnect” (destructive, confirm) that unpublishes or leaves listings per user choice.</p>
+  <h4>States / interactions</h4>
+  <ul>
+    <li>Toggling the switch off asks to confirm and pauses sync (listings retained).</li>
+    <li>Error count links to a per-marketplace error list (what failed, why, retry).</li>
+    <li>Sync all disables the button and shows per-card syncing until complete; a toast summarizes results.</li>
+  </ul>
+
+  <h2 id="s13" class="scr">13 · Screen — Settings</h2>
+  <p><strong>Purpose.</strong> Workspace and account configuration. Two-column: a left settings nav (sticky) + a right content panel. Eight sections.</p>
+  <h4>13.1 General</h4>
+  <p>Workspace name, default currency (PLN), timezone (Europe/Warsaw), language. Save / Cancel with dirty-state tracking; Save disabled until changed.</p>
+  <h4>13.2 Hermes AI</h4>
+  <p><strong>Autonomy level</strong> (single-select cards): <em>Suggest only</em> · <em>Balanced</em> (auto safe tasks, ask on pricing) · <em>Full auto</em>. Plus toggles: Auto-create listings, Auto-adjust pricing, Auto-relist expired, Smart title &amp; SEO. Optional guardrails: max auto price change %, min margin floor.</p>
+  <h4>13.3 Notifications</h4>
+  <p>A matrix: rows = events (New sale, Competitor price change, Listing needs attention, Sync errors, Weekly report); columns = Email, Push, Telegram; each cell a checkbox. Independent per channel.</p>
+  <h4>13.4 Marketplace Accounts</h4>
+  <p>List of linked seller accounts (logo, name, account handle, status badge, Manage). Reuses connection state from §12; Manage opens the same configure/disconnect flow.</p>
+  <h4>13.5 API Keys</h4>
+  <p>List of keys (name, masked key in mono, created date, Copy). <strong>Generate key</strong> creates a new key shown once in a modal (“copy now — you won’t see it again”); each key has Revoke (destructive confirm).</p>
+  <h4>13.6 Appearance</h4>
+  <p>Theme selector (Light / Dark / System) with visual previews; accent-colour swatches (indigo default + alternatives); density (comfortable / compact). Changes apply live and persist.</p>
+  <h4>13.7 Telegram</h4>
+  <p>Connection status; Bot handle, Chat ID; per-type toggles (Sale notifications, Daily summary, Hermes suggestions). Connect/disconnect flow with a test-message action.</p>
+  <h4>13.8 Security</h4>
+  <p>Change password; Two-factor authentication (toggle + status; authenticator setup flow); Active sessions (device, location, “Sign out all” — destructive). Each row is an independent action with its own confirm where destructive.</p>
+  <div class="callout"><b>Settings-wide rules.</b> Every panel tracks a dirty state; navigating away with unsaved changes prompts to save/discard. Destructive actions (revoke key, disconnect, sign out all, delete) always confirm. Toggles are optimistic with rollback on failure.</div>
+
+  <h2 id="s14" class="scr">14 · Hermes AI event model</h2>
+  <p>Every Hermes action is an <strong>event</strong> with a consistent shape so the activity feed, notifications and timelines can render uniformly.</p>
+  <h4>Event types &amp; defaults</h4>
+  <table>
+    <thead><tr><th>Type</th><th>Severity</th><th>Default status</th><th>Actions</th></tr></thead>
+    <tbody>
+      <tr><td>Created listing</td><td>Success</td><td>Completed</td><td>View</td></tr>
+      <tr><td>Updated description</td><td>Success</td><td>Completed</td><td>View</td></tr>
+      <tr><td>Suggested lower price</td><td>Warning</td><td>Pending review</td><td>Approve · Dismiss</td></tr>
+      <tr><td>Suggested better title</td><td>Info</td><td>Pending review</td><td>Approve · Dismiss</td></tr>
+      <tr><td>Needs relisting</td><td>Warning</td><td>Action needed</td><td>Relist · Dismiss</td></tr>
+      <tr><td>Competitor price detected</td><td>Critical</td><td>Action needed</td><td>Match price · Ignore</td></tr>
+    </tbody>
+  </table>
+  <h4>Fields</h4>
+  <ul>
+    <li><code>id</code>, <code>type</code>, <code>severity</code> (info · success · warning · critical), <code>status</code> (completed · applied · pending&nbsp;review · action&nbsp;needed · dismissed).</li>
+    <li><code>title</code>, <code>detail</code> (with projected impact), <code>timestamp</code>, <code>productId</code> / product name (or “N products” for bulk).</li>
+    <li><code>proposedChange</code> (typed payload: e.g. <code>{ field:'price', from, to }</code>) so Approve can execute deterministically and Undo can revert.</li>
+  </ul>
+  <p>Severity → colour mapping reuses the semantic tokens (§4.1): success/green, info/blue, warning/amber, critical/red — each with its weak tint behind the icon/tag.</p>
+  <p>Autonomy setting (§13.2) governs which types auto-execute vs land as “pending review”: <em>Suggest only</em> → all become suggestions; <em>Balanced</em> → safe types (create/description/title/relist) auto-run, pricing waits for approval; <em>Full auto</em> → all auto-run within the configured price/margin guardrails, still logged.</p>
+
+  <h2 id="s15" class="scr">15 · Core user flows</h2>
+  <h4>15.1 Create &amp; publish a product</h4>
+  <p>New product (top bar / quick action) → Wizard steps 1–6 with per-step validation (§11) → Publish → per-marketplace publish progress → success toast → Listing Details. Failure on any channel keeps successes and offers retry per failed channel. Abandoning saves a Draft.</p>
+  <h4>15.2 Connect a marketplace</h4>
+  <p>Marketplaces → Connect on an unconnected card → auth modal (OAuth or credentials) → on success card flips to connected, initial sync runs (status “Syncing…”), summary bar count increments, and a “Connected” toast appears. Failure shows an inline error with retry.</p>
+  <h4>15.3 Approve a Hermes suggestion</h4>
+  <p>Sidebar badge / Dashboard Hermes card / Hermes screen → open event → Approve → change executes (pessimistic for pricing) → event → Completed, product timeline + activity log updated, badge decrements, toast with Undo (revert via <code>proposedChange</code>).</p>
+  <h4>15.4 Resolve a competitor price alert</h4>
+  <p>Critical event surfaces on Dashboard “Needs attention” and Hermes feed → Match price (applies suggested price to the affected marketplace, respecting the margin floor; blocks + warns if it would breach the floor) or Ignore → status resolves; the product’s attention flag clears if no other issues remain.</p>
+  <h4>15.5 Bulk edit prices</h4>
+  <p>Products → filter → select rows → bulk bar → Edit price → set absolute or ±amount/percent with a live margin preview → Apply → optimistic row updates, error toast + rollback for any that fail, success summary toast.</p>
+  <h4>15.6 Switch theme</h4>
+  <p>Top-bar toggle or Settings › Appearance → whole app re-themes instantly → choice persisted; “System” keeps following OS changes.</p>
+
+  <h2 id="s16" class="scr">16 · Consolidated validation rules</h2>
+  <table>
+    <thead><tr><th>Field / action</th><th>Rule</th><th>On violation</th></tr></thead>
+    <tbody>
+      <tr><td>Product name</td><td>Required, 3–120 chars, trimmed</td><td>Inline error; block advance/save</td></tr>
+      <tr><td>Description</td><td>Required, ≥20 chars</td><td>Inline error; block</td></tr>
+      <tr><td>Condition / Category</td><td>Required enum / one selection</td><td>Inline error; block</td></tr>
+      <tr><td>Cost &amp; selling price</td><td>Numeric, &gt; 0, max 2 decimals, PLN</td><td>Inline error; block</td></tr>
+      <tr><td>Selling vs cost</td><td>Selling ≥ cost (create/edit)</td><td>Block with “below cost”; bulk edit warns but allows</td></tr>
+      <tr><td>Photos</td><td>≥1; ≤12; ≤10MB each; JPG/PNG/WebP</td><td>Reject file with reason; warn if &lt;3</td></tr>
+      <tr><td>Marketplace selection</td><td>≥1 connected channel</td><td>Block publish; prompt to connect</td></tr>
+      <tr><td>Auto price change (Hermes)</td><td>Within max % and above margin floor</td><td>Downgrade to “pending review”; never breach floor</td></tr>
+      <tr><td>API key name</td><td>Required, unique in workspace</td><td>Inline error</td></tr>
+      <tr><td>Destructive actions</td><td>Explicit confirm required</td><td>Modal with typed/confirm gate</td></tr>
+      <tr><td>Global</td><td>Trim inputs; disable submit while pending; prevent double-submit</td><td>—</td></tr>
+    </tbody>
+  </table>
+
+  <h2 id="s17" class="scr">17 · Data model</h2>
+  <p>Indicative entities (fields abbreviated). All money in minor units or decimal PLN; all timestamps ISO-8601 UTC, rendered relative.</p>
+  <table>
+    <thead><tr><th>Entity</th><th>Key fields</th><th>Relations</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Product</strong></td><td>id, name, sku, description, condition, brand, category, tags[], images[], cost, price, status (active·draft·attention·sold), createdAt, updatedAt</td><td>has many Listings; has many Events</td></tr>
+      <tr><td><strong>Listing</strong></td><td>id, productId, marketplaceId, price, status (live·error·draft·expired), views, watchers, createdAt, expiresAt</td><td>belongs to Product &amp; Marketplace</td></tr>
+      <tr><td><strong>Marketplace</strong></td><td>id, key (olx…amazon), name, brandColor, connected, syncMode, lastSyncAt, errorCount, capacity</td><td>has many Listings; has one Account</td></tr>
+      <tr><td><strong>MarketplaceAccount</strong></td><td>id, marketplaceId, handle, credentials/tokens, scopes, status</td><td>belongs to Marketplace</td></tr>
+      <tr><td><strong>HermesEvent</strong></td><td>id, type, severity, status, title, detail, productId, proposedChange, createdAt, resolvedAt</td><td>belongs to Product</td></tr>
+      <tr><td><strong>PriceHistory</strong></td><td>id, listingId, price, changedBy (user·hermes), reason, at</td><td>belongs to Listing</td></tr>
+      <tr><td><strong>OrderEvent</strong></td><td>id, productId, marketplaceId, amount, at (read-only)</td><td>belongs to Product</td></tr>
+      <tr><td><strong>ActivityLog</strong></td><td>id, entityRef, actor (user·hermes), action, at</td><td>polymorphic</td></tr>
+      <tr><td><strong>Workspace / Preferences</strong></td><td>name, currency, timezone, language, theme, accent, density, autonomyLevel, guardrails, notificationMatrix, apiKeys[], telegram, security</td><td>root singleton</td></tr>
+    </tbody>
+  </table>
+  <h4>Derived / computed</h4>
+  <ul>
+    <li><code>profit = price − cost</code>; <code>margin = profit / price</code>.</li>
+    <li>Active-listings count = Σ listings with status <code>live</code> on connected marketplaces.</li>
+    <li>Attention set = products with status <code>attention</code> ∪ expired listings ∪ open critical/action-needed events.</li>
+  </ul>
+
+  <h2 id="s18" class="scr">18 · States, edge cases &amp; acceptance criteria</h2>
+  <h4>Cross-cutting states (must exist for every data surface)</h4>
+  <ul>
+    <li><strong>Loading</strong> — block-level skeletons; never a blank screen or layout shift.</li>
+    <li><strong>Empty</strong> — purposeful empty state with a single primary CTA.</li>
+    <li><strong>Error</strong> — inline retry scoped to the failed block; global outage → full-screen retry.</li>
+    <li><strong>Offline</strong> — banner; queue safe mutations, disable money-affecting ones.</li>
+  </ul>
+  <h4>Responsive behaviour</h4>
+  <ul>
+    <li><strong>≥1200px:</strong> full layout as specified (content capped ~1280px).</li>
+    <li><strong>768–1199px:</strong> sidebar collapses to icons; multi-column grids reflow to fewer columns; tables allow horizontal scroll within their card (never the page). All fixed-content grids use <code>minmax(0,1fr)</code> tracks so cards shrink rather than overflow.</li>
+    <li><strong>&lt;768px:</strong> sidebar becomes a drawer; cards stack single-column; top-bar search collapses to an icon.</li>
+  </ul>
+  <h4>Accessibility</h4>
+  <ul>
+    <li>WCAG AA contrast in both themes; visible focus rings; full keyboard operability (tabs, wizard, menus, modals with focus trap + Esc).</li>
+    <li>Status is never conveyed by colour alone — always paired with a label/icon.</li>
+    <li>Charts have accessible summaries; icons that act as buttons have labels.</li>
+  </ul>
+  <h4>Acceptance criteria (samples)</h4>
+  <ul>
+    <li>Switching any sidebar item updates only the content region in &lt;100ms perceived; the active item and page title update accordingly.</li>
+    <li>Theme toggle re-themes MUI components <em>and</em> custom surfaces together with no flash of the wrong theme, and the choice survives reload.</li>
+    <li>Selecting products reveals the bulk bar with an accurate count; header checkbox shows indeterminate for partial selection; Clear deselects all.</li>
+    <li>The wizard blocks Continue until the current step validates, auto-saves a draft per step, and never loses input on Back.</li>
+    <li>Approving a Hermes pricing suggestion updates the listing, logs it, decrements the sidebar badge, and offers a working Undo.</li>
+    <li>Marketplaces shows 4 connected + 3 connectable cards; unconnected cards expose only Connect; no horizontal page scroll at any supported width.</li>
+    <li>All monetary values render in PLN with grouped thousands and tabular alignment.</li>
+  </ul>
+  <div class="note"><strong>Reference implementation.</strong> A high-fidelity, fully navigable build of all eight screens (light + dark) exists as the companion file <code>MarketDesk.dc.html</code>. Where this document and the reference differ in visual detail, this document defines intent and the reference defines exact spacing, colour and component usage.</div>
+
+  <!-- PRD_ANCHOR -->
+
+</x-import>
+</x-dc>
+</body>
+</html>

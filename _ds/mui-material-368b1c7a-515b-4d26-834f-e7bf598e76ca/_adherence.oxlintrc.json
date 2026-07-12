@@ -1,0 +1,1807 @@
+{
+  "plugins": [
+    "react",
+    "import"
+  ],
+  "rules": {
+    "react/forbid-elements": [
+      "warn",
+      {
+        "forbid": [
+          {
+            "element": "button",
+            "message": "Use <Button> from the design system instead of <button>."
+          },
+          {
+            "element": "input",
+            "message": "Use <Checkbox> from the design system instead of <input>."
+          },
+          {
+            "element": "a",
+            "message": "Use <Link> from the design system instead of <a>."
+          },
+          {
+            "element": "ul",
+            "message": "Use <List> from the design system instead of <ul>."
+          },
+          {
+            "element": "dialog",
+            "message": "Use <Modal> from the design system instead of <dialog>."
+          },
+          {
+            "element": "input",
+            "message": "Use <Radio> from the design system instead of <input>."
+          },
+          {
+            "element": "select",
+            "message": "Use <Select> from the design system instead of <select>."
+          },
+          {
+            "element": "input",
+            "message": "Use <Slider> from the design system instead of <input>."
+          },
+          {
+            "element": "table",
+            "message": "Use <Table> from the design system instead of <table>."
+          },
+          {
+            "element": "input",
+            "message": "Use <TextField> from the design system instead of <input>."
+          }
+        ]
+      }
+    ],
+    "no-restricted-imports": [
+      "warn",
+      {
+        "patterns": [
+          {
+            "group": [
+              "components/general/Accordion/**",
+              "components/general/AccordionActions/**",
+              "components/general/AccordionDetails/**",
+              "components/general/AccordionSummary/**",
+              "components/general/Alert/**",
+              "components/general/AlertTitle/**",
+              "components/general/AppBar/**",
+              "components/general/Autocomplete/**",
+              "components/general/Avatar/**",
+              "components/general/AvatarGroup/**",
+              "components/general/Backdrop/**",
+              "components/general/Badge/**",
+              "components/general/BottomNavigation/**",
+              "components/general/BottomNavigationAction/**",
+              "components/general/Box/**",
+              "components/general/Breadcrumbs/**",
+              "components/general/Button/**",
+              "components/general/ButtonBase/**",
+              "components/general/ButtonGroup/**",
+              "components/general/Card/**",
+              "components/general/CardActionArea/**",
+              "components/general/CardActions/**",
+              "components/general/CardContent/**",
+              "components/general/CardHeader/**",
+              "components/general/CardMedia/**",
+              "components/general/Checkbox/**",
+              "components/general/Chip/**",
+              "components/general/CircularProgress/**",
+              "components/general/ClickAwayListener/**",
+              "components/general/Collapse/**",
+              "components/general/Container/**",
+              "components/general/CssBaseline/**",
+              "components/general/Dialog/**",
+              "components/general/DialogActions/**",
+              "components/general/DialogContent/**",
+              "components/general/DialogContentText/**",
+              "components/general/DialogTitle/**",
+              "components/general/Divider/**",
+              "components/general/Drawer/**",
+              "components/general/Fab/**",
+              "components/general/Fade/**",
+              "components/general/FilledInput/**",
+              "components/general/FormControl/**",
+              "components/general/FormControlLabel/**",
+              "components/general/FormGroup/**",
+              "components/general/FormHelperText/**",
+              "components/general/FormLabel/**",
+              "components/general/GlobalStyles/**",
+              "components/general/Grid/**",
+              "components/general/Grow/**",
+              "components/general/Icon/**",
+              "components/general/IconButton/**",
+              "components/general/ImageList/**",
+              "components/general/ImageListItem/**",
+              "components/general/ImageListItemBar/**",
+              "components/general/InitColorSchemeScript/**",
+              "components/general/Input/**",
+              "components/general/InputAdornment/**",
+              "components/general/InputBase/**",
+              "components/general/InputLabel/**",
+              "components/general/LinearProgress/**",
+              "components/general/Link/**",
+              "components/general/List/**",
+              "components/general/ListItem/**",
+              "components/general/ListItemAvatar/**",
+              "components/general/ListItemButton/**",
+              "components/general/ListItemIcon/**",
+              "components/general/ListItemSecondaryAction/**",
+              "components/general/ListItemText/**",
+              "components/general/ListSubheader/**",
+              "components/general/Menu/**",
+              "components/general/MenuItem/**",
+              "components/general/MenuList/**",
+              "components/general/MobileStepper/**",
+              "components/general/Modal/**",
+              "components/general/NativeSelect/**",
+              "components/general/NoSsr/**",
+              "components/general/OutlinedInput/**",
+              "components/general/Pagination/**",
+              "components/general/PaginationItem/**",
+              "components/general/Paper/**",
+              "components/general/Popover/**",
+              "components/general/Popper/**",
+              "components/general/Portal/**",
+              "components/general/Radio/**",
+              "components/general/RadioGroup/**",
+              "components/general/Rating/**",
+              "components/general/ScopedCssBaseline/**",
+              "components/general/Select/**",
+              "components/general/Skeleton/**",
+              "components/general/Slide/**",
+              "components/general/Slider/**",
+              "components/general/Snackbar/**",
+              "components/general/SnackbarContent/**",
+              "components/general/SpeedDial/**",
+              "components/general/SpeedDialAction/**",
+              "components/general/SpeedDialIcon/**",
+              "components/general/Stack/**",
+              "components/general/Step/**",
+              "components/general/StepButton/**",
+              "components/general/StepConnector/**",
+              "components/general/StepContent/**",
+              "components/general/StepIcon/**",
+              "components/general/StepLabel/**",
+              "components/general/Stepper/**",
+              "components/general/SvgIcon/**",
+              "components/general/SwipeableDrawer/**",
+              "components/general/Switch/**",
+              "components/general/Tab/**",
+              "components/general/TabScrollButton/**",
+              "components/general/Table/**",
+              "components/general/TableBody/**",
+              "components/general/TableCell/**",
+              "components/general/TableContainer/**",
+              "components/general/TableFooter/**",
+              "components/general/TableHead/**",
+              "components/general/TablePagination/**",
+              "components/general/TablePaginationActions/**",
+              "components/general/TableRow/**",
+              "components/general/TableSortLabel/**",
+              "components/general/Tabs/**",
+              "components/general/TextField/**",
+              "components/general/TextareaAutosize/**",
+              "components/general/ToggleButton/**",
+              "components/general/ToggleButtonGroup/**",
+              "components/general/Toolbar/**",
+              "components/general/Tooltip/**",
+              "components/general/Typography/**",
+              "components/general/Zoom/**"
+            ],
+            "message": "Import design-system components from 'index.js', not component internals."
+          }
+        ]
+      }
+    ],
+    "no-restricted-syntax": [
+      "warn",
+      {
+        "selector": "JSXOpeningElement[name.name='Accordion'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|defaultExpanded|disabled|disableGutters|expanded|onChange|sx|slots|slotProps|variant|elevation|square|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Accordion> doesn't accept that prop. Declared props: children, classes, defaultExpanded, disabled, disableGutters, expanded, onChange, sx, slots, slotProps, variant, elevation, square, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Accordion'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:elevation|outlined)$/]",
+        "message": "<Accordion> variant must be one of 'elevation' | 'outlined'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AccordionActions'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|disableSpacing|sx|className|id|style|ref|key|ref|className|style|children)$/]",
+        "message": "<AccordionActions> doesn't accept that prop. Declared props: children, classes, disableSpacing, sx, className, id, style, ref."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AccordionDetails'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|sx|className|id|style|ref|key|ref|className|style|children)$/]",
+        "message": "<AccordionDetails> doesn't accept that prop. Declared props: children, classes, sx, className, id, style, ref."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AccordionSummary'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|expandIcon|sx|slots|slotProps|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<AccordionSummary> doesn't accept that prop. Declared props: classes, expandIcon, sx, slots, slotProps, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Alert'] > JSXAttribute > JSXIdentifier[name!=/^(?:action|classes|closeText|color|severity|icon|role|iconMapping|onClose|variant|sx|component|children|className|id|style|ref|elevation|square|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<Alert> doesn't accept that prop. Declared props: action, classes, closeText, color, severity, icon, role, iconMapping, onClose, variant, sx, component, children, className, id, style, ref, elevation, square, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Alert'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:error|info|success|warning)$/]",
+        "message": "<Alert> color must be one of 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Alert'] > JSXAttribute[name.name='severity'] > Literal[value!=/^(?:error|info|success|warning)$/]",
+        "message": "<Alert> severity must be one of 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Alert'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:standard|outlined|filled)$/]",
+        "message": "<Alert> variant must be one of 'standard' | 'outlined' | 'filled'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AlertTitle'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|sx|align|color|gutterBottom|noWrap|variant|variantMapping|className|style|id|ref|component|key|ref|className|style|children)$/]",
+        "message": "<AlertTitle> doesn't accept that prop. Declared props: children, classes, sx, align, color, gutterBottom, noWrap, variant, variantMapping, className, style, id, ref, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AlertTitle'] > JSXAttribute[name.name='align'] > Literal[value!=/^(?:left|center|right|justify|inherit)$/]",
+        "message": "<AlertTitle> align must be one of 'left' | 'center' | 'right' | 'justify' | 'inherit'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AlertTitle'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:button|inherit|caption|h1|h2|h3|h4|h5|h6|subtitle1|subtitle2|body1|body2|overline)$/]",
+        "message": "<AlertTitle> variant must be one of 'button' | 'inherit' | 'caption' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'subtitle1' | 'subtitle2' | 'body1' | 'body2' | 'overline'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppBar'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|color|elevation|enableColorOnDark|position|square|sx|children|variant|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<AppBar> doesn't accept that prop. Declared props: classes, color, elevation, enableColorOnDark, position, square, sx, children, variant, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppBar'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:inherit|primary|secondary|default|error|info|success|warning|transparent)$/]",
+        "message": "<AppBar> color must be one of 'inherit' | 'primary' | 'secondary' | 'default' | 'error' | 'info' | 'success' | 'warning' | 'transparent'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppBar'] > JSXAttribute[name.name='position'] > Literal[value!=/^(?:fixed|absolute|sticky|static|relative)$/]",
+        "message": "<AppBar> position must be one of 'fixed' | 'absolute' | 'sticky' | 'static' | 'relative'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AppBar'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:elevation|outlined)$/]",
+        "message": "<AppBar> variant must be one of 'elevation' | 'outlined'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Autocomplete'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|clearIcon|clearText|closeText|disabled|disablePortal|forcePopupIcon|fullWidth|getLimitTagsText|loading|loadingText|limitTags|noOptionsText|onKeyDown|openText|popupIcon|readOnly|renderGroup|renderInput|renderOption|renderValue|size|sx|unstable_classNamePrefix|unstable_isActiveElementInListbox|autoComplete|autoHighlight|autoSelect|blurOnSelect|clearOnBlur|clearOnEscape|componentName|defaultValue|disableClearable|disableCloseOnSelect|disabledItemsFocusable|disableListWrap|filterOptions|filterSelectedOptions|freeSolo|getOptionDisabled|getOptionKey|getOptionLabel|groupBy|handleHomeEndKeys|id|includeInputInList|inputValue|isOptionEqualToValue|multiple|onChange|onClose|onHighlightChange|onInputChange|onOpen|open|openOnFocus|options|resetHighlightOnMouseLeave|selectOnFocus|value|className|style|ref|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<Autocomplete> doesn't accept that prop. Declared props: classes, clearIcon, clearText, closeText, disabled, disablePortal, forcePopupIcon, fullWidth, getLimitTagsText, loading, loadingText, limitTags, noOptionsText, onKeyDown, openText, popupIcon, readOnly, renderGroup, renderInput, renderOption, renderValue, size, sx, unstable_classNamePrefix, unstable_isActiveElementInListbox, autoComplete, autoHighlight, autoSelect, blurOnSelect, clearOnBlur, clearOnEscape, componentName, defaultValue, disableClearable, disableCloseOnSelect, disabledItemsFocusable, disableListWrap, filterOptions, filterSelectedOptions, freeSolo, getOptionDisabled, getOptionKey, getOptionLabel, groupBy, handleHomeEndKeys, id, includeInputInList, inputValue, isOptionEqualToValue, multiple, onChange, onClose, onHighlightChange, onInputChange, onOpen, open, openOnFocus, options, resetHighlightOnMouseLeave, selectOnFocus, value, className, style, ref, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Autocomplete'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|medium)$/]",
+        "message": "<Autocomplete> size must be one of 'small' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Avatar'] > JSXAttribute > JSXIdentifier[name!=/^(?:alt|children|classes|sizes|src|srcSet|sx|variant|slots|slotProps|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Avatar> doesn't accept that prop. Declared props: alt, children, classes, sizes, src, srcSet, sx, variant, slots, slotProps, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Avatar'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:circular|square|rounded)$/]",
+        "message": "<Avatar> variant must be one of 'circular' | 'square' | 'rounded'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AvatarGroup'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|component|max|renderSurplus|spacing|sx|total|variant|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<AvatarGroup> doesn't accept that prop. Declared props: children, classes, component, max, renderSurplus, spacing, sx, total, variant, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='AvatarGroup'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:circular|square|rounded)$/]",
+        "message": "<AvatarGroup> variant must be one of 'circular' | 'square' | 'rounded'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Backdrop'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|invisible|open|sx|transitionDuration|enter|className|id|style|ref|in|mountOnEnter|unmountOnExit|timeout|easing|addEndListener|disablePrefersReducedMotion|onEnter|onEntering|onEntered|onExit|onExiting|onExited|appear|exit|slots|slotProps|component|key|ref|className|style|children)$/]",
+        "message": "<Backdrop> doesn't accept that prop. Declared props: children, classes, invisible, open, sx, transitionDuration, enter, className, id, style, ref, in, mountOnEnter, unmountOnExit, timeout, easing, addEndListener, disablePrefersReducedMotion, onEnter, onEntering, onEntered, onExit, onExiting, onExited, appear, exit, slots, slotProps, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Badge'] > JSXAttribute > JSXIdentifier[name!=/^(?:anchorOrigin|badgeContent|children|classes|className|color|invisible|max|overlap|showZero|sx|variant|slots|slotProps|style|component|key|ref|className|style|children)$/]",
+        "message": "<Badge> doesn't accept that prop. Declared props: anchorOrigin, badgeContent, children, classes, className, color, invisible, max, overlap, showZero, sx, variant, slots, slotProps, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Badge'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|default|error|info|success|warning)$/]",
+        "message": "<Badge> color must be one of 'primary' | 'secondary' | 'default' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Badge'] > JSXAttribute[name.name='overlap'] > Literal[value!=/^(?:rectangular|circular)$/]",
+        "message": "<Badge> overlap must be one of 'rectangular' | 'circular'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Badge'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:standard|dot)$/]",
+        "message": "<Badge> variant must be one of 'standard' | 'dot'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='BottomNavigation'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|onChange|showLabels|sx|value|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<BottomNavigation> doesn't accept that prop. Declared props: children, classes, onChange, showLabels, sx, value, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='BottomNavigationAction'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|icon|label|showLabel|sx|value|slots|slotProps|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<BottomNavigationAction> doesn't accept that prop. Declared props: children, classes, icon, label, showLabel, sx, value, slots, slotProps, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Box'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|ref|sx|className|style|classes|component|key|ref|className|style|children)$/]",
+        "message": "<Box> doesn't accept that prop. Declared props: children, ref, sx, className, style, classes, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Breadcrumbs'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|slots|slotProps|expandText|itemsAfterCollapse|itemsBeforeCollapse|maxItems|separator|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Breadcrumbs> doesn't accept that prop. Declared props: children, classes, slots, slotProps, expandText, itemsAfterCollapse, itemsBeforeCollapse, maxItems, separator, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|color|disabled|disableElevation|disableFocusRipple|endIcon|fullWidth|href|loading|loadingIndicator|loadingPosition|size|startIcon|sx|variant|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Button> doesn't accept that prop. Declared props: children, classes, color, disabled, disableElevation, disableFocusRipple, endIcon, fullWidth, href, loading, loadingIndicator, loadingPosition, size, startIcon, sx, variant, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:inherit|primary|secondary|error|info|success|warning)$/]",
+        "message": "<Button> color must be one of 'inherit' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='loadingPosition'] > Literal[value!=/^(?:center|end|start)$/]",
+        "message": "<Button> loadingPosition must be one of 'center' | 'end' | 'start'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|large|medium)$/]",
+        "message": "<Button> size must be one of 'small' | 'large' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Button'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:text|outlined|contained)$/]",
+        "message": "<Button> variant must be one of 'text' | 'outlined' | 'contained'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ButtonBase'] > JSXAttribute > JSXIdentifier[name!=/^(?:action|centerRipple|children|classes|disabled|disableRipple|disableTouchRipple|focusRipple|focusVisibleClassName|LinkComponent|nativeButton|onFocusVisible|sx|tabIndex|TouchRippleProps|touchRippleRef|type|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<ButtonBase> doesn't accept that prop. Declared props: action, centerRipple, children, classes, disabled, disableRipple, disableTouchRipple, focusRipple, focusVisibleClassName, LinkComponent, nativeButton, onFocusVisible, sx, tabIndex, TouchRippleProps, touchRippleRef, type, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ButtonGroup'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|color|disabled|disableElevation|disableFocusRipple|disableRipple|fullWidth|orientation|size|variant|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<ButtonGroup> doesn't accept that prop. Declared props: children, classes, color, disabled, disableElevation, disableFocusRipple, disableRipple, fullWidth, orientation, size, variant, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ButtonGroup'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:inherit|primary|secondary|error|info|success|warning)$/]",
+        "message": "<ButtonGroup> color must be one of 'inherit' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ButtonGroup'] > JSXAttribute[name.name='orientation'] > Literal[value!=/^(?:horizontal|vertical)$/]",
+        "message": "<ButtonGroup> orientation must be one of 'horizontal' | 'vertical'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ButtonGroup'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|large|medium)$/]",
+        "message": "<ButtonGroup> size must be one of 'small' | 'large' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ButtonGroup'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:text|outlined|contained)$/]",
+        "message": "<ButtonGroup> variant must be one of 'text' | 'outlined' | 'contained'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Card'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|raised|sx|children|variant|elevation|square|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Card> doesn't accept that prop. Declared props: classes, raised, sx, children, variant, elevation, square, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Card'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:elevation|outlined)$/]",
+        "message": "<Card> variant must be one of 'elevation' | 'outlined'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='CardActionArea'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|focusVisibleClassName|sx|slots|slotProps|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<CardActionArea> doesn't accept that prop. Declared props: classes, focusVisibleClassName, sx, slots, slotProps, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='CardActions'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|sx|disableSpacing|className|id|style|ref|key|ref|className|style|children)$/]",
+        "message": "<CardActions> doesn't accept that prop. Declared props: children, classes, sx, disableSpacing, className, id, style, ref."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='CardContent'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<CardContent> doesn't accept that prop. Declared props: children, classes, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='CardHeader'] > JSXAttribute > JSXIdentifier[name!=/^(?:action|avatar|classes|disableTypography|subheader|sx|title|slots|slotProps|className|style|key|ref|className|style|children)$/]",
+        "message": "<CardHeader> doesn't accept that prop. Declared props: action, avatar, classes, disableTypography, subheader, sx, title, slots, slotProps, className, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='CardMedia'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|image|src|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<CardMedia> doesn't accept that prop. Declared props: children, classes, image, src, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Checkbox'] > JSXAttribute > JSXIdentifier[name!=/^(?:checked|checkedIcon|classes|color|disabled|disableRipple|icon|id|indeterminate|indeterminateIcon|onChange|required|size|sx|value|component|defaultChecked|autoFocus|className|style|tabIndex|ref|action|centerRipple|disableTouchRipple|focusRipple|focusVisibleClassName|LinkComponent|onFocusVisible|TouchRippleProps|touchRippleRef|name|disableFocusRipple|edge|readOnly|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<Checkbox> doesn't accept that prop. Declared props: checked, checkedIcon, classes, color, disabled, disableRipple, icon, id, indeterminate, indeterminateIcon, onChange, required, size, sx, value, component, defaultChecked, autoFocus, className, style, tabIndex, ref, action, centerRipple, disableTouchRipple, focusRipple, focusVisibleClassName, LinkComponent, onFocusVisible, TouchRippleProps, touchRippleRef, name, disableFocusRipple, edge, readOnly, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Checkbox'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|default|error|info|success|warning)$/]",
+        "message": "<Checkbox> color must be one of 'primary' | 'secondary' | 'default' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Checkbox'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|large|medium)$/]",
+        "message": "<Checkbox> size must be one of 'small' | 'large' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Chip'] > JSXAttribute > JSXIdentifier[name!=/^(?:avatar|children|classes|clickable|color|deleteIcon|disabled|icon|label|onDelete|size|nativeButton|skipFocusWhenDisabled|sx|tabIndex|variant|slots|slotProps|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Chip> doesn't accept that prop. Declared props: avatar, children, classes, clickable, color, deleteIcon, disabled, icon, label, onDelete, size, nativeButton, skipFocusWhenDisabled, sx, tabIndex, variant, slots, slotProps, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Chip'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|default|error|info|success|warning)$/]",
+        "message": "<Chip> color must be one of 'primary' | 'secondary' | 'default' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Chip'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|medium)$/]",
+        "message": "<Chip> size must be one of 'small' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Chip'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:outlined|filled)$/]",
+        "message": "<Chip> variant must be one of 'outlined' | 'filled'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='CircularProgress'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|color|disableShrink|enableTrackSlot|max|min|size|sx|thickness|value|variant|className|id|style|ref|key|ref|className|style|children)$/]",
+        "message": "<CircularProgress> doesn't accept that prop. Declared props: classes, color, disableShrink, enableTrackSlot, max, min, size, sx, thickness, value, variant, className, id, style, ref."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='CircularProgress'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:inherit|primary|secondary|error|info|success|warning)$/]",
+        "message": "<CircularProgress> color must be one of 'inherit' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='CircularProgress'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:indeterminate|determinate)$/]",
+        "message": "<CircularProgress> variant must be one of 'indeterminate' | 'determinate'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ClickAwayListener'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|disableReactTree|mouseEvent|onClickAway|touchEvent|key|ref|className|style|children)$/]",
+        "message": "<ClickAwayListener> doesn't accept that prop. Declared props: children, disableReactTree, mouseEvent, onClickAway, touchEvent."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Collapse'] > JSXAttribute > JSXIdentifier[name!=/^(?:addEndListener|children|className|classes|collapsedSize|component|disablePrefersReducedMotion|easing|in|orientation|timeout|sx|enter|id|style|mountOnEnter|unmountOnExit|onEnter|onEntering|onEntered|onExit|onExiting|onExited|appear|exit|ref|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<Collapse> doesn't accept that prop. Declared props: addEndListener, children, className, classes, collapsedSize, component, disablePrefersReducedMotion, easing, in, orientation, timeout, sx, enter, id, style, mountOnEnter, unmountOnExit, onEnter, onEntering, onEntered, onExit, onExiting, onExited, appear, exit, ref, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Collapse'] > JSXAttribute[name.name='orientation'] > Literal[value!=/^(?:horizontal|vertical)$/]",
+        "message": "<Collapse> orientation must be one of 'horizontal' | 'vertical'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Container'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|disableGutters|fixed|maxWidth|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Container> doesn't accept that prop. Declared props: children, classes, disableGutters, fixed, maxWidth, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='CssBaseline'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|enableColorScheme|classes|key|ref|className|style|children)$/]",
+        "message": "<CssBaseline> doesn't accept that prop. Declared props: children, enableColorScheme, classes."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Dialog'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|fullScreen|fullWidth|maxWidth|onClose|open|role|PaperComponent|scroll|sx|transitionDuration|component|className|id|style|ref|closeAfterTransition|container|disableAutoFocus|disableEnforceFocus|disablePortal|disableRestoreFocus|disableScrollLock|hideBackdrop|keepMounted|onTransitionEnter|onTransitionExited|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<Dialog> doesn't accept that prop. Declared props: children, classes, fullScreen, fullWidth, maxWidth, onClose, open, role, PaperComponent, scroll, sx, transitionDuration, component, className, id, style, ref, closeAfterTransition, container, disableAutoFocus, disableEnforceFocus, disablePortal, disableRestoreFocus, disableScrollLock, hideBackdrop, keepMounted, onTransitionEnter, onTransitionExited, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Dialog'] > JSXAttribute[name.name='role'] > Literal[value!=/^(?:alertdialog|dialog)$/]",
+        "message": "<Dialog> role must be one of 'alertdialog' | 'dialog'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Dialog'] > JSXAttribute[name.name='scroll'] > Literal[value!=/^(?:body|paper)$/]",
+        "message": "<Dialog> scroll must be one of 'body' | 'paper'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='DialogActions'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|sx|disableSpacing|className|id|style|ref|key|ref|className|style|children)$/]",
+        "message": "<DialogActions> doesn't accept that prop. Declared props: children, classes, sx, disableSpacing, className, id, style, ref."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='DialogContent'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|dividers|sx|className|id|style|ref|key|ref|className|style|children)$/]",
+        "message": "<DialogContent> doesn't accept that prop. Declared props: children, classes, dividers, sx, className, id, style, ref."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='DialogContentText'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|sx|children|align|color|variant|gutterBottom|noWrap|variantMapping|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<DialogContentText> doesn't accept that prop. Declared props: classes, sx, children, align, color, variant, gutterBottom, noWrap, variantMapping, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='DialogContentText'] > JSXAttribute[name.name='align'] > Literal[value!=/^(?:left|center|right|justify|inherit)$/]",
+        "message": "<DialogContentText> align must be one of 'left' | 'center' | 'right' | 'justify' | 'inherit'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='DialogContentText'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:button|inherit|caption|h1|h2|h3|h4|h5|h6|subtitle1|subtitle2|body1|body2|overline)$/]",
+        "message": "<DialogContentText> variant must be one of 'button' | 'inherit' | 'caption' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'subtitle1' | 'subtitle2' | 'body1' | 'body2' | 'overline'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='DialogTitle'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|sx|align|color|variant|gutterBottom|noWrap|variantMapping|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<DialogTitle> doesn't accept that prop. Declared props: children, classes, sx, align, color, variant, gutterBottom, noWrap, variantMapping, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='DialogTitle'] > JSXAttribute[name.name='align'] > Literal[value!=/^(?:left|center|right|justify|inherit)$/]",
+        "message": "<DialogTitle> align must be one of 'left' | 'center' | 'right' | 'justify' | 'inherit'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='DialogTitle'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:button|inherit|caption|h1|h2|h3|h4|h5|h6|subtitle1|subtitle2|body1|body2|overline)$/]",
+        "message": "<DialogTitle> variant must be one of 'button' | 'inherit' | 'caption' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'subtitle1' | 'subtitle2' | 'body1' | 'body2' | 'overline'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Divider'] > JSXAttribute > JSXIdentifier[name!=/^(?:absolute|children|classes|flexItem|orientation|sx|textAlign|variant|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Divider> doesn't accept that prop. Declared props: absolute, children, classes, flexItem, orientation, sx, textAlign, variant, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Divider'] > JSXAttribute[name.name='orientation'] > Literal[value!=/^(?:horizontal|vertical)$/]",
+        "message": "<Divider> orientation must be one of 'horizontal' | 'vertical'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Divider'] > JSXAttribute[name.name='textAlign'] > Literal[value!=/^(?:left|center|right)$/]",
+        "message": "<Divider> textAlign must be one of 'left' | 'center' | 'right'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Divider'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:inset|middle|fullWidth)$/]",
+        "message": "<Divider> variant must be one of 'inset' | 'middle' | 'fullWidth'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Drawer'] > JSXAttribute > JSXIdentifier[name!=/^(?:anchor|children|classes|elevation|ModalProps|onClose|open|sx|transitionDuration|variant|component|className|id|style|ref|closeAfterTransition|container|disableAutoFocus|disableEnforceFocus|disablePortal|disableRestoreFocus|disableScrollLock|hideBackdrop|keepMounted|onTransitionEnter|onTransitionExited|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<Drawer> doesn't accept that prop. Declared props: anchor, children, classes, elevation, ModalProps, onClose, open, sx, transitionDuration, variant, component, className, id, style, ref, closeAfterTransition, container, disableAutoFocus, disableEnforceFocus, disablePortal, disableRestoreFocus, disableScrollLock, hideBackdrop, keepMounted, onTransitionEnter, onTransitionExited, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Drawer'] > JSXAttribute[name.name='anchor'] > Literal[value!=/^(?:left|right|bottom|top)$/]",
+        "message": "<Drawer> anchor must be one of 'left' | 'right' | 'bottom' | 'top'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Drawer'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:permanent|persistent|temporary)$/]",
+        "message": "<Drawer> variant must be one of 'permanent' | 'persistent' | 'temporary'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Fab'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|color|disabled|disableFocusRipple|disableRipple|href|size|variant|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Fab> doesn't accept that prop. Declared props: children, classes, color, disabled, disableFocusRipple, disableRipple, href, size, variant, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Fab'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:inherit|primary|secondary|default|error|info|success|warning)$/]",
+        "message": "<Fab> color must be one of 'inherit' | 'primary' | 'secondary' | 'default' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Fab'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|large|medium)$/]",
+        "message": "<Fab> size must be one of 'small' | 'large' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Fab'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:circular|extended)$/]",
+        "message": "<Fab> variant must be one of 'circular' | 'extended'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Fade'] > JSXAttribute > JSXIdentifier[name!=/^(?:addEndListener|appear|children|disablePrefersReducedMotion|easing|in|ref|timeout|enter|className|id|style|mountOnEnter|unmountOnExit|onEnter|onEntering|onEntered|onExit|onExiting|onExited|exit|key|ref|className|style|children)$/]",
+        "message": "<Fade> doesn't accept that prop. Declared props: addEndListener, appear, children, disablePrefersReducedMotion, easing, in, ref, timeout, enter, className, id, style, mountOnEnter, unmountOnExit, onEnter, onEntering, onEntered, onExit, onExiting, onExited, exit."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FilledInput'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|hiddenLabel|disableUnderline|notched|sx|defaultValue|autoFocus|className|id|style|color|onFocus|onBlur|onChange|onInvalid|onKeyDown|onKeyUp|size|ref|slotProps|slots|error|margin|disabled|type|name|value|fullWidth|endAdornment|autoComplete|placeholder|readOnly|required|rows|disableInjectingGlobalStyles|inputComponent|inputProps|inputRef|multiline|renderSuffix|maxRows|minRows|startAdornment|key|ref|className|style|children)$/]",
+        "message": "<FilledInput> doesn't accept that prop. Declared props: classes, hiddenLabel, disableUnderline, notched, sx, defaultValue, autoFocus, className, id, style, color, onFocus, onBlur, onChange, onInvalid, onKeyDown, onKeyUp, size, ref, slotProps, slots, error, margin, disabled, type, name, value, fullWidth, endAdornment, autoComplete, placeholder, readOnly, required, rows, disableInjectingGlobalStyles, inputComponent, inputProps, inputRef, multiline, renderSuffix, maxRows, minRows, startAdornment."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FilledInput'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|error|info|success|warning)$/]",
+        "message": "<FilledInput> color must be one of 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FilledInput'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|medium)$/]",
+        "message": "<FilledInput> size must be one of 'small' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FilledInput'] > JSXAttribute[name.name='margin'] > Literal[value!=/^(?:none|dense)$/]",
+        "message": "<FilledInput> margin must be one of 'none' | 'dense'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FormControl'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|color|disabled|error|fullWidth|focused|hiddenLabel|margin|required|size|sx|variant|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<FormControl> doesn't accept that prop. Declared props: children, classes, color, disabled, error, fullWidth, focused, hiddenLabel, margin, required, size, sx, variant, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FormControl'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|error|info|success|warning)$/]",
+        "message": "<FormControl> color must be one of 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FormControl'] > JSXAttribute[name.name='margin'] > Literal[value!=/^(?:none|dense|normal)$/]",
+        "message": "<FormControl> margin must be one of 'none' | 'dense' | 'normal'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FormControl'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|medium)$/]",
+        "message": "<FormControl> size must be one of 'small' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FormControl'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:standard|outlined|filled)$/]",
+        "message": "<FormControl> variant must be one of 'standard' | 'outlined' | 'filled'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FormControlLabel'] > JSXAttribute > JSXIdentifier[name!=/^(?:checked|classes|control|disabled|disableTypography|inputRef|label|labelPlacement|name|onChange|required|sx|value|className|id|style|ref|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<FormControlLabel> doesn't accept that prop. Declared props: checked, classes, control, disabled, disableTypography, inputRef, label, labelPlacement, name, onChange, required, sx, value, className, id, style, ref, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FormControlLabel'] > JSXAttribute[name.name='labelPlacement'] > Literal[value!=/^(?:bottom|top|end|start)$/]",
+        "message": "<FormControlLabel> labelPlacement must be one of 'bottom' | 'top' | 'end' | 'start'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FormGroup'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|row|sx|className|id|style|ref|key|ref|className|style|children)$/]",
+        "message": "<FormGroup> doesn't accept that prop. Declared props: children, classes, row, sx, className, id, style, ref."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FormHelperText'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|disabled|error|filled|focused|margin|required|sx|variant|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<FormHelperText> doesn't accept that prop. Declared props: children, classes, disabled, error, filled, focused, margin, required, sx, variant, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FormHelperText'] > JSXAttribute[name.name='margin'] > Literal[value!=/^(?:dense)$/]",
+        "message": "<FormHelperText> margin must be one of 'dense'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FormHelperText'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:standard|outlined|filled)$/]",
+        "message": "<FormHelperText> variant must be one of 'standard' | 'outlined' | 'filled'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='FormLabel'] > JSXAttribute > JSXIdentifier[name!=/^(?:className|id|style|children|classes|disabled|error|filled|focused|required|sx|component|key|ref|className|style|children)$/]",
+        "message": "<FormLabel> doesn't accept that prop. Declared props: className, id, style, children, classes, disabled, error, filled, focused, required, sx, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='GlobalStyles'] > JSXAttribute > JSXIdentifier[name!=/^(?:styles|key|ref|className|style|children)$/]",
+        "message": "<GlobalStyles> doesn't accept that prop. Declared props: styles."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Grid'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|columns|columnSpacing|container|direction|offset|unstable_level|rowSpacing|size|spacing|wrap|sx|key|ref|className|style|children)$/]",
+        "message": "<Grid> doesn't accept that prop. Declared props: children, columns, columnSpacing, container, direction, offset, unstable_level, rowSpacing, size, spacing, wrap, sx."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Grid'] > JSXAttribute[name.name='wrap'] > Literal[value!=/^(?:wrap|nowrap|wrap-reverse)$/]",
+        "message": "<Grid> wrap must be one of 'wrap' | 'nowrap' | 'wrap-reverse'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Grow'] > JSXAttribute > JSXIdentifier[name!=/^(?:addEndListener|appear|children|disablePrefersReducedMotion|easing|in|ref|timeout|enter|className|id|style|mountOnEnter|unmountOnExit|onEnter|onEntering|onEntered|onExit|onExiting|onExited|exit|key|ref|className|style|children)$/]",
+        "message": "<Grow> doesn't accept that prop. Declared props: addEndListener, appear, children, disablePrefersReducedMotion, easing, in, ref, timeout, enter, className, id, style, mountOnEnter, unmountOnExit, onEnter, onEntering, onEntered, onExit, onExiting, onExited, exit."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Icon'] > JSXAttribute > JSXIdentifier[name!=/^(?:baseClassName|children|classes|color|fontSize|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Icon> doesn't accept that prop. Declared props: baseClassName, children, classes, color, fontSize, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Icon'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:inherit|primary|secondary|error|info|success|warning|disabled|action)$/]",
+        "message": "<Icon> color must be one of 'inherit' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' | 'disabled' | 'action'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Icon'] > JSXAttribute[name.name='fontSize'] > Literal[value!=/^(?:inherit|small|large|medium)$/]",
+        "message": "<Icon> fontSize must be one of 'inherit' | 'small' | 'large' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='IconButton'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|color|disabled|disableFocusRipple|edge|loading|loadingIndicator|size|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<IconButton> doesn't accept that prop. Declared props: children, classes, color, disabled, disableFocusRipple, edge, loading, loadingIndicator, size, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='IconButton'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:inherit|primary|secondary|default|error|info|success|warning)$/]",
+        "message": "<IconButton> color must be one of 'inherit' | 'primary' | 'secondary' | 'default' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='IconButton'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|large|medium)$/]",
+        "message": "<IconButton> size must be one of 'small' | 'large' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ImageList'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|cols|gap|rowHeight|sx|variant|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<ImageList> doesn't accept that prop. Declared props: children, classes, cols, gap, rowHeight, sx, variant, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ImageList'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:standard|masonry|quilted|woven)$/]",
+        "message": "<ImageList> variant must be one of 'standard' | 'masonry' | 'quilted' | 'woven'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ImageListItem'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|cols|rows|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<ImageListItem> doesn't accept that prop. Declared props: children, classes, cols, rows, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ImageListItemBar'] > JSXAttribute > JSXIdentifier[name!=/^(?:actionIcon|actionPosition|classes|position|subtitle|sx|title|children|className|id|style|ref|key|ref|className|style|children)$/]",
+        "message": "<ImageListItemBar> doesn't accept that prop. Declared props: actionIcon, actionPosition, classes, position, subtitle, sx, title, children, className, id, style, ref."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ImageListItemBar'] > JSXAttribute[name.name='actionPosition'] > Literal[value!=/^(?:left|right)$/]",
+        "message": "<ImageListItemBar> actionPosition must be one of 'left' | 'right'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ImageListItemBar'] > JSXAttribute[name.name='position'] > Literal[value!=/^(?:bottom|top|below)$/]",
+        "message": "<ImageListItemBar> position must be one of 'bottom' | 'top' | 'below'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='InitColorSchemeScript'] > JSXAttribute > JSXIdentifier[name!=/^(?:defaultMode|defaultLightColorScheme|defaultDarkColorScheme|colorSchemeNode|modeStorageKey|colorSchemeStorageKey|attribute|nonce|key|ref|className|style|children)$/]",
+        "message": "<InitColorSchemeScript> doesn't accept that prop. Declared props: defaultMode, defaultLightColorScheme, defaultDarkColorScheme, colorSchemeNode, modeStorageKey, colorSchemeStorageKey, attribute, nonce."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='InitColorSchemeScript'] > JSXAttribute[name.name='defaultMode'] > Literal[value!=/^(?:system|light|dark)$/]",
+        "message": "<InitColorSchemeScript> defaultMode must be one of 'system' | 'light' | 'dark'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Input'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|disableUnderline|notched|sx|defaultValue|autoFocus|className|id|style|color|onFocus|onBlur|onChange|onInvalid|onKeyDown|onKeyUp|size|ref|slotProps|slots|error|margin|disabled|type|name|value|fullWidth|endAdornment|autoComplete|placeholder|readOnly|required|rows|disableInjectingGlobalStyles|inputComponent|inputProps|inputRef|multiline|renderSuffix|maxRows|minRows|startAdornment|key|ref|className|style|children)$/]",
+        "message": "<Input> doesn't accept that prop. Declared props: classes, disableUnderline, notched, sx, defaultValue, autoFocus, className, id, style, color, onFocus, onBlur, onChange, onInvalid, onKeyDown, onKeyUp, size, ref, slotProps, slots, error, margin, disabled, type, name, value, fullWidth, endAdornment, autoComplete, placeholder, readOnly, required, rows, disableInjectingGlobalStyles, inputComponent, inputProps, inputRef, multiline, renderSuffix, maxRows, minRows, startAdornment."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Input'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|error|info|success|warning)$/]",
+        "message": "<Input> color must be one of 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Input'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|medium)$/]",
+        "message": "<Input> size must be one of 'small' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Input'] > JSXAttribute[name.name='margin'] > Literal[value!=/^(?:none|dense)$/]",
+        "message": "<Input> margin must be one of 'none' | 'dense'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='InputAdornment'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|children|disablePointerEvents|disableTypography|position|sx|variant|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<InputAdornment> doesn't accept that prop. Declared props: classes, children, disablePointerEvents, disableTypography, position, sx, variant, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='InputAdornment'] > JSXAttribute[name.name='position'] > Literal[value!=/^(?:end|start)$/]",
+        "message": "<InputAdornment> position must be one of 'end' | 'start'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='InputAdornment'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:standard|outlined|filled)$/]",
+        "message": "<InputAdornment> variant must be one of 'standard' | 'outlined' | 'filled'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='InputBase'] > JSXAttribute > JSXIdentifier[name!=/^(?:autoComplete|autoFocus|classes|color|defaultValue|disabled|disableInjectingGlobalStyles|endAdornment|error|fullWidth|id|inputComponent|inputProps|inputRef|margin|multiline|name|onBlur|onChange|onFocus|onKeyDown|onKeyUp|onInvalid|placeholder|readOnly|required|renderSuffix|rows|maxRows|minRows|size|slotProps|slots|startAdornment|sx|type|value|className|style|ref|key|ref|className|style|children)$/]",
+        "message": "<InputBase> doesn't accept that prop. Declared props: autoComplete, autoFocus, classes, color, defaultValue, disabled, disableInjectingGlobalStyles, endAdornment, error, fullWidth, id, inputComponent, inputProps, inputRef, margin, multiline, name, onBlur, onChange, onFocus, onKeyDown, onKeyUp, onInvalid, placeholder, readOnly, required, renderSuffix, rows, maxRows, minRows, size, slotProps, slots, startAdornment, sx, type, value, className, style, ref."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='InputBase'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|error|info|success|warning)$/]",
+        "message": "<InputBase> color must be one of 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='InputBase'] > JSXAttribute[name.name='margin'] > Literal[value!=/^(?:none|dense)$/]",
+        "message": "<InputBase> margin must be one of 'none' | 'dense'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='InputBase'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|medium)$/]",
+        "message": "<InputBase> size must be one of 'small' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='InputLabel'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|color|disableAnimation|disabled|error|focused|margin|required|shrink|size|sx|variant|children|filled|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<InputLabel> doesn't accept that prop. Declared props: classes, color, disableAnimation, disabled, error, focused, margin, required, shrink, size, sx, variant, children, filled, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='InputLabel'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|error|info|success|warning)$/]",
+        "message": "<InputLabel> color must be one of 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='InputLabel'] > JSXAttribute[name.name='margin'] > Literal[value!=/^(?:dense)$/]",
+        "message": "<InputLabel> margin must be one of 'dense'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='InputLabel'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|medium)$/]",
+        "message": "<InputLabel> size must be one of 'small' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='InputLabel'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:standard|outlined|filled)$/]",
+        "message": "<InputLabel> variant must be one of 'standard' | 'outlined' | 'filled'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='LinearProgress'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|color|max|min|sx|value|valueBuffer|variant|className|id|style|ref|key|ref|className|style|children)$/]",
+        "message": "<LinearProgress> doesn't accept that prop. Declared props: classes, color, max, min, sx, value, valueBuffer, variant, className, id, style, ref."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='LinearProgress'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:inherit|primary|secondary|error|info|success|warning)$/]",
+        "message": "<LinearProgress> color must be one of 'inherit' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='LinearProgress'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:indeterminate|determinate|buffer|query)$/]",
+        "message": "<LinearProgress> variant must be one of 'indeterminate' | 'determinate' | 'buffer' | 'query'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Link'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|color|sx|TypographyClasses|underline|variant|align|gutterBottom|noWrap|variantMapping|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Link> doesn't accept that prop. Declared props: children, classes, color, sx, TypographyClasses, underline, variant, align, gutterBottom, noWrap, variantMapping, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Link'] > JSXAttribute[name.name='underline'] > Literal[value!=/^(?:none|hover|always)$/]",
+        "message": "<Link> underline must be one of 'none' | 'hover' | 'always'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Link'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:button|inherit|caption|h1|h2|h3|h4|h5|h6|subtitle1|subtitle2|body1|body2|overline)$/]",
+        "message": "<Link> variant must be one of 'button' | 'inherit' | 'caption' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'subtitle1' | 'subtitle2' | 'body1' | 'body2' | 'overline'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Link'] > JSXAttribute[name.name='align'] > Literal[value!=/^(?:left|center|right|justify|inherit)$/]",
+        "message": "<Link> align must be one of 'left' | 'center' | 'right' | 'justify' | 'inherit'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='List'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|dense|disablePadding|subheader|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<List> doesn't accept that prop. Declared props: children, classes, dense, disablePadding, subheader, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ListItem'] > JSXAttribute > JSXIdentifier[name!=/^(?:slotProps|slots|alignItems|children|classes|dense|disableGutters|disablePadding|divider|secondaryAction|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<ListItem> doesn't accept that prop. Declared props: slotProps, slots, alignItems, children, classes, dense, disableGutters, disablePadding, divider, secondaryAction, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ListItem'] > JSXAttribute[name.name='alignItems'] > Literal[value!=/^(?:center|flex-start)$/]",
+        "message": "<ListItem> alignItems must be one of 'center' | 'flex-start'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ListItemAvatar'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|sx|className|id|style|ref|key|ref|className|style|children)$/]",
+        "message": "<ListItemAvatar> doesn't accept that prop. Declared props: children, classes, sx, className, id, style, ref."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ListItemButton'] > JSXAttribute > JSXIdentifier[name!=/^(?:alignItems|autoFocus|children|classes|dense|disabled|disableGutters|divider|selected|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<ListItemButton> doesn't accept that prop. Declared props: alignItems, autoFocus, children, classes, dense, disabled, disableGutters, divider, selected, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ListItemButton'] > JSXAttribute[name.name='alignItems'] > Literal[value!=/^(?:center|flex-start)$/]",
+        "message": "<ListItemButton> alignItems must be one of 'center' | 'flex-start'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ListItemIcon'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|sx|className|id|style|ref|key|ref|className|style|children)$/]",
+        "message": "<ListItemIcon> doesn't accept that prop. Declared props: children, classes, sx, className, id, style, ref."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ListItemSecondaryAction'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<ListItemSecondaryAction> doesn't accept that prop. Declared props: children, classes, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ListItemText'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|disableTypography|inset|primary|secondary|sx|className|id|style|ref|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<ListItemText> doesn't accept that prop. Declared props: children, classes, disableTypography, inset, primary, secondary, sx, className, id, style, ref, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ListSubheader'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|color|disableGutters|disableSticky|inset|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<ListSubheader> doesn't accept that prop. Declared props: children, classes, color, disableGutters, disableSticky, inset, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ListSubheader'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:inherit|primary|default)$/]",
+        "message": "<ListSubheader> color must be one of 'inherit' | 'primary' | 'default'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Menu'] > JSXAttribute > JSXIdentifier[name!=/^(?:anchorEl|autoFocus|children|classes|disableAutoFocusItem|onClose|open|PopoverClasses|sx|transitionDuration|variant|component|className|id|style|ref|anchorOrigin|elevation|closeAfterTransition|container|disableAutoFocus|disableEnforceFocus|disablePortal|disableRestoreFocus|disableScrollLock|hideBackdrop|keepMounted|onTransitionEnter|onTransitionExited|transformOrigin|action|anchorPosition|anchorReference|marginThreshold|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<Menu> doesn't accept that prop. Declared props: anchorEl, autoFocus, children, classes, disableAutoFocusItem, onClose, open, PopoverClasses, sx, transitionDuration, variant, component, className, id, style, ref, anchorOrigin, elevation, closeAfterTransition, container, disableAutoFocus, disableEnforceFocus, disablePortal, disableRestoreFocus, disableScrollLock, hideBackdrop, keepMounted, onTransitionEnter, onTransitionExited, transformOrigin, action, anchorPosition, anchorReference, marginThreshold, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Menu'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:menu|selectedMenu)$/]",
+        "message": "<Menu> variant must be one of 'menu' | 'selectedMenu'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Menu'] > JSXAttribute[name.name='anchorReference'] > Literal[value!=/^(?:none|anchorEl|anchorPosition)$/]",
+        "message": "<Menu> anchorReference must be one of 'none' | 'anchorEl' | 'anchorPosition'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='MenuItem'] > JSXAttribute > JSXIdentifier[name!=/^(?:autoFocus|classes|dense|disabled|disableGutters|divider|selected|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<MenuItem> doesn't accept that prop. Declared props: autoFocus, classes, dense, disabled, disableGutters, divider, selected, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='MenuList'] > JSXAttribute > JSXIdentifier[name!=/^(?:autoFocus|autoFocusItem|children|disabledItemsFocusable|disableListWrap|variant|className|style|classes|component|key|ref|className|style|children)$/]",
+        "message": "<MenuList> doesn't accept that prop. Declared props: autoFocus, autoFocusItem, children, disabledItemsFocusable, disableListWrap, variant, className, style, classes, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='MenuList'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:menu|selectedMenu)$/]",
+        "message": "<MenuList> variant must be one of 'menu' | 'selectedMenu'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='MobileStepper'] > JSXAttribute > JSXIdentifier[name!=/^(?:activeStep|backButton|classes|nextButton|position|steps|sx|variant|component|className|id|style|ref|elevation|square|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<MobileStepper> doesn't accept that prop. Declared props: activeStep, backButton, classes, nextButton, position, steps, sx, variant, component, className, id, style, ref, elevation, square, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='MobileStepper'] > JSXAttribute[name.name='position'] > Literal[value!=/^(?:bottom|top|static)$/]",
+        "message": "<MobileStepper> position must be one of 'bottom' | 'top' | 'static'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='MobileStepper'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:text|progress|dots)$/]",
+        "message": "<MobileStepper> variant must be one of 'text' | 'progress' | 'dots'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Modal'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|className|closeAfterTransition|container|disableAutoFocus|disableEnforceFocus|disablePortal|disableRestoreFocus|disableScrollLock|hideBackdrop|keepMounted|onClose|onTransitionEnter|onTransitionExited|open|slots|slotProps|sx|component|key|ref|className|style|children)$/]",
+        "message": "<Modal> doesn't accept that prop. Declared props: children, classes, className, closeAfterTransition, container, disableAutoFocus, disableEnforceFocus, disablePortal, disableRestoreFocus, disableScrollLock, hideBackdrop, keepMounted, onClose, onTransitionEnter, onTransitionExited, open, slots, slotProps, sx, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='NativeSelect'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|IconComponent|input|inputProps|onChange|sx|value|variant|defaultValue|autoFocus|className|id|style|color|onFocus|onBlur|onInvalid|onKeyDown|onKeyUp|size|ref|slotProps|slots|error|margin|disabled|type|name|fullWidth|endAdornment|autoComplete|placeholder|readOnly|required|rows|disableInjectingGlobalStyles|inputComponent|inputRef|multiline|renderSuffix|maxRows|minRows|startAdornment|disableUnderline|notched|key|ref|className|style|children)$/]",
+        "message": "<NativeSelect> doesn't accept that prop. Declared props: children, classes, IconComponent, input, inputProps, onChange, sx, value, variant, defaultValue, autoFocus, className, id, style, color, onFocus, onBlur, onInvalid, onKeyDown, onKeyUp, size, ref, slotProps, slots, error, margin, disabled, type, name, fullWidth, endAdornment, autoComplete, placeholder, readOnly, required, rows, disableInjectingGlobalStyles, inputComponent, inputRef, multiline, renderSuffix, maxRows, minRows, startAdornment, disableUnderline, notched."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='NativeSelect'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:standard|outlined|filled)$/]",
+        "message": "<NativeSelect> variant must be one of 'standard' | 'outlined' | 'filled'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='NativeSelect'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|error|info|success|warning)$/]",
+        "message": "<NativeSelect> color must be one of 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='NativeSelect'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|medium)$/]",
+        "message": "<NativeSelect> size must be one of 'small' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='NativeSelect'] > JSXAttribute[name.name='margin'] > Literal[value!=/^(?:none|dense)$/]",
+        "message": "<NativeSelect> margin must be one of 'none' | 'dense'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='NoSsr'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|defer|fallback|key|ref|className|style|children)$/]",
+        "message": "<NoSsr> doesn't accept that prop. Declared props: children, defer, fallback."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='OutlinedInput'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|label|notched|sx|defaultValue|autoFocus|className|id|style|color|onFocus|onBlur|onChange|onInvalid|onKeyDown|onKeyUp|size|ref|error|margin|disabled|type|name|value|fullWidth|endAdornment|autoComplete|placeholder|readOnly|required|rows|disableInjectingGlobalStyles|inputComponent|inputProps|inputRef|multiline|renderSuffix|maxRows|minRows|startAdornment|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<OutlinedInput> doesn't accept that prop. Declared props: classes, label, notched, sx, defaultValue, autoFocus, className, id, style, color, onFocus, onBlur, onChange, onInvalid, onKeyDown, onKeyUp, size, ref, error, margin, disabled, type, name, value, fullWidth, endAdornment, autoComplete, placeholder, readOnly, required, rows, disableInjectingGlobalStyles, inputComponent, inputProps, inputRef, multiline, renderSuffix, maxRows, minRows, startAdornment, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='OutlinedInput'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|error|info|success|warning)$/]",
+        "message": "<OutlinedInput> color must be one of 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='OutlinedInput'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|medium)$/]",
+        "message": "<OutlinedInput> size must be one of 'small' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='OutlinedInput'] > JSXAttribute[name.name='margin'] > Literal[value!=/^(?:none|dense)$/]",
+        "message": "<OutlinedInput> margin must be one of 'none' | 'dense'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Pagination'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|color|getItemAriaLabel|renderItem|shape|size|sx|variant|boundaryCount|componentName|count|defaultPage|disabled|hideNextButton|hidePrevButton|onChange|page|showFirstButton|showLastButton|siblingCount|className|id|style|ref|key|ref|className|style|children)$/]",
+        "message": "<Pagination> doesn't accept that prop. Declared props: classes, color, getItemAriaLabel, renderItem, shape, size, sx, variant, boundaryCount, componentName, count, defaultPage, disabled, hideNextButton, hidePrevButton, onChange, page, showFirstButton, showLastButton, siblingCount, className, id, style, ref."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Pagination'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|standard)$/]",
+        "message": "<Pagination> color must be one of 'primary' | 'secondary' | 'standard'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Pagination'] > JSXAttribute[name.name='shape'] > Literal[value!=/^(?:circular|rounded)$/]",
+        "message": "<Pagination> shape must be one of 'circular' | 'rounded'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Pagination'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|large|medium)$/]",
+        "message": "<Pagination> size must be one of 'small' | 'large' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Pagination'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:text|outlined)$/]",
+        "message": "<Pagination> variant must be one of 'text' | 'outlined'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='PaginationItem'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|color|disabled|nativeButton|page|selected|shape|size|sx|type|variant|slots|slotProps|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<PaginationItem> doesn't accept that prop. Declared props: classes, color, disabled, nativeButton, page, selected, shape, size, sx, type, variant, slots, slotProps, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='PaginationItem'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|standard)$/]",
+        "message": "<PaginationItem> color must be one of 'primary' | 'secondary' | 'standard'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='PaginationItem'] > JSXAttribute[name.name='shape'] > Literal[value!=/^(?:circular|rounded)$/]",
+        "message": "<PaginationItem> shape must be one of 'circular' | 'rounded'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='PaginationItem'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|large|medium)$/]",
+        "message": "<PaginationItem> size must be one of 'small' | 'large' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='PaginationItem'] > JSXAttribute[name.name='type'] > Literal[value!=/^(?:next|previous|page|first|last|start-ellipsis|end-ellipsis)$/]",
+        "message": "<PaginationItem> type must be one of 'next' | 'previous' | 'page' | 'first' | 'last' | 'start-ellipsis' | 'end-ellipsis'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='PaginationItem'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:text|outlined)$/]",
+        "message": "<PaginationItem> variant must be one of 'text' | 'outlined'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Paper'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|elevation|square|sx|variant|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Paper> doesn't accept that prop. Declared props: children, classes, elevation, square, sx, variant, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Paper'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:elevation|outlined)$/]",
+        "message": "<Paper> variant must be one of 'elevation' | 'outlined'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Popover'] > JSXAttribute > JSXIdentifier[name!=/^(?:action|anchorEl|anchorOrigin|anchorPosition|anchorReference|children|classes|container|elevation|marginThreshold|onClose|open|sx|transformOrigin|transitionDuration|component|className|id|style|ref|closeAfterTransition|disableAutoFocus|disableEnforceFocus|disablePortal|disableRestoreFocus|disableScrollLock|hideBackdrop|keepMounted|onTransitionEnter|onTransitionExited|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<Popover> doesn't accept that prop. Declared props: action, anchorEl, anchorOrigin, anchorPosition, anchorReference, children, classes, container, elevation, marginThreshold, onClose, open, sx, transformOrigin, transitionDuration, component, className, id, style, ref, closeAfterTransition, disableAutoFocus, disableEnforceFocus, disablePortal, disableRestoreFocus, disableScrollLock, hideBackdrop, keepMounted, onTransitionEnter, onTransitionExited, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Popover'] > JSXAttribute[name.name='anchorReference'] > Literal[value!=/^(?:none|anchorEl|anchorPosition)$/]",
+        "message": "<Popover> anchorReference must be one of 'none' | 'anchorEl' | 'anchorPosition'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Popper'] > JSXAttribute > JSXIdentifier[name!=/^(?:anchorEl|children|container|direction|disablePortal|keepMounted|modifiers|open|placement|popperOptions|popperRef|slotProps|slots|transition|key|ref|className|style|children)$/]",
+        "message": "<Popper> doesn't accept that prop. Declared props: anchorEl, children, container, direction, disablePortal, keepMounted, modifiers, open, placement, popperOptions, popperRef, slotProps, slots, transition."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Popper'] > JSXAttribute[name.name='direction'] > Literal[value!=/^(?:ltr|rtl)$/]",
+        "message": "<Popper> direction must be one of 'ltr' | 'rtl'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Popper'] > JSXAttribute[name.name='placement'] > Literal[value!=/^(?:left|right|auto|bottom|top|auto-start|auto-end|top-start|top-end|bottom-start|bottom-end|right-start|right-end|left-start|left-end)$/]",
+        "message": "<Popper> placement must be one of 'left' | 'right' | 'auto' | 'bottom' | 'top' | 'auto-start' | 'auto-end' | 'top-start' | 'top-end' | 'bottom-start' | 'bottom-end' | 'right-start' | 'right-end' | 'left-start' | 'left-end'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Portal'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|container|disablePortal|key|ref|className|style|children)$/]",
+        "message": "<Portal> doesn't accept that prop. Declared props: children, container, disablePortal."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Radio'] > JSXAttribute > JSXIdentifier[name!=/^(?:checkedIcon|classes|color|disabled|icon|size|sx|component|defaultChecked|autoFocus|className|id|style|tabIndex|onChange|ref|action|centerRipple|disableRipple|disableTouchRipple|focusRipple|focusVisibleClassName|LinkComponent|onFocusVisible|TouchRippleProps|touchRippleRef|name|value|disableFocusRipple|edge|checked|readOnly|required|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<Radio> doesn't accept that prop. Declared props: checkedIcon, classes, color, disabled, icon, size, sx, component, defaultChecked, autoFocus, className, id, style, tabIndex, onChange, ref, action, centerRipple, disableRipple, disableTouchRipple, focusRipple, focusVisibleClassName, LinkComponent, onFocusVisible, TouchRippleProps, touchRippleRef, name, value, disableFocusRipple, edge, checked, readOnly, required, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Radio'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|default|error|info|success|warning)$/]",
+        "message": "<Radio> color must be one of 'primary' | 'secondary' | 'default' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Radio'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|medium)$/]",
+        "message": "<Radio> size must be one of 'small' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='RadioGroup'] > JSXAttribute > JSXIdentifier[name!=/^(?:defaultValue|name|onChange|value|classes|children|row|className|id|style|sx|ref|key|ref|className|style|children)$/]",
+        "message": "<RadioGroup> doesn't accept that prop. Declared props: defaultValue, name, onChange, value, classes, children, row, className, id, style, sx, ref."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Rating'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|defaultValue|disabled|emptyIcon|emptyLabelText|getLabelText|highlightSelectedOnly|icon|max|name|onChange|onChangeActive|precision|readOnly|size|sx|value|slots|slotProps|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Rating> doesn't accept that prop. Declared props: classes, defaultValue, disabled, emptyIcon, emptyLabelText, getLabelText, highlightSelectedOnly, icon, max, name, onChange, onChangeActive, precision, readOnly, size, sx, value, slots, slotProps, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Rating'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|large|medium)$/]",
+        "message": "<Rating> size must be one of 'small' | 'large' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ScopedCssBaseline'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|enableColorScheme|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<ScopedCssBaseline> doesn't accept that prop. Declared props: children, classes, enableColorScheme, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Select'] > JSXAttribute > JSXIdentifier[name!=/^(?:variant|defaultValue|autoFocus|className|style|color|onFocus|onBlur|onInvalid|onKeyDown|onKeyUp|size|sx|ref|slotProps|slots|error|margin|disabled|type|name|fullWidth|endAdornment|autoComplete|readOnly|required|rows|disableInjectingGlobalStyles|inputComponent|inputRef|multiline|renderSuffix|maxRows|minRows|startAdornment|disableUnderline|notched|autoWidth|children|classes|defaultOpen|displayEmpty|IconComponent|id|input|inputProps|label|labelId|MenuProps|multiple|native|onChange|onClose|onOpen|open|renderValue|SelectDisplayProps|value|key|ref|className|style|children)$/]",
+        "message": "<Select> doesn't accept that prop. Declared props: variant, defaultValue, autoFocus, className, style, color, onFocus, onBlur, onInvalid, onKeyDown, onKeyUp, size, sx, ref, slotProps, slots, error, margin, disabled, type, name, fullWidth, endAdornment, autoComplete, readOnly, required, rows, disableInjectingGlobalStyles, inputComponent, inputRef, multiline, renderSuffix, maxRows, minRows, startAdornment, disableUnderline, notched, autoWidth, children, classes, defaultOpen, displayEmpty, IconComponent, id, input, inputProps, label, labelId, MenuProps, multiple, native, onChange, onClose, onOpen, open, renderValue, SelectDisplayProps, value."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Select'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:standard|outlined|filled)$/]",
+        "message": "<Select> variant must be one of 'standard' | 'outlined' | 'filled'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Select'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|error|info|success|warning)$/]",
+        "message": "<Select> color must be one of 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Select'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|medium)$/]",
+        "message": "<Select> size must be one of 'small' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Select'] > JSXAttribute[name.name='margin'] > Literal[value!=/^(?:none|dense)$/]",
+        "message": "<Select> margin must be one of 'none' | 'dense'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Skeleton'] > JSXAttribute > JSXIdentifier[name!=/^(?:animation|children|classes|height|sx|variant|width|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Skeleton> doesn't accept that prop. Declared props: animation, children, classes, height, sx, variant, width, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Skeleton'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:text|rectangular|circular|rounded)$/]",
+        "message": "<Skeleton> variant must be one of 'text' | 'rectangular' | 'circular' | 'rounded'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Slide'] > JSXAttribute > JSXIdentifier[name!=/^(?:addEndListener|appear|children|container|disablePrefersReducedMotion|direction|easing|in|ref|timeout|enter|exit|mountOnEnter|unmountOnExit|onEnter|onEntering|onEntered|onExit|onExiting|onExited|className|id|style|key|ref|className|style|children)$/]",
+        "message": "<Slide> doesn't accept that prop. Declared props: addEndListener, appear, children, container, disablePrefersReducedMotion, direction, easing, in, ref, timeout, enter, exit, mountOnEnter, unmountOnExit, onEnter, onEntering, onEntered, onExit, onExiting, onExited, className, id, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Slide'] > JSXAttribute[name.name='direction'] > Literal[value!=/^(?:left|right|up|down)$/]",
+        "message": "<Slide> direction must be one of 'left' | 'right' | 'up' | 'down'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Slider'] > JSXAttribute > JSXIdentifier[name!=/^(?:color|classes|className|defaultValue|disabled|disableSwap|getAriaLabel|getAriaValueText|marks|max|min|name|onChange|onChangeCommitted|orientation|scale|shiftStep|size|step|sx|tabIndex|track|value|valueLabelDisplay|valueLabelFormat|slots|slotProps|style|component|key|ref|className|style|children)$/]",
+        "message": "<Slider> doesn't accept that prop. Declared props: color, classes, className, defaultValue, disabled, disableSwap, getAriaLabel, getAriaValueText, marks, max, min, name, onChange, onChangeCommitted, orientation, scale, shiftStep, size, step, sx, tabIndex, track, value, valueLabelDisplay, valueLabelFormat, slots, slotProps, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Slider'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|error|info|success|warning)$/]",
+        "message": "<Slider> color must be one of 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Slider'] > JSXAttribute[name.name='orientation'] > Literal[value!=/^(?:horizontal|vertical)$/]",
+        "message": "<Slider> orientation must be one of 'horizontal' | 'vertical'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Slider'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|medium)$/]",
+        "message": "<Slider> size must be one of 'small' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Slider'] > JSXAttribute[name.name='valueLabelDisplay'] > Literal[value!=/^(?:off|on|auto)$/]",
+        "message": "<Slider> valueLabelDisplay must be one of 'off' | 'on' | 'auto'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Snackbar'] > JSXAttribute > JSXIdentifier[name!=/^(?:action|anchorOrigin|autoHideDuration|children|classes|disableWindowBlurListener|key|message|onClose|open|resumeHideDuration|sx|transitionDuration|className|id|style|ref|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<Snackbar> doesn't accept that prop. Declared props: action, anchorOrigin, autoHideDuration, children, classes, disableWindowBlurListener, key, message, onClose, open, resumeHideDuration, sx, transitionDuration, className, id, style, ref, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SnackbarContent'] > JSXAttribute > JSXIdentifier[name!=/^(?:action|classes|message|role|sx|component|className|id|style|variant|ref|elevation|square|key|ref|className|style|children)$/]",
+        "message": "<SnackbarContent> doesn't accept that prop. Declared props: action, classes, message, role, sx, component, className, id, style, variant, ref, elevation, square."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SnackbarContent'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:elevation|outlined)$/]",
+        "message": "<SnackbarContent> variant must be one of 'elevation' | 'outlined'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SpeedDial'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|ariaLabel|direction|hidden|FabProps|icon|onClose|onOpen|open|openIcon|sx|transitionDuration|className|id|style|ref|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<SpeedDial> doesn't accept that prop. Declared props: children, classes, ariaLabel, direction, hidden, FabProps, icon, onClose, onOpen, open, openIcon, sx, transitionDuration, className, id, style, ref, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SpeedDial'] > JSXAttribute[name.name='direction'] > Literal[value!=/^(?:left|right|up|down)$/]",
+        "message": "<SpeedDial> direction must be one of 'left' | 'right' | 'up' | 'down'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SpeedDialAction'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|delay|icon|sx|className|id|style|title|ref|onClose|open|onOpen|placement|arrow|describeChild|disableFocusListener|disableHoverListener|disableInteractive|disableTouchListener|enterDelay|enterNextDelay|enterTouchDelay|followCursor|leaveDelay|leaveTouchDelay|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<SpeedDialAction> doesn't accept that prop. Declared props: classes, delay, icon, sx, className, id, style, title, ref, onClose, open, onOpen, placement, arrow, describeChild, disableFocusListener, disableHoverListener, disableInteractive, disableTouchListener, enterDelay, enterNextDelay, enterTouchDelay, followCursor, leaveDelay, leaveTouchDelay, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SpeedDialAction'] > JSXAttribute[name.name='placement'] > Literal[value!=/^(?:left|right|auto|bottom|top|auto-start|auto-end|top-start|top-end|bottom-start|bottom-end|right-start|right-end|left-start|left-end)$/]",
+        "message": "<SpeedDialAction> placement must be one of 'left' | 'right' | 'auto' | 'bottom' | 'top' | 'auto-start' | 'auto-end' | 'top-start' | 'top-end' | 'bottom-start' | 'bottom-end' | 'right-start' | 'right-end' | 'left-start' | 'left-end'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SpeedDialIcon'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|icon|openIcon|open|sx|className|id|style|ref|key|ref|className|style|children)$/]",
+        "message": "<SpeedDialIcon> doesn't accept that prop. Declared props: classes, icon, openIcon, open, sx, className, id, style, ref."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Stack'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|direction|spacing|divider|useFlexGap|sx|className|style|classes|component|key|ref|className|style|children)$/]",
+        "message": "<Stack> doesn't accept that prop. Declared props: children, direction, spacing, divider, useFlexGap, sx, className, style, classes, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Step'] > JSXAttribute > JSXIdentifier[name!=/^(?:active|children|classes|completed|disabled|expanded|index|last|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Step> doesn't accept that prop. Declared props: active, children, classes, completed, disabled, expanded, index, last, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StepButton'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|icon|optional|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<StepButton> doesn't accept that prop. Declared props: children, classes, icon, optional, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StepConnector'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|sx|className|id|style|ref|key|ref|className|style|children)$/]",
+        "message": "<StepConnector> doesn't accept that prop. Declared props: classes, sx, className, id, style, ref."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StepContent'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|sx|transitionDuration|className|id|style|ref|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<StepContent> doesn't accept that prop. Declared props: children, classes, sx, transitionDuration, className, id, style, ref, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StepIcon'] > JSXAttribute > JSXIdentifier[name!=/^(?:active|classes|completed|error|icon|sx|className|id|style|ref|color|fontSize|shapeRendering|htmlColor|inheritViewBox|titleAccess|viewBox|key|ref|className|style|children)$/]",
+        "message": "<StepIcon> doesn't accept that prop. Declared props: active, classes, completed, error, icon, sx, className, id, style, ref, color, fontSize, shapeRendering, htmlColor, inheritViewBox, titleAccess, viewBox."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StepIcon'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:inherit|primary|secondary|error|info|success|warning|disabled|action)$/]",
+        "message": "<StepIcon> color must be one of 'inherit' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' | 'disabled' | 'action'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StepIcon'] > JSXAttribute[name.name='fontSize'] > Literal[value!=/^(?:inherit|small|large|medium)$/]",
+        "message": "<StepIcon> fontSize must be one of 'inherit' | 'small' | 'large' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='StepLabel'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|error|icon|optional|sx|className|id|style|ref|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<StepLabel> doesn't accept that prop. Declared props: children, classes, error, icon, optional, sx, className, id, style, ref, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Stepper'] > JSXAttribute > JSXIdentifier[name!=/^(?:activeStep|alternativeLabel|children|classes|connector|nonLinear|orientation|sx|variant|elevation|square|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Stepper> doesn't accept that prop. Declared props: activeStep, alternativeLabel, children, classes, connector, nonLinear, orientation, sx, variant, elevation, square, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Stepper'] > JSXAttribute[name.name='orientation'] > Literal[value!=/^(?:horizontal|vertical)$/]",
+        "message": "<Stepper> orientation must be one of 'horizontal' | 'vertical'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Stepper'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:elevation|outlined)$/]",
+        "message": "<Stepper> variant must be one of 'elevation' | 'outlined'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SvgIcon'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|color|fontSize|htmlColor|inheritViewBox|shapeRendering|sx|titleAccess|viewBox|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<SvgIcon> doesn't accept that prop. Declared props: children, classes, color, fontSize, htmlColor, inheritViewBox, shapeRendering, sx, titleAccess, viewBox, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SvgIcon'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:inherit|primary|secondary|error|info|success|warning|disabled|action)$/]",
+        "message": "<SvgIcon> color must be one of 'inherit' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' | 'disabled' | 'action'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SvgIcon'] > JSXAttribute[name.name='fontSize'] > Literal[value!=/^(?:inherit|small|large|medium)$/]",
+        "message": "<SvgIcon> fontSize must be one of 'inherit' | 'small' | 'large' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SwipeableDrawer'] > JSXAttribute > JSXIdentifier[name!=/^(?:allowSwipeInChildren|disableBackdropTransition|disableDiscovery|disableSwipeToOpen|hysteresis|minFlingVelocity|onClose|onOpen|open|swipeAreaWidth|classes|component|children|className|id|style|sx|variant|ref|elevation|closeAfterTransition|container|disableAutoFocus|disableEnforceFocus|disablePortal|disableRestoreFocus|disableScrollLock|hideBackdrop|keepMounted|onTransitionEnter|onTransitionExited|transitionDuration|anchor|ModalProps|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<SwipeableDrawer> doesn't accept that prop. Declared props: allowSwipeInChildren, disableBackdropTransition, disableDiscovery, disableSwipeToOpen, hysteresis, minFlingVelocity, onClose, onOpen, open, swipeAreaWidth, classes, component, children, className, id, style, sx, variant, ref, elevation, closeAfterTransition, container, disableAutoFocus, disableEnforceFocus, disablePortal, disableRestoreFocus, disableScrollLock, hideBackdrop, keepMounted, onTransitionEnter, onTransitionExited, transitionDuration, anchor, ModalProps, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SwipeableDrawer'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:permanent|persistent|temporary)$/]",
+        "message": "<SwipeableDrawer> variant must be one of 'permanent' | 'persistent' | 'temporary'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='SwipeableDrawer'] > JSXAttribute[name.name='anchor'] > Literal[value!=/^(?:left|right|bottom|top)$/]",
+        "message": "<SwipeableDrawer> anchor must be one of 'left' | 'right' | 'bottom' | 'top'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Switch'] > JSXAttribute > JSXIdentifier[name!=/^(?:checkedIcon|classes|color|disabled|icon|size|sx|value|component|defaultChecked|autoFocus|className|id|style|tabIndex|onChange|ref|action|centerRipple|disableRipple|disableTouchRipple|focusRipple|focusVisibleClassName|LinkComponent|onFocusVisible|TouchRippleProps|touchRippleRef|type|name|disableFocusRipple|edge|checked|readOnly|required|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<Switch> doesn't accept that prop. Declared props: checkedIcon, classes, color, disabled, icon, size, sx, value, component, defaultChecked, autoFocus, className, id, style, tabIndex, onChange, ref, action, centerRipple, disableRipple, disableTouchRipple, focusRipple, focusVisibleClassName, LinkComponent, onFocusVisible, TouchRippleProps, touchRippleRef, type, name, disableFocusRipple, edge, checked, readOnly, required, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Switch'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|default|error|info|success|warning)$/]",
+        "message": "<Switch> color must be one of 'primary' | 'secondary' | 'default' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Switch'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|medium)$/]",
+        "message": "<Switch> size must be one of 'small' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Tab'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|disabled|disableFocusRipple|icon|iconPosition|label|sx|value|wrapped|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Tab> doesn't accept that prop. Declared props: children, classes, disabled, disableFocusRipple, icon, iconPosition, label, sx, value, wrapped, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Tab'] > JSXAttribute[name.name='iconPosition'] > Literal[value!=/^(?:bottom|top|end|start)$/]",
+        "message": "<Tab> iconPosition must be one of 'bottom' | 'top' | 'end' | 'start'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Table'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|padding|size|stickyHeader|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Table> doesn't accept that prop. Declared props: children, classes, padding, size, stickyHeader, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Table'] > JSXAttribute[name.name='padding'] > Literal[value!=/^(?:none|checkbox|normal)$/]",
+        "message": "<Table> padding must be one of 'none' | 'checkbox' | 'normal'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Table'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|medium)$/]",
+        "message": "<Table> size must be one of 'small' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TableBody'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<TableBody> doesn't accept that prop. Declared props: children, classes, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TableCell'] > JSXAttribute > JSXIdentifier[name!=/^(?:align|children|classes|component|padding|scope|size|sortDirection|sx|variant|className|id|style|ref|key|ref|className|style|children)$/]",
+        "message": "<TableCell> doesn't accept that prop. Declared props: align, children, classes, component, padding, scope, size, sortDirection, sx, variant, className, id, style, ref."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TableCell'] > JSXAttribute[name.name='align'] > Literal[value!=/^(?:left|center|right|justify|inherit)$/]",
+        "message": "<TableCell> align must be one of 'left' | 'center' | 'right' | 'justify' | 'inherit'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TableCell'] > JSXAttribute[name.name='padding'] > Literal[value!=/^(?:none|checkbox|normal)$/]",
+        "message": "<TableCell> padding must be one of 'none' | 'checkbox' | 'normal'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TableCell'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|medium)$/]",
+        "message": "<TableCell> size must be one of 'small' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TableCell'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:body|footer|head)$/]",
+        "message": "<TableCell> variant must be one of 'body' | 'footer' | 'head'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TableContainer'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<TableContainer> doesn't accept that prop. Declared props: children, classes, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TableFooter'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<TableFooter> doesn't accept that prop. Declared props: children, classes, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TableHead'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<TableHead> doesn't accept that prop. Declared props: children, classes, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TablePagination'] > JSXAttribute > JSXIdentifier[name!=/^(?:ActionsComponent|classes|count|disabled|getItemAriaLabel|labelDisplayedRows|labelRowsPerPage|onPageChange|onRowsPerPageChange|page|rowsPerPage|rowsPerPageOptions|showFirstButton|showLastButton|sx|align|scope|className|id|style|padding|size|sortDirection|variant|ref|slots|slotProps|component|key|ref|className|style|children)$/]",
+        "message": "<TablePagination> doesn't accept that prop. Declared props: ActionsComponent, classes, count, disabled, getItemAriaLabel, labelDisplayedRows, labelRowsPerPage, onPageChange, onRowsPerPageChange, page, rowsPerPage, rowsPerPageOptions, showFirstButton, showLastButton, sx, align, scope, className, id, style, padding, size, sortDirection, variant, ref, slots, slotProps, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TablePagination'] > JSXAttribute[name.name='align'] > Literal[value!=/^(?:left|center|right|justify|inherit)$/]",
+        "message": "<TablePagination> align must be one of 'left' | 'center' | 'right' | 'justify' | 'inherit'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TablePagination'] > JSXAttribute[name.name='padding'] > Literal[value!=/^(?:none|checkbox|normal)$/]",
+        "message": "<TablePagination> padding must be one of 'none' | 'checkbox' | 'normal'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TablePagination'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|medium)$/]",
+        "message": "<TablePagination> size must be one of 'small' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TablePagination'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:body|footer|head)$/]",
+        "message": "<TablePagination> variant must be one of 'body' | 'footer' | 'head'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TablePaginationActions'] > JSXAttribute > JSXIdentifier[name!=/^(?:classes|className|count|disabled|getItemAriaLabel|onPageChange|page|rowsPerPage|showFirstButton|showLastButton|slotProps|slots|id|style|children|key|ref|className|style|children)$/]",
+        "message": "<TablePaginationActions> doesn't accept that prop. Declared props: classes, className, count, disabled, getItemAriaLabel, onPageChange, page, rowsPerPage, showFirstButton, showLastButton, slotProps, slots, id, style, children."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TableRow'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|hover|selected|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<TableRow> doesn't accept that prop. Declared props: children, classes, hover, selected, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TableSortLabel'] > JSXAttribute > JSXIdentifier[name!=/^(?:active|children|classes|direction|hideSortIcon|IconComponent|sx|slots|slotProps|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<TableSortLabel> doesn't accept that prop. Declared props: active, children, classes, direction, hideSortIcon, IconComponent, sx, slots, slotProps, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TableSortLabel'] > JSXAttribute[name.name='direction'] > Literal[value!=/^(?:desc|asc)$/]",
+        "message": "<TableSortLabel> direction must be one of 'desc' | 'asc'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Tabs'] > JSXAttribute > JSXIdentifier[name!=/^(?:action|allowScrollButtonsMobile|centered|children|classes|indicatorColor|onChange|orientation|scrollButtons|selectionFollowsFocus|textColor|value|variant|visibleScrollbar|sx|slots|slotProps|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Tabs> doesn't accept that prop. Declared props: action, allowScrollButtonsMobile, centered, children, classes, indicatorColor, onChange, orientation, scrollButtons, selectionFollowsFocus, textColor, value, variant, visibleScrollbar, sx, slots, slotProps, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Tabs'] > JSXAttribute[name.name='indicatorColor'] > Literal[value!=/^(?:primary|secondary)$/]",
+        "message": "<Tabs> indicatorColor must be one of 'primary' | 'secondary'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Tabs'] > JSXAttribute[name.name='orientation'] > Literal[value!=/^(?:horizontal|vertical)$/]",
+        "message": "<Tabs> orientation must be one of 'horizontal' | 'vertical'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Tabs'] > JSXAttribute[name.name='textColor'] > Literal[value!=/^(?:inherit|primary|secondary)$/]",
+        "message": "<Tabs> textColor must be one of 'inherit' | 'primary' | 'secondary'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Tabs'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:standard|fullWidth|scrollable)$/]",
+        "message": "<Tabs> variant must be one of 'standard' | 'fullWidth' | 'scrollable'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TabScrollButton'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|slots|slotProps|direction|disabled|orientation|sx|component|className|id|style|tabIndex|ref|action|centerRipple|disableRipple|disableTouchRipple|focusRipple|focusVisibleClassName|LinkComponent|onFocusVisible|TouchRippleProps|touchRippleRef|type|key|ref|className|style|children)$/]",
+        "message": "<TabScrollButton> doesn't accept that prop. Declared props: children, classes, slots, slotProps, direction, disabled, orientation, sx, component, className, id, style, tabIndex, ref, action, centerRipple, disableRipple, disableTouchRipple, focusRipple, focusVisibleClassName, LinkComponent, onFocusVisible, TouchRippleProps, touchRippleRef, type."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TabScrollButton'] > JSXAttribute[name.name='direction'] > Literal[value!=/^(?:left|right)$/]",
+        "message": "<TabScrollButton> direction must be one of 'left' | 'right'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TabScrollButton'] > JSXAttribute[name.name='orientation'] > Literal[value!=/^(?:horizontal|vertical)$/]",
+        "message": "<TabScrollButton> orientation must be one of 'horizontal' | 'vertical'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TextareaAutosize'] > JSXAttribute > JSXIdentifier[name!=/^(?:ref|maxRows|minRows|className|id|style|key|ref|className|style|children)$/]",
+        "message": "<TextareaAutosize> doesn't accept that prop. Declared props: ref, maxRows, minRows, className, id, style."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TextField'] > JSXAttribute > JSXIdentifier[name!=/^(?:onChange|variant|autoComplete|autoFocus|children|classes|color|defaultValue|disabled|error|fullWidth|helperText|id|inputRef|label|multiline|name|onBlur|onFocus|placeholder|required|rows|maxRows|minRows|select|size|sx|type|value|component|className|style|ref|margin|focused|hiddenLabel|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<TextField> doesn't accept that prop. Declared props: onChange, variant, autoComplete, autoFocus, children, classes, color, defaultValue, disabled, error, fullWidth, helperText, id, inputRef, label, multiline, name, onBlur, onFocus, placeholder, required, rows, maxRows, minRows, select, size, sx, type, value, component, className, style, ref, margin, focused, hiddenLabel, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TextField'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:standard|outlined|filled)$/]",
+        "message": "<TextField> variant must be one of 'standard' | 'outlined' | 'filled'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TextField'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|error|info|success|warning)$/]",
+        "message": "<TextField> color must be one of 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TextField'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|medium)$/]",
+        "message": "<TextField> size must be one of 'small' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='TextField'] > JSXAttribute[name.name='margin'] > Literal[value!=/^(?:none|dense|normal)$/]",
+        "message": "<TextField> margin must be one of 'none' | 'dense' | 'normal'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ToggleButton'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|color|disabled|disableFocusRipple|fullWidth|onChange|onClick|selected|size|sx|value|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<ToggleButton> doesn't accept that prop. Declared props: children, classes, color, disabled, disableFocusRipple, fullWidth, onChange, onClick, selected, size, sx, value, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ToggleButton'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|error|info|success|warning|standard)$/]",
+        "message": "<ToggleButton> color must be one of 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' | 'standard'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ToggleButton'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|large|medium)$/]",
+        "message": "<ToggleButton> size must be one of 'small' | 'large' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ToggleButtonGroup'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|color|exclusive|disabled|fullWidth|onChange|orientation|size|sx|value|className|id|style|ref|key|ref|className|style|children)$/]",
+        "message": "<ToggleButtonGroup> doesn't accept that prop. Declared props: children, classes, color, exclusive, disabled, fullWidth, onChange, orientation, size, sx, value, className, id, style, ref."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ToggleButtonGroup'] > JSXAttribute[name.name='color'] > Literal[value!=/^(?:primary|secondary|error|info|success|warning|standard)$/]",
+        "message": "<ToggleButtonGroup> color must be one of 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning' | 'standard'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ToggleButtonGroup'] > JSXAttribute[name.name='orientation'] > Literal[value!=/^(?:horizontal|vertical)$/]",
+        "message": "<ToggleButtonGroup> orientation must be one of 'horizontal' | 'vertical'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='ToggleButtonGroup'] > JSXAttribute[name.name='size'] > Literal[value!=/^(?:small|large|medium)$/]",
+        "message": "<ToggleButtonGroup> size must be one of 'small' | 'large' | 'medium'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Toolbar'] > JSXAttribute > JSXIdentifier[name!=/^(?:children|classes|disableGutters|variant|sx|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Toolbar> doesn't accept that prop. Declared props: children, classes, disableGutters, variant, sx, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Toolbar'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:dense|regular)$/]",
+        "message": "<Toolbar> variant must be one of 'dense' | 'regular'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Tooltip'] > JSXAttribute > JSXIdentifier[name!=/^(?:arrow|children|classes|describeChild|disableFocusListener|disableHoverListener|disableInteractive|disableTouchListener|enterDelay|enterNextDelay|enterTouchDelay|followCursor|id|leaveDelay|leaveTouchDelay|onClose|onOpen|open|placement|sx|title|className|style|ref|slots|slotProps|key|ref|className|style|children)$/]",
+        "message": "<Tooltip> doesn't accept that prop. Declared props: arrow, children, classes, describeChild, disableFocusListener, disableHoverListener, disableInteractive, disableTouchListener, enterDelay, enterNextDelay, enterTouchDelay, followCursor, id, leaveDelay, leaveTouchDelay, onClose, onOpen, open, placement, sx, title, className, style, ref, slots, slotProps."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Tooltip'] > JSXAttribute[name.name='placement'] > Literal[value!=/^(?:left|right|auto|bottom|top|auto-start|auto-end|top-start|top-end|bottom-start|bottom-end|right-start|right-end|left-start|left-end)$/]",
+        "message": "<Tooltip> placement must be one of 'left' | 'right' | 'auto' | 'bottom' | 'top' | 'auto-start' | 'auto-end' | 'top-start' | 'top-end' | 'bottom-start' | 'bottom-end' | 'right-start' | 'right-end' | 'left-start' | 'left-end'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Typography'] > JSXAttribute > JSXIdentifier[name!=/^(?:align|children|classes|color|gutterBottom|noWrap|sx|variant|variantMapping|className|style|component|key|ref|className|style|children)$/]",
+        "message": "<Typography> doesn't accept that prop. Declared props: align, children, classes, color, gutterBottom, noWrap, sx, variant, variantMapping, className, style, component."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Typography'] > JSXAttribute[name.name='align'] > Literal[value!=/^(?:left|center|right|justify|inherit)$/]",
+        "message": "<Typography> align must be one of 'left' | 'center' | 'right' | 'justify' | 'inherit'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Typography'] > JSXAttribute[name.name='variant'] > Literal[value!=/^(?:button|inherit|caption|h1|h2|h3|h4|h5|h6|subtitle1|subtitle2|body1|body2|overline)$/]",
+        "message": "<Typography> variant must be one of 'button' | 'inherit' | 'caption' | 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'subtitle1' | 'subtitle2' | 'body1' | 'body2' | 'overline'."
+      },
+      {
+        "selector": "JSXOpeningElement[name.name='Zoom'] > JSXAttribute > JSXIdentifier[name!=/^(?:addEndListener|appear|children|disablePrefersReducedMotion|easing|in|ref|timeout|enter|exit|mountOnEnter|unmountOnExit|onEnter|onEntering|onEntered|onExit|onExiting|onExited|className|id|style|key|ref|className|style|children)$/]",
+        "message": "<Zoom> doesn't accept that prop. Declared props: addEndListener, appear, children, disablePrefersReducedMotion, easing, in, ref, timeout, enter, exit, mountOnEnter, unmountOnExit, onEnter, onEntering, onEntered, onExit, onExiting, onExited, className, id, style."
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": [
+        "**/index.js"
+      ],
+      "rules": {
+        "no-restricted-imports": "off"
+      }
+    }
+  ],
+  "x-omelette": {
+    "components": {
+      "Accordion": {
+        "replaces": []
+      },
+      "AccordionActions": {
+        "replaces": []
+      },
+      "AccordionDetails": {
+        "replaces": []
+      },
+      "AccordionSummary": {
+        "replaces": []
+      },
+      "Alert": {
+        "replaces": []
+      },
+      "AlertTitle": {
+        "replaces": []
+      },
+      "AppBar": {
+        "replaces": []
+      },
+      "Autocomplete": {
+        "replaces": []
+      },
+      "Avatar": {
+        "replaces": []
+      },
+      "AvatarGroup": {
+        "replaces": []
+      },
+      "Backdrop": {
+        "replaces": []
+      },
+      "Badge": {
+        "replaces": []
+      },
+      "BottomNavigation": {
+        "replaces": []
+      },
+      "BottomNavigationAction": {
+        "replaces": []
+      },
+      "Box": {
+        "replaces": []
+      },
+      "Breadcrumbs": {
+        "replaces": []
+      },
+      "Button": {
+        "replaces": [
+          "button"
+        ]
+      },
+      "ButtonBase": {
+        "replaces": []
+      },
+      "ButtonGroup": {
+        "replaces": []
+      },
+      "Card": {
+        "replaces": []
+      },
+      "CardActionArea": {
+        "replaces": []
+      },
+      "CardActions": {
+        "replaces": []
+      },
+      "CardContent": {
+        "replaces": []
+      },
+      "CardHeader": {
+        "replaces": []
+      },
+      "CardMedia": {
+        "replaces": []
+      },
+      "Checkbox": {
+        "replaces": [
+          "input[type=checkbox]"
+        ]
+      },
+      "Chip": {
+        "replaces": []
+      },
+      "CircularProgress": {
+        "replaces": []
+      },
+      "ClickAwayListener": {
+        "replaces": []
+      },
+      "Collapse": {
+        "replaces": []
+      },
+      "Container": {
+        "replaces": []
+      },
+      "CssBaseline": {
+        "replaces": []
+      },
+      "Dialog": {
+        "replaces": []
+      },
+      "DialogActions": {
+        "replaces": []
+      },
+      "DialogContent": {
+        "replaces": []
+      },
+      "DialogContentText": {
+        "replaces": []
+      },
+      "DialogTitle": {
+        "replaces": []
+      },
+      "Divider": {
+        "replaces": []
+      },
+      "Drawer": {
+        "replaces": []
+      },
+      "Fab": {
+        "replaces": []
+      },
+      "Fade": {
+        "replaces": []
+      },
+      "FilledInput": {
+        "replaces": []
+      },
+      "FormControl": {
+        "replaces": []
+      },
+      "FormControlLabel": {
+        "replaces": []
+      },
+      "FormGroup": {
+        "replaces": []
+      },
+      "FormHelperText": {
+        "replaces": []
+      },
+      "FormLabel": {
+        "replaces": []
+      },
+      "GlobalStyles": {
+        "replaces": []
+      },
+      "Grid": {
+        "replaces": []
+      },
+      "Grow": {
+        "replaces": []
+      },
+      "Icon": {
+        "replaces": []
+      },
+      "IconButton": {
+        "replaces": []
+      },
+      "ImageList": {
+        "replaces": []
+      },
+      "ImageListItem": {
+        "replaces": []
+      },
+      "ImageListItemBar": {
+        "replaces": []
+      },
+      "InitColorSchemeScript": {
+        "replaces": []
+      },
+      "Input": {
+        "replaces": []
+      },
+      "InputAdornment": {
+        "replaces": []
+      },
+      "InputBase": {
+        "replaces": []
+      },
+      "InputLabel": {
+        "replaces": []
+      },
+      "LinearProgress": {
+        "replaces": []
+      },
+      "Link": {
+        "replaces": [
+          "a"
+        ]
+      },
+      "List": {
+        "replaces": [
+          "ul"
+        ]
+      },
+      "ListItem": {
+        "replaces": []
+      },
+      "ListItemAvatar": {
+        "replaces": []
+      },
+      "ListItemButton": {
+        "replaces": []
+      },
+      "ListItemIcon": {
+        "replaces": []
+      },
+      "ListItemSecondaryAction": {
+        "replaces": []
+      },
+      "ListItemText": {
+        "replaces": []
+      },
+      "ListSubheader": {
+        "replaces": []
+      },
+      "Menu": {
+        "replaces": []
+      },
+      "MenuItem": {
+        "replaces": []
+      },
+      "MenuList": {
+        "replaces": []
+      },
+      "MobileStepper": {
+        "replaces": []
+      },
+      "Modal": {
+        "replaces": [
+          "dialog"
+        ]
+      },
+      "NativeSelect": {
+        "replaces": []
+      },
+      "NoSsr": {
+        "replaces": []
+      },
+      "OutlinedInput": {
+        "replaces": []
+      },
+      "Pagination": {
+        "replaces": []
+      },
+      "PaginationItem": {
+        "replaces": []
+      },
+      "Paper": {
+        "replaces": []
+      },
+      "Popover": {
+        "replaces": []
+      },
+      "Popper": {
+        "replaces": []
+      },
+      "Portal": {
+        "replaces": []
+      },
+      "Radio": {
+        "replaces": [
+          "input[type=radio]"
+        ]
+      },
+      "RadioGroup": {
+        "replaces": []
+      },
+      "Rating": {
+        "replaces": []
+      },
+      "ScopedCssBaseline": {
+        "replaces": []
+      },
+      "Select": {
+        "replaces": [
+          "select"
+        ]
+      },
+      "Skeleton": {
+        "replaces": []
+      },
+      "Slide": {
+        "replaces": []
+      },
+      "Slider": {
+        "replaces": [
+          "input[type=range]"
+        ]
+      },
+      "Snackbar": {
+        "replaces": []
+      },
+      "SnackbarContent": {
+        "replaces": []
+      },
+      "SpeedDial": {
+        "replaces": []
+      },
+      "SpeedDialAction": {
+        "replaces": []
+      },
+      "SpeedDialIcon": {
+        "replaces": []
+      },
+      "Stack": {
+        "replaces": []
+      },
+      "Step": {
+        "replaces": []
+      },
+      "StepButton": {
+        "replaces": []
+      },
+      "StepConnector": {
+        "replaces": []
+      },
+      "StepContent": {
+        "replaces": []
+      },
+      "StepIcon": {
+        "replaces": []
+      },
+      "StepLabel": {
+        "replaces": []
+      },
+      "Stepper": {
+        "replaces": []
+      },
+      "SvgIcon": {
+        "replaces": []
+      },
+      "SwipeableDrawer": {
+        "replaces": []
+      },
+      "Switch": {
+        "replaces": []
+      },
+      "Tab": {
+        "replaces": []
+      },
+      "Table": {
+        "replaces": [
+          "table"
+        ]
+      },
+      "TableBody": {
+        "replaces": []
+      },
+      "TableCell": {
+        "replaces": []
+      },
+      "TableContainer": {
+        "replaces": []
+      },
+      "TableFooter": {
+        "replaces": []
+      },
+      "TableHead": {
+        "replaces": []
+      },
+      "TablePagination": {
+        "replaces": []
+      },
+      "TablePaginationActions": {
+        "replaces": []
+      },
+      "TableRow": {
+        "replaces": []
+      },
+      "TableSortLabel": {
+        "replaces": []
+      },
+      "Tabs": {
+        "replaces": []
+      },
+      "TabScrollButton": {
+        "replaces": []
+      },
+      "TextareaAutosize": {
+        "replaces": []
+      },
+      "TextField": {
+        "replaces": [
+          "input"
+        ]
+      },
+      "ToggleButton": {
+        "replaces": []
+      },
+      "ToggleButtonGroup": {
+        "replaces": []
+      },
+      "Toolbar": {
+        "replaces": []
+      },
+      "Tooltip": {
+        "replaces": []
+      },
+      "Typography": {
+        "replaces": []
+      },
+      "Zoom": {
+        "replaces": []
+      }
+    },
+    "tokens": [],
+    "tokenKinds": {},
+    "fontFamilies": []
+  }
+}

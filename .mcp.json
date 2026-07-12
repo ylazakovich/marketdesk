@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "mnemosyne": {
+      "command": "mnemosyne",
+      "args": ["mcp", "--bank", "hermes-marketdesk"],
+      "env": {
+        "MNEMOSYNE_EMBEDDING_MODEL": "intfloat/multilingual-e5-base"
+      }
+    }
+  }
+}

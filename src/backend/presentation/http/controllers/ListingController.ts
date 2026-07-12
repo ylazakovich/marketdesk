@@ -1,0 +1,141 @@
+// Thin HTTP adapter for listing resources. Reads/publish/sync delegate to the
+// application service. `update` (price) and `relist` are localized state transitions
+// on the Listing aggregate performed via the injected repository, because the
+// application layer exposes no dedicated use case for them yet (a future
+// UpdateListingUseCase should absorb this). Price history is served through the
+// IPriceHistoryReader read port; when Group 6 has not wired a reader it degrades to
+// an empty list.
+
+import type { Request, Response, NextFunction } from 'express';
+import type { ListingApplicationService } from '../../../application/services/ListingApplicationService';
+import type { IListingRepository } from '../../../domain/repositories/interfaces/IListingRepository';
+import type { IPriceHistoryReader } from '../../../application/ports/IPriceHistoryReader';
+import type { IPriceHistoryRecorder } from '../../../application/ports/IPriceHistoryRecorder';
+import type { IdGenerator } from '../../../application/ports/IdGenerator';
+import { Money } from '../../../domain/valueObjects/Money';
+import { NotFoundError } from '../../../domain/shared/DomainError';
+import { presentListing } from '../../../application/dto/presenters';
+import { ok, paginated } from '../formatters/ResponseFormatter';
+
+export interface ListingControllerDeps {
+  priceHistoryReader?: IPriceHistoryReader;
+  priceHistoryRecorder?: IPriceHistoryRecorder;
+  idGenerator?: IdGenerator;
+}
+
+export class ListingController {
+  constructor(
+    private readonly listings: ListingApplicationService,
+    private readonly listingRepo: IListingRepository,
+    private readonly deps: ListingControllerDeps = {},
+  ) {}
+
+  list = async (req: Request, res: Response): Promise<void> => {
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const offset = req.query.offset ? Number(req.query.offset) : undefined;
+    const page = await this.listings.listByWorkspace(
+      req.user!.workspaceId!,
+      limit,
+      offset,
+    );
+    paginated(res, page.items, {
+      page: page.page,
+      limit: page.limit,
+      total: page.total,
+      totalPages: page.totalPages,
+    });
+  };
+
+  get = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const listing = await this.listings.getListing(
+      req.params.id,
+      req.user!.workspaceId!,
+    );
+    if (!listing) return next(new NotFoundError(`Listing not found: ${req.params.id}`));
+    ok(res, listing);
+  };
+
+  publish = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    // Tenant-scoped load (S2) so a listing cannot be published on another tenant's
+    // behalf — mirrors the relist/update guard rather than a bare findById.
+    const listing = await this.listingRepo.findByIdForWorkspace(
+      req.params.id,
+      req.user!.workspaceId!,
+    );
+    if (!listing) return next(new NotFoundError(`Listing not found: ${req.params.id}`));
+    const result = await this.listings.publishListing({
+      listingId: listing.id,
+      actorId: req.user!.userId,
+    });
+    if (result.isErr()) return next(result.error);
+    ok(res, result.value);
+  };
+
+  update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    // Tenant-scoped load so price cannot be changed on another tenant's listing (S2).
+    const listing = await this.listingRepo.findByIdForWorkspace(
+      req.params.id,
+      req.user!.workspaceId!,
+    );
+    if (!listing) return next(new NotFoundError(`Listing not found: ${req.params.id}`));
+
+    if (typeof req.body?.price === 'number') {
+      const oldPrice = listing.price.amount;
+      const money = Money.of(req.body.price, listing.price.currency);
+      if (money.isErr()) return next(money.error);
+      const updated = listing.updatePrice(money.value);
+      if (updated.isErr()) return next(updated.error);
+      await this.listingRepo.save(listing);
+
+      if (this.deps.priceHistoryRecorder && this.deps.idGenerator) {
+        await this.deps.priceHistoryRecorder.record({
+          id: this.deps.idGenerator(),
+          listingId: listing.id,
+          oldPrice,
+          newPrice: listing.price.amount,
+          changedBy: 'user',
+          reason: typeof req.body?.reason === 'string' ? req.body.reason : undefined,
+          createdAt: new Date(),
+        });
+      }
+    }
+    ok(res, presentListing(listing));
+  };
+
+  relist = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    // Tenant-scoped load (S2), then route through the publish use case so relist
+    // honours the same invariants as publishing — it rejects a sold product and
+    // enqueues an actual republish job rather than only flipping status in the DB
+    // (C6). The publish use case validates marketplace-connected / price-set /
+    // not-sold and enqueues the republish.
+    const listing = await this.listingRepo.findByIdForWorkspace(
+      req.params.id,
+      req.user!.workspaceId!,
+    );
+    if (!listing) return next(new NotFoundError(`Listing not found: ${req.params.id}`));
+    const result = await this.listings.relistListing({
+      listingId: listing.id,
+      actorId: req.user!.userId,
+    });
+    if (result.isErr()) return next(result.error);
+    ok(res, result.value, 202);
+  };
+
+  priceHistory = async (
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    const listing = await this.listings.getListing(
+      req.params.id,
+      req.user!.workspaceId!,
+    );
+    if (!listing) return next(new NotFoundError(`Listing not found: ${req.params.id}`));
+    // TODO(Group 6): wire IPriceHistoryReader to PriceHistoryRepository. Until then
+    // this returns an empty history rather than failing.
+    const history = this.deps.priceHistoryReader
+      ? await this.deps.priceHistoryReader.findByListing(req.params.id)
+      : [];
+    ok(res, history);
+  };
+}

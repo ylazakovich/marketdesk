@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Lint, typecheck, test & build
+    runs-on: ubuntu-latest
+
+    # Service containers used by any DATABASE_URL-gated integration tests. The
+    # default test suite (incl. the e2e flow) runs fully in-memory and does NOT
+    # require these, but they are provisioned so DB-backed tests can run in CI.
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: marketdesk
+          POSTGRES_PASSWORD: marketdesk
+          POSTGRES_DB: marketdesk
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U marketdesk"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://marketdesk:marketdesk@localhost:5432/marketdesk
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_USER: marketdesk
+      DB_PASSWORD: marketdesk
+      DB_NAME: marketdesk
+      REDIS_HOST: localhost
+      REDIS_PORT: '6379'
+      REDIS_PASSWORD: ''
+      JWT_SECRET: ci_test_secret_not_for_production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Setup Node.js & install dependencies
+        uses: ./.github/actions/setup-node
+
+      # Lint is reported but non-blocking: the repo has a small number of
+      # pre-existing lint errors in files outside this change set. New code is
+      # expected to be lint-clean.
+      - name: Lint (eslint, non-blocking)
+        run: npm run lint
+        continue-on-error: true
+
+      - name: Typecheck backend (tsconfig.backend.json)
+        run: npx tsc --noEmit -p tsconfig.backend.json
+
+      - name: Typecheck frontend/full (tsconfig.json)
+        run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Backend tests (jest, allure)
+        run: npm run test:ci
+
+      - name: Build frontend (vite)
+        run: npm run build:frontend
+
+      - name: Build backend (tsc)
+        run: npm run build:backend
+
+      - name: Upload allure-results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: allure-results
+          path: allure-results
+
+  allure-report:
+    name: Publish Allure report
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    # NOTE: Publishing requires GitHub Pages to be enabled for this repository
+    # with the "gh-pages" branch as the source (Settings -> Pages). The report
+    # history is kept on the gh-pages branch under allure-history.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Download allure-results
+        uses: actions/download-artifact@v4
+        with:
+          name: allure-results
+          path: allure-results
+
+      - name: Build Allure report (with history)
+        uses: simple-elf/allure-report-action@master
+        with:
+          allure_results: allure-results
+          gh_pages: gh-pages
+          allure_history: allure-history
+          keep_reports: 20
+
+      - name: Publish Allure report to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: allure-history

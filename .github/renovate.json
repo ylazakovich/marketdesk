@@ -1,0 +1,33 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "github>ylazakovich/renovate-config//presets/npm/default",
+    "github>ylazakovich/renovate-config//presets/docker/default",
+    "github>ylazakovich/renovate-config//presets/github-actions/default"
+  ],
+  "enabledManagers": [
+    "npm",
+    "docker-compose",
+    "dockerfile",
+    "github-actions",
+    "custom.regex"
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github\\/actions\\/setup-node\\/action\\.ya?ml$/"],
+      "matchStrings": [
+        "node-version:[\\s\\S]*?default:\\s*\"(?<currentValue>[0-9]+)\""
+      ],
+      "datasourceTemplate": "node-version",
+      "depNameTemplate": "node",
+      "versioningTemplate": "node"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "minor and patch updates"
+    }
+  ]
+}

@@ -1,0 +1,290 @@
+// Shared types between backend and frontend.
+// Authoritative source: ARCHITECTURE.md §3 (Domain Model) and §7 (Database Schema).
+// These are transport/persistence-facing shapes (dates as ISO strings). The domain
+// layer maps these to rich entities (see src/backend/domain).
+
+// ============================================================================
+// String-literal unions (single source of truth for the domain vocabulary)
+// ============================================================================
+
+export type MarketplaceKey =
+  | 'olx'
+  | 'allegro'
+  | 'vinted'
+  | 'facebook'
+  | 'ebay'
+  | 'etsy'
+  | 'amazon';
+
+export type SyncMode = 'realtime' | 'hourly' | 'manual';
+
+export type MarketplaceAccountStatus = 'connected' | 'disconnected' | 'error';
+
+export type ProductStatus = 'draft' | 'active' | 'attention' | 'sold';
+
+export type ProductCondition =
+  | 'new'
+  | 'like_new'
+  | 'good'
+  | 'fair'
+  | 'poor'
+  | 'refurbished';
+
+export type ListingStatus = 'live' | 'draft' | 'expired' | 'error';
+
+export type AutonomyLevel = 'suggest_only' | 'balanced' | 'full_auto';
+
+export type HermesSeverity = 'info' | 'success' | 'warning' | 'critical';
+
+export type HermesEventStatus = 'pending_review' | 'applied' | 'dismissed';
+
+export type AutonomyDecision = 'auto_apply' | 'pending_review';
+
+export type HermesEventType =
+  | 'suggested_lower_price'
+  | 'suggested_higher_price'
+  | 'needs_relisting'
+  | 'competitor_price_detected'
+  | 'suggested_better_title'
+  | 'suggested_more_photos'
+  | 'create_listing'
+  | 'update_description'
+  | 'relist';
+
+export type ChangedBy = 'user' | 'hermes';
+
+export type ActorType = 'user' | 'hermes';
+
+export type AnalyticsEventType = 'view' | 'message' | 'sale';
+
+// ============================================================================
+// Proposed change payloads (fully typed JSONB for hermes_events.proposed_change)
+// ============================================================================
+
+export interface PriceChangePayload {
+  kind: 'price';
+  field: 'price';
+  from: number;
+  to: number;
+}
+
+export interface TitleChangePayload {
+  kind: 'title';
+  field: 'title';
+  from: string;
+  to: string;
+}
+
+export interface DescriptionChangePayload {
+  kind: 'description';
+  field: 'description';
+  from: string;
+  to: string;
+}
+
+export interface RelistChangePayload {
+  kind: 'relist';
+  action: 'relist';
+  listingIds: string[];
+}
+
+export interface CreateListingChangePayload {
+  kind: 'create_listing';
+  marketplaceKey: MarketplaceKey;
+}
+
+export type ProposedChange =
+  | PriceChangePayload
+  | TitleChangePayload
+  | DescriptionChangePayload
+  | RelistChangePayload
+  | CreateListingChangePayload
+  | null;
+
+// ============================================================================
+// Auth (v1 addition; full RBAC is Phase 2)
+// ============================================================================
+
+export interface User {
+  id: string;
+  email: string;
+  workspaceId?: string;
+  createdAt: string;
+}
+
+// ============================================================================
+// Guardrails (ARCHITECTURE_AMENDMENTS FIX #5)
+// ============================================================================
+
+export interface HermesGuardrails {
+  maxAutoPriceChangePct: number;
+  minMarginFloor: number;
+  autoCreateListings: boolean;
+  autoAdjustPricing: boolean;
+  autoRelist: boolean;
+  smartTitleAndSEO: boolean;
+}
+
+// ============================================================================
+// Core entities
+// ============================================================================
+
+export interface Workspace {
+  id: string;
+  name: string;
+  currency: string;
+  timezone: string;
+  autonomyLevel: AutonomyLevel;
+  guardrails?: HermesGuardrails;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Product {
+  id: string;
+  workspaceId: string;
+  sku: string;
+  name: string;
+  description: string;
+  costPrice: number;
+  sellingPrice: number;
+  condition: ProductCondition;
+  category: string;
+  status: ProductStatus;
+  tags: string[];
+  images: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Marketplace {
+  id: string;
+  workspaceId: string;
+  key: MarketplaceKey;
+  name: string;
+  connected: boolean;
+  syncMode: SyncMode;
+  lastSyncAt?: string;
+  errorCount: number;
+  capacity: number;
+  createdAt: string;
+}
+
+export interface MarketplaceAccount {
+  id: string;
+  marketplaceId: string;
+  handle: string;
+  status: MarketplaceAccountStatus;
+  scopes: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Listing {
+  id: string;
+  productId: string;
+  marketplaceId: string;
+  marketplaceListingId?: string;
+  price: number;
+  status: ListingStatus;
+  views: number;
+  watchers: number;
+  messages: number;
+  publishedAt?: string;
+  expiresAt?: string;
+  syncError?: string;
+  lastSyncAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HermesEvent {
+  id: string;
+  workspaceId: string;
+  productId?: string;
+  type: HermesEventType;
+  severity: HermesSeverity;
+  status: HermesEventStatus;
+  title: string;
+  detail?: string;
+  proposedChange: ProposedChange;
+  autonomyDecision?: AutonomyDecision;
+  createdAt: string;
+  resolvedAt?: string;
+}
+
+export interface PriceHistory {
+  id: string;
+  listingId: string;
+  oldPrice?: number;
+  newPrice: number;
+  changedBy: ChangedBy;
+  reason?: string;
+  createdAt: string;
+}
+
+export interface ActivityLog {
+  id: string;
+  workspaceId: string;
+  entityType: string;
+  entityId: string;
+  actorType: ActorType;
+  actorId?: string;
+  action: string;
+  metadata?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface AnalyticsEvent {
+  id: string;
+  workspaceId: string;
+  listingId?: string;
+  eventType: AnalyticsEventType;
+  quantity: number;
+  amount?: number;
+  costAtSale?: number;
+  occurredAt: string;
+  createdAt: string;
+}
+
+export interface ApiKey {
+  id: string;
+  workspaceId: string;
+  name: string;
+  lastUsedAt?: string;
+  revoked: boolean;
+  createdAt: string;
+}
+
+// ============================================================================
+// Generic API envelopes
+// ============================================================================
+
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: {
+    message: string;
+    code?: string;
+    details?: Record<string, unknown>;
+  };
+  meta?: {
+    timestamp: string;
+    version: string;
+  };
+}
+
+export interface PaginationParams {
+  page: number;
+  limit: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}

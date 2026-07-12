@@ -1,0 +1,50 @@
+// Application-level job-queue port. Use cases enqueue background work through this
+// abstraction instead of importing Bull/Redis directly. Group 6 wires the concrete
+// BullJobQueue to it. Job payload shapes are declared HERE (application-owned
+// contracts) so the application layer never imports infrastructure job types; the
+// wiring layer maps these to the structurally-identical infrastructure payloads.
+
+import type { MarketplaceKey } from '../../../shared/types';
+
+export interface JobEnqueueOptions {
+  // Optional delay before the job becomes available, in milliseconds.
+  delayMs?: number;
+  // Optional idempotency / dedupe key.
+  jobId?: string;
+}
+
+// Generic typed queue. One instance per logical queue/topic.
+export interface IJobQueue<TData = unknown> {
+  enqueue(data: TData, options?: JobEnqueueOptions): Promise<void>;
+}
+
+// --- Job payload contracts (application-owned) ---
+
+export interface ListingPublishJobInput {
+  productName: string;
+  description: string;
+  price: number;
+  currency: string;
+  category: string;
+  condition: string;
+  imageUrls: string[];
+}
+
+export interface PublishListingJob {
+  marketplaceKey: MarketplaceKey;
+  listingId: string;
+  input: ListingPublishJobInput;
+}
+
+export interface SyncMarketplaceJob {
+  marketplaceKey: MarketplaceKey;
+  // Internal marketplace id so the sync handler can persist fetched stats and
+  // update the marketplace's lastSyncAt/errorCount (C5).
+  marketplaceId: string;
+  externalListingIds: string[];
+}
+
+export interface HermesRunJob {
+  workspaceId: string;
+  trigger: 'scheduled' | 'manual' | 'event';
+}

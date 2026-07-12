@@ -1,0 +1,194 @@
+// Listings table: marketplace, status, price, engagement (views/watchers/messages).
+// Presentational; the page supplies data and a marketplace-name resolver.
+import React from 'react';
+import {
+  IconButton,
+  Skeleton,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+import VisibilityIcon from '@mui/icons-material/VisibilityOutlined';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import ReplayIcon from '@mui/icons-material/Replay';
+import PublishIcon from '@mui/icons-material/Publish';
+import type { Listing } from '@shared/types';
+import { formatCurrency } from '../../utils/formatters.js';
+import { ListingStatusBadge } from '../common/Badge.js';
+import { ErrorRetry } from '../common/ErrorRetry.js';
+import { EmptyState } from '../common/EmptyState.js';
+
+export interface ListingsTableProps {
+  listings?: Listing[];
+  loading?: boolean;
+  error?: unknown;
+  onRetry?: () => void;
+  onRowClick?: (listing: Listing) => void;
+  onRelist?: (listing: Listing) => void;
+  onPublish?: (listing: Listing) => void;
+  resolveMarketplaceName?: (marketplaceId: string) => string;
+  currency?: string;
+  emptyAction?: React.ReactNode;
+}
+
+const HEAD_CELLS = ['Marketplace', 'Status', 'Price', 'Views', 'Watchers', 'Messages', ''];
+
+export const ListingsTable: React.FC<ListingsTableProps> = ({
+  listings,
+  loading = false,
+  error,
+  onRetry,
+  onRowClick,
+  onRelist,
+  onPublish,
+  resolveMarketplaceName,
+  currency,
+  emptyAction,
+}) => {
+  if (error) return <ErrorRetry error={error} onRetry={onRetry} />;
+
+  if (!loading && (!listings || listings.length === 0)) {
+    return (
+      <EmptyState
+        title="No listings"
+        description="Publish this product to a marketplace to create its first listing."
+        action={emptyAction}
+      />
+    );
+  }
+
+  return (
+    <TableContainer sx={{ overflowX: 'auto' }}>
+      <Table size="medium" sx={{ minWidth: 720 }}>
+        <TableHead>
+          <TableRow>
+            {HEAD_CELLS.map((label, i) => (
+              <TableCell
+                key={label || `c-${i}`}
+                align={i >= 2 && i <= 5 ? 'right' : 'left'}
+                sx={{ fontWeight: 700 }}
+              >
+                {label}
+              </TableCell>
+            ))}
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {loading
+            ? Array.from({ length: 4 }).map((_, i) => (
+                <TableRow key={`s-${i}`}>
+                  {HEAD_CELLS.map((label, j) => (
+                    <TableCell key={j} align={j >= 2 && j <= 5 ? 'right' : 'left'}>
+                      <Skeleton variant="text" width={j === 0 ? 140 : 60} />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            : (listings ?? []).map((listing) => (
+                <TableRow
+                  key={listing.id}
+                  hover
+                  onClick={onRowClick ? () => onRowClick(listing) : undefined}
+                  sx={{ cursor: onRowClick ? 'pointer' : 'default' }}
+                >
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {resolveMarketplaceName
+                        ? resolveMarketplaceName(listing.marketplaceId)
+                        : listing.marketplaceId}
+                    </Typography>
+                    {listing.syncError && (
+                      <Typography variant="caption" color="error.main" noWrap>
+                        {listing.syncError}
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <ListingStatusBadge status={listing.status} />
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {formatCurrency(listing.price, currency)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography variant="body2" color="text.secondary">
+                      {listing.views}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography variant="body2" color="text.secondary">
+                      {listing.watchers}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography variant="body2" color="text.secondary">
+                      {listing.messages}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    {onPublish && listing.status === 'draft' && (
+                      <Tooltip title="Publish">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onPublish(listing);
+                          }}
+                        >
+                          <PublishIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    {onRelist && (listing.status === 'expired' || listing.status === 'error') && (
+                      <Tooltip title="Relist">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRelist(listing);
+                          }}
+                        >
+                          <ReplayIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </TableCell>
+                </TableRow>
+              ))}
+        </TableBody>
+      </Table>
+      {/* legend icons hint (kept subtle) */}
+      {!loading && (listings?.length ?? 0) > 0 && (
+        <Stack
+          direction="row"
+          spacing={2}
+          sx={{ px: 2, py: 1, color: 'text.disabled' }}
+          aria-hidden
+        >
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <VisibilityIcon fontSize="inherit" />
+            <Typography variant="caption">views</Typography>
+          </Stack>
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <FavoriteBorderIcon fontSize="inherit" />
+            <Typography variant="caption">watchers</Typography>
+          </Stack>
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <ChatBubbleOutlineIcon fontSize="inherit" />
+            <Typography variant="caption">messages</Typography>
+          </Stack>
+        </Stack>
+      )}
+    </TableContainer>
+  );
+};
+
+export default ListingsTable;

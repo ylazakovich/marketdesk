@@ -1,0 +1,40 @@
+name: PR Title Check
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate conventional PR title
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR title follows Conventional Commits
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          pattern='^(feat|fix|perf|refactor|docs|test|ci|chore|build|style|revert)(\([a-z0-9][a-z0-9.-]*\))?!?: .+'
+          if [[ "$PR_TITLE" =~ $pattern ]]; then
+            echo "PR title '$PR_TITLE' follows Conventional Commits."
+          else
+            echo "::error::PR title does not follow Conventional Commits."
+            echo ""
+            echo "PR title: '$PR_TITLE'"
+            echo ""
+            echo "Expected format: <type>(optional-scope): <description>"
+            echo "Allowed types: feat, fix, perf, refactor, docs, test, ci, chore, build, style, revert"
+            echo ""
+            echo "Examples:"
+            echo "  feat: add marketplace listing sync"
+            echo "  fix(api): handle empty product payload"
+            echo "  chore(deps): bump express to 4.19.0"
+            exit 1
+          fi

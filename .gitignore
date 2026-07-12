@@ -1,0 +1,97 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+yarn.lock
+pnpm-lock.yaml
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Build outputs
+dist/
+build/
+.tsbuildinfo
+*.tsbuildinfo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# Testing
+coverage/
+.nyc_output/
+*.lcov
+.jest/
+
+# Allure reporting outputs
+allure-results/
+allure-report/
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Temporary files
+tmp/
+temp/
+.cache/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker
+.docker/
+
+# Uploads
+uploads/
+public/uploads/
+
+# Session files
+.session
+sessions/
+
+# Local development
+.local/
+.env.local.js
+
+# Build artifacts
+out/
+dist-ssr/
+
+# Vite
+.vite/
+
+# OMC state files
+.omc/state/
+.omc/sessions/
+.omc/logs/
+.omc/notepad.md
+
+# Generated files that shouldn't be committed
+.prettierignore.generated

@@ -1,5 +1,5 @@
 # Stage 1: Dependencies and build (needs devDependencies for tsc + vite).
-FROM node:20-alpine AS builder
+FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2 AS builder
 
 WORKDIR /app
 
@@ -22,7 +22,7 @@ RUN rm -f .tsbuildinfo && npm run build
 RUN npm prune --omit=dev
 
 # Stage 2: Runtime
-FROM node:20-alpine
+FROM node:22-alpine@sha256:16e22a550f3863206a3f701448c45f7912c6896a62de43add43bb9c86130c3e2
 
 WORKDIR /app
 

@@ -23,7 +23,7 @@ jobs:
     # require these, but they are provisioned so DB-backed tests can run in CI.
     services:
       postgres:
-        image: postgres:15-alpine
+        image: postgres:18-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
         env:
           POSTGRES_USER: marketdesk
           POSTGRES_PASSWORD: marketdesk

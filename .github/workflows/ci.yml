@@ -64,6 +64,8 @@ jobs:
 
       - name: Setup Node.js & install dependencies
         uses: ./.github/actions/setup-node
+        with:
+          node-version: '22'
 
       # Lint is reported but non-blocking: the repo has a small number of
       # pre-existing lint errors in files outside this change set. New code is

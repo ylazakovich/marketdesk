@@ -81,7 +81,7 @@ MarketDesk is an integrated product and listing management system designed to si
 
 ## Prerequisites
 
-- **Node.js**: v20.10.0 or higher
+- **Node.js**: v22.0.0 or higher
 - **npm**: v10.0.0 or higher
 - **Docker**: Latest version
 - **Docker Compose**: Latest version

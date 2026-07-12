@@ -1,10 +1,12 @@
-// Verifies the Hermes WebSocket server delivers workspace-scoped events end to end
-// over a real ws connection and honours workspace filtering.
+// Verifies the Hermes WebSocket server authenticates the handshake (CR4), binds
+// the workspace from the verified token, and filters broadcasts fail-closed by
+// workspace equality (CR5), all over a real ws connection.
 
 import http from 'http';
 import { AddressInfo } from 'net';
 import { WebSocket } from 'ws';
 import { HermesLiveUpdates } from '../websocket/HermesLiveUpdates';
+import { signToken } from '../http/middleware/AuthMiddleware';
 import type { DomainEvent } from '../../domain/ports/IEventPublisher';
 
 function makeEvent(workspaceId: string): DomainEvent {
@@ -17,14 +19,15 @@ function makeEvent(workspaceId: string): DomainEvent {
   };
 }
 
-async function open(url: string, workspaceId: string): Promise<WebSocket> {
-  const ws = new WebSocket(url);
+// Open an authenticated connection, passing the JWT via the ?token query param.
+async function openAuthed(baseUrl: string, workspaceId?: string): Promise<WebSocket> {
+  const token = signToken({ userId: 'u-1', workspaceId });
+  const ws = new WebSocket(`${baseUrl}?token=${encodeURIComponent(token)}`);
   await new Promise<void>((resolve, reject) => {
     ws.on('open', () => resolve());
     ws.on('error', reject);
   });
-  ws.send(JSON.stringify({ type: 'subscribe', workspaceId }));
-  // Allow the subscribe message to be processed server-side.
+  // Let the server-side connection handler bind the workspace.
   await new Promise((r) => setTimeout(r, 20));
   return ws;
 }
@@ -48,8 +51,28 @@ describe('HermesLiveUpdates', () => {
     await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
-  it('broadcasts an event to a client subscribed to the matching workspace', async () => {
-    const ws = await open(url, 'ws-1');
+  it('rejects an unauthenticated connection (CR4)', async () => {
+    const ws = new WebSocket(url); // no token
+    const closeCode = await new Promise<number>((resolve, reject) => {
+      ws.on('close', (code) => resolve(code));
+      ws.on('error', reject);
+    });
+    expect(closeCode).toBe(4401);
+    expect(live.clientCount).toBe(0);
+  });
+
+  it('rejects a connection with an invalid token (CR4)', async () => {
+    const ws = new WebSocket(`${url}?token=not-a-real-jwt`);
+    const closeCode = await new Promise<number>((resolve, reject) => {
+      ws.on('close', (code) => resolve(code));
+      ws.on('error', reject);
+    });
+    expect(closeCode).toBe(4401);
+    expect(live.clientCount).toBe(0);
+  });
+
+  it('accepts an authed connection and binds its workspace from the token (CR4)', async () => {
+    const ws = await openAuthed(url, 'ws-1');
     const received = new Promise<Record<string, unknown>>((resolve) => {
       ws.on('message', (raw) => resolve(JSON.parse(raw.toString())));
     });
@@ -62,14 +85,29 @@ describe('HermesLiveUpdates', () => {
     ws.close();
   });
 
-  it('does not deliver events for a different workspace', async () => {
-    const ws = await open(url, 'ws-1');
+  it('does not deliver events for a different workspace (CR5)', async () => {
+    const ws = await openAuthed(url, 'ws-1');
     let delivered = false;
     ws.on('message', () => {
       delivered = true;
     });
 
     live.broadcast(makeEvent('ws-2'));
+    await new Promise((r) => setTimeout(r, 40));
+
+    expect(delivered).toBe(false);
+    ws.close();
+  });
+
+  it('delivers nothing to a client with no bound workspace — fail closed (CR5)', async () => {
+    // Authed token without a workspaceId claim => no workspace bound.
+    const ws = await openAuthed(url);
+    let delivered = false;
+    ws.on('message', () => {
+      delivered = true;
+    });
+
+    live.broadcast(makeEvent('ws-1'));
     await new Promise((r) => setTimeout(r, 40));
 
     expect(delivered).toBe(false);

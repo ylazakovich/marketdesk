@@ -2,7 +2,10 @@ import {
   SyncMarketplaceHandler,
   MarketplaceAdapterResolver,
 } from '../JobHandlers/SyncMarketplaceHandler';
-import { PublishListingHandler } from '../JobHandlers/PublishListingHandler';
+import {
+  PublishListingHandler,
+  ListingFinalizationError,
+} from '../JobHandlers/PublishListingHandler';
 import { HermesRunHandler, HermesEngine } from '../JobHandlers/HermesRunHandler';
 import type {
   IMarketplaceAdapter,
@@ -221,7 +224,7 @@ describe('PublishListingHandler', () => {
     expect(published).toHaveLength(0);
   });
 
-  it('falls back to emitting the event when finalization fails', async () => {
+  it('throws (does NOT report success) when finalization fails after a successful publish (CR3)', async () => {
     const adapter = fakeAdapter({ publish: jest.fn(async () => publishResult) });
     const { resolver } = resolverFor(adapter);
     const published: DomainEvent[] = [];
@@ -235,15 +238,72 @@ describe('PublishListingHandler', () => {
     );
     const handler = new PublishListingHandler(resolver, events, { publishListing });
 
+    // The remote listing was created but the DB was not updated: the handler must
+    // surface the failure (so Bull retries) and NOT emit a fake success event.
+    await expect(
+      handler.handle({ marketplaceKey: 'olx', listingId: 'l-4', input }),
+    ).rejects.toBeInstanceOf(ListingFinalizationError);
+    expect(published).toHaveLength(0);
+    // The carried externalListingId lets a retry reconcile without re-publishing.
+    await handler
+      .handle({ marketplaceKey: 'olx', listingId: 'l-4', input })
+      .catch((err: ListingFinalizationError) => {
+        expect(err.externalListingId).toBe('olx-99');
+      });
+  });
+
+  it('on retry with an already-published listing, finalizes WITHOUT calling adapter.publish again (CR2/CR3)', async () => {
+    const publish = jest.fn(async () => publishResult);
+    const adapter = fakeAdapter({ publish });
+    const { resolver } = resolverFor(adapter);
+    const publishListing = jest.fn(async () => Ok({} as unknown as Listing));
+    // The probe reports the listing was already published by a prior attempt.
+    const getPublishState = jest.fn(async () => ({
+      isPublished: true,
+      externalListingId: 'olx-99',
+      publishedAt: publishResult.publishedAt,
+    }));
+    const handler = new PublishListingHandler(resolver, undefined, {
+      publishListing,
+      getPublishState,
+    });
+
     const result = await handler.handle({
       marketplaceKey: 'olx',
-      listingId: 'l-4',
+      listingId: 'l-5',
       input,
     });
 
-    expect(result.finalized).toBe(false);
-    expect(published).toHaveLength(1);
-    expect(published[0].type).toBe('listing.published');
+    // No duplicate POST: the non-idempotent adapter publish must not run.
+    expect(publish).not.toHaveBeenCalled();
+    expect(result.finalized).toBe(true);
+    expect(result.result.externalListingId).toBe('olx-99');
+  });
+
+  it('publishes normally when the probe reports the listing is not yet published (CR3)', async () => {
+    const publish = jest.fn(async () => publishResult);
+    const adapter = fakeAdapter({ publish });
+    const { resolver } = resolverFor(adapter);
+    const publishListing = jest.fn(async () => Ok({} as unknown as Listing));
+    const getPublishState = jest.fn(async () => ({
+      isPublished: false,
+      externalListingId: null,
+      publishedAt: null,
+    }));
+    const handler = new PublishListingHandler(resolver, undefined, {
+      publishListing,
+      getPublishState,
+    });
+
+    const result = await handler.handle({
+      marketplaceKey: 'olx',
+      listingId: 'l-6',
+      input,
+    });
+
+    expect(publish).toHaveBeenCalledWith(input);
+    expect(publishListing).toHaveBeenCalledWith('l-6', 'olx-99', publishResult.publishedAt);
+    expect(result.finalized).toBe(true);
   });
 });
 

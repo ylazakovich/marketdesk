@@ -55,8 +55,15 @@ export abstract class BaseMarketplaceAdapter implements IMarketplaceAdapter {
 
   // --- Public port surface (retry + error-normalized) ---
 
+  // publish() issues a POST that CREATES a remote listing — it is NOT idempotent.
+  // If an ambiguous failure occurs (a 5xx/429/timeout where the marketplace may
+  // have already created the listing but the response was lost), a blind retry
+  // would re-POST and create a DUPLICATE listing. So publish never auto-retries;
+  // an ambiguous failure surfaces to the caller (the job layer) which can decide
+  // to finalize/reconcile without re-publishing. The idempotent operations below
+  // (update/delist/sync/fetch) are safe to retry.
   publish(input: ListingPublishInput): Promise<PublishResult> {
-    return this.execute('publish', () => this.doPublish(input));
+    return this.execute('publish', () => this.doPublish(input), { retry: false });
   }
 
   updateListing(
@@ -123,14 +130,21 @@ export abstract class BaseMarketplaceAdapter implements IMarketplaceAdapter {
 
   // --- Shared execution: retry retryable failures, normalize everything else ---
 
-  protected async execute<T>(operation: string, fn: () => Promise<T>): Promise<T> {
+  // `retry: false` disables retries entirely for non-idempotent operations
+  // (e.g. publish) so an ambiguous failure never re-issues the side effect.
+  protected async execute<T>(
+    operation: string,
+    fn: () => Promise<T>,
+    opts: { retry?: boolean } = {},
+  ): Promise<T> {
+    const maxRetries = opts.retry === false ? 0 : this.maxRetries;
     let attempt = 0;
     for (;;) {
       try {
         return await fn();
       } catch (raw) {
         const err = this.normalizeError(raw, operation);
-        if (err.retryable && attempt < this.maxRetries) {
+        if (err.retryable && attempt < maxRetries) {
           attempt += 1;
           await this.sleep(this.baseRetryDelayMs * 2 ** (attempt - 1));
           continue;

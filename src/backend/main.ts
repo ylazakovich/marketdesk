@@ -7,8 +7,8 @@ import helmet from 'helmet';
 import compression from 'compression';
 import pino from 'pino';
 import { env, isDevelopment, isTest } from './config/env.js';
-import { createPool } from './config/database.js';
-import { createRedisClient } from './config/redis.js';
+import { createPool, closePool } from './config/database.js';
+import { createRedisClient, closeRedis } from './config/redis.js';
 import { buildApp } from './presentation/http/app.js';
 import { HermesLiveUpdates } from './presentation/websocket/HermesLiveUpdates.js';
 import { buildContainer, type AppContainer } from './config/di/index.js';
@@ -146,12 +146,24 @@ const startServer = async () => {
       );
     });
 
+    // The entry point owns ALL process signal handling and the single ordered
+    // graceful-shutdown path. Config modules (config/redis, config/database)
+    // must not register signal handlers or call process.exit — otherwise a
+    // config-side handler could exit the process before this sequence finishes.
+    let shuttingDown = false;
     const shutdown = async (signal: string) => {
+      if (shuttingDown) return;
+      shuttingDown = true;
       logger.info(`${signal} received, starting graceful shutdown`);
       await hermesLive.close();
       if (container) {
         // Closes the Bull queues, Redis client and pg pool.
         await container.shutdown();
+      } else {
+        // Degraded mode: no container owns the shared singletons, so close them
+        // here as part of the ordered shutdown.
+        await closeRedis();
+        await closePool();
       }
       server.close(() => {
         logger.info('HTTP server closed');

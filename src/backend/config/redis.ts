@@ -51,6 +51,10 @@ export async function getRedis(): Promise<Redis> {
   return redis!;
 }
 
+// Closes the shared Redis client. Signal handling and process exit are owned
+// solely by the entry point (main.ts); this config module never registers
+// process signal handlers nor calls process.exit — doing so would race the
+// entry point's ordered graceful shutdown and could kill the process early.
 export async function closeRedis(): Promise<void> {
   if (redis) {
     await redis.quit();
@@ -58,16 +62,3 @@ export async function closeRedis(): Promise<void> {
     logger.info('Redis connection closed');
   }
 }
-
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  logger.info('SIGINT signal received: closing Redis');
-  await closeRedis();
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  logger.info('SIGTERM signal received: closing Redis');
-  await closeRedis();
-  process.exit(0);
-});

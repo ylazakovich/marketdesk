@@ -126,19 +126,19 @@ export const ProductWizardForm: React.FC<ProductWizardFormProps> = ({
       </Box>
 
       <Stack direction="row" spacing={1.5} justifyContent="space-between">
-        <Button color="inherit" onClick={onCancel} disabled={submitting}>
+        <Button type="button" color="inherit" onClick={onCancel} disabled={submitting}>
           Cancel
         </Button>
         <Stack direction="row" spacing={1.5}>
-          <Button onClick={handleBack} disabled={activeStep === 0 || submitting}>
+          <Button type="button" onClick={handleBack} disabled={activeStep === 0 || submitting}>
             Back
           </Button>
           {activeStep < STEPS.length - 1 ? (
-            <Button variant="contained" onClick={handleNext}>
+            <Button type="button" variant="contained" onClick={handleNext}>
               Next
             </Button>
           ) : (
-            <Button variant="contained" onClick={handleFinish} disabled={submitting}>
+            <Button type="button" variant="contained" onClick={handleFinish} disabled={submitting}>
               Create product
             </Button>
           )}

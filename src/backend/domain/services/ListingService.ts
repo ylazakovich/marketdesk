@@ -58,6 +58,22 @@ export class ListingService {
     return Ok(listing);
   }
 
+  // Idempotency probe for the publish job handler: reports whether a listing was
+  // already published (live + marketplaceListingId set) so a retry after a
+  // partial failure can finalize/short-circuit without re-issuing the
+  // non-idempotent marketplace publish (CR2/CR3).
+  async getPublishState(
+    listingId: string,
+  ): Promise<{ isPublished: boolean; externalListingId: string | null; publishedAt: Date | null } | null> {
+    const listing = await this.listingRepo.findById(listingId);
+    if (!listing) return null;
+    return {
+      isPublished: listing.isLive() && listing.marketplaceListingId !== null,
+      externalListingId: listing.marketplaceListingId,
+      publishedAt: listing.publishedAt,
+    };
+  }
+
   async relistListing(
     listingId: string,
     publishedAt: Date = new Date(),

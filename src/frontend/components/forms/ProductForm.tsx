@@ -65,7 +65,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
         <Stack direction="row" spacing={1.5} justifyContent="flex-end">
           {onCancel && (
-            <Button color="inherit" onClick={onCancel} disabled={submitting}>
+            <Button type="button" color="inherit" onClick={onCancel} disabled={submitting}>
               Cancel
             </Button>
           )}

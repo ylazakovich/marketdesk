@@ -27,8 +27,10 @@ export function createPool(): Pool {
   });
 
   pool.on('error', (err: Error) => {
+    // Log only. A config module must never call process.exit — the entry point
+    // (main.ts) owns process lifecycle and graceful shutdown. pg will discard the
+    // broken idle client and open a fresh one on the next checkout.
     logger.error({ error: err }, 'Unexpected error on idle client');
-    process.exit(-1);
   });
 
   return pool;
@@ -100,6 +102,10 @@ export async function withTransaction<T>(
   }
 }
 
+// Closes the shared pg pool. Signal handling and process exit are owned solely
+// by the entry point (main.ts); this config module never registers process
+// signal handlers nor calls process.exit — doing so would race the entry
+// point's ordered graceful shutdown.
 export async function closePool(): Promise<void> {
   if (pool) {
     await pool.end();
@@ -107,16 +113,3 @@ export async function closePool(): Promise<void> {
     logger.info('Database connection pool closed');
   }
 }
-
-// Graceful shutdown
-process.on('SIGINT', async () => {
-  logger.info('SIGINT signal received: closing HTTP server');
-  await closePool();
-  process.exit(0);
-});
-
-process.on('SIGTERM', async () => {
-  logger.info('SIGTERM signal received: closing HTTP server');
-  await closePool();
-  process.exit(0);
-});

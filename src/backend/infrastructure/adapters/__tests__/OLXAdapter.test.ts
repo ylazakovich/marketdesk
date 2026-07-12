@@ -9,6 +9,7 @@ import {
   MarketplaceAuthenticationError,
   MarketplaceNotFoundError,
   MarketplaceRateLimitError,
+  MarketplaceTransientError,
 } from '../MarketplaceError';
 import type { ListingPublishInput } from '../../../domain/services/MarketplaceAdapter';
 
@@ -105,28 +106,61 @@ describe('OLXAdapter', () => {
     );
   });
 
-  it('retries retryable rate-limit failures then succeeds', async () => {
+  it('retries retryable rate-limit failures then succeeds (idempotent updateListing)', async () => {
     let calls = 0;
     const http = mockClient(() => {
       calls += 1;
       if (calls < 3) throw new HttpError(429, 'slow down');
-      return { status: 201, data: { id: 'olx-ok', status: 'active' } };
+      return { status: 200, data: { id: 'olx-ok', status: 'active' } };
     });
     const adapter = new OLXAdapter(http, fastOptions);
 
-    const result = await adapter.publish(publishInput);
-    expect(result.externalListingId).toBe('olx-ok');
+    await expect(
+      adapter.updateListing('olx-ok', { price: 10 }),
+    ).resolves.toBeUndefined();
     expect(calls).toBe(3);
   });
 
-  it('gives up after exhausting retries and throws the rate-limit error', async () => {
+  it('gives up after exhausting retries and throws the rate-limit error (updateListing)', async () => {
     const http = mockClient(() => {
       throw new HttpError(429, 'slow down');
     });
     const adapter = new OLXAdapter(http, { ...fastOptions, maxRetries: 1 });
+    await expect(
+      adapter.updateListing('olx-1', { price: 10 }),
+    ).rejects.toBeInstanceOf(MarketplaceRateLimitError);
+  });
+
+  // CR2: publish is a non-idempotent POST that creates a remote listing. It must
+  // NOT auto-retry on an ambiguous failure, or a lost-response retry would create
+  // a duplicate listing. It should hit the transport exactly once and surface the
+  // error immediately.
+  it('does NOT retry publish on a 5xx failure (no duplicate POST)', async () => {
+    let calls = 0;
+    const http = mockClient(() => {
+      calls += 1;
+      throw new HttpError(500, 'server error');
+    });
+    const adapter = new OLXAdapter(http, fastOptions);
+
+    await expect(adapter.publish(publishInput)).rejects.toBeInstanceOf(
+      MarketplaceTransientError,
+    );
+    expect(calls).toBe(1);
+  });
+
+  it('does NOT retry publish on a 429 failure (no duplicate POST)', async () => {
+    let calls = 0;
+    const http = mockClient(() => {
+      calls += 1;
+      throw new HttpError(429, 'slow down');
+    });
+    const adapter = new OLXAdapter(http, fastOptions);
+
     await expect(adapter.publish(publishInput)).rejects.toBeInstanceOf(
       MarketplaceRateLimitError,
     );
+    expect(calls).toBe(1);
   });
 
   it('works against its default stub transport with no injected client', async () => {

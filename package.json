@@ -1,6 +1,6 @@
 {
   "name": "hermes-marketdesk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "MarketDesk - Multi-marketplace product and listing management platform",
   "main": "dist/backend/main.js",
   "type": "module",

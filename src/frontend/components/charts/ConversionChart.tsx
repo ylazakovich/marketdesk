@@ -67,7 +67,7 @@ export const ConversionChart: React.FC<ConversionChartProps> = ({ params, height
               tickFormatter={(v: number) => formatNumber(v)}
             />
             <Tooltip
-              formatter={(value: number) => [formatNumber(value), 'Count']}
+              formatter={(value) => [formatNumber(Number(value ?? 0)), 'Count']}
               cursor={{ fill: colors.grid, opacity: 0.3 }}
               contentStyle={{
                 background: colors.tooltipBg,

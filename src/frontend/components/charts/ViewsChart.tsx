@@ -58,7 +58,7 @@ export const ViewsChart: React.FC<ViewsChartProps> = ({
             tickFormatter={(v: number) => formatNumber(v)}
           />
           <Tooltip
-            formatter={(value: number) => [formatNumber(value), 'Views']}
+            formatter={(value) => [formatNumber(Number(value ?? 0)), 'Views']}
             cursor={{ fill: colors.grid, opacity: 0.3 }}
             contentStyle={{
               background: colors.tooltipBg,

@@ -10,12 +10,12 @@ import { useAppDispatch } from '../state/hooks.js';
 import { setCredentials } from '../state/slices/authSlice.js';
 import { setWorkspace } from '../state/slices/workspaceSlice.js';
 
-function errorMessage(err: unknown): string {
+function errorMessage(err: unknown, fallback: string): string {
   if (err && typeof err === 'object') {
     const e = err as { data?: { error?: { message?: string } }; message?: string };
-    return e.data?.error?.message ?? e.message ?? 'Login failed';
+    return e.data?.error?.message ?? e.message ?? fallback;
   }
-  return 'Login failed';
+  return fallback;
 }
 
 const LoginPage: React.FC = () => {
@@ -33,9 +33,15 @@ const LoginPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (isRegistration && password.length < 8) {
+      setError('Password must be at least 8 characters');
+      return;
+    }
+
+    const trimmedWorkspaceName = workspaceName.trim();
     try {
       const result = isRegistration
-        ? register({ email, password, workspaceName: workspaceName || undefined })
+        ? register({ email, password, workspaceName: trimmedWorkspaceName || undefined })
         : login({ email, password });
       const { token, user: apiUser } = await result.unwrap();
       const user: User = {
@@ -49,7 +55,7 @@ const LoginPage: React.FC = () => {
         dispatch(
           setWorkspace({
             id: user.workspaceId,
-            name: '',
+            name: isRegistration ? trimmedWorkspaceName : '',
             currency: DEFAULT_CURRENCY,
             timezone: DEFAULT_TIMEZONE,
             autonomyLevel: AUTONOMY_LEVELS.SUGGEST_ONLY,
@@ -58,7 +64,7 @@ const LoginPage: React.FC = () => {
       }
       navigate('/');
     } catch (err) {
-      setError(errorMessage(err));
+      setError(errorMessage(err, isRegistration ? 'Registration failed' : 'Login failed'));
     }
   };
 
@@ -107,6 +113,7 @@ const LoginPage: React.FC = () => {
               autoComplete={isRegistration ? 'new-password' : 'current-password'}
               fullWidth
               required
+              inputProps={{ minLength: isRegistration ? 8 : undefined }}
               helperText={isRegistration ? 'At least 8 characters' : undefined}
             />
             {error && (

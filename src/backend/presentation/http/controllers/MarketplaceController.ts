@@ -10,6 +10,11 @@ import { NotFoundError } from '../../../domain/shared/DomainError';
 import { presentMarketplace } from '../../../application/dto/presenters';
 import { ok } from '../formatters/ResponseFormatter';
 
+
+function routeParam(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? (value[0] ?? '') : (value ?? '');
+}
+
 export class MarketplaceController {
   constructor(
     private readonly marketplaceRepo: IMarketplaceRepository,
@@ -24,27 +29,29 @@ export class MarketplaceController {
   };
 
   get = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const marketplaceId = routeParam(req.params.id);
     const marketplace = await this.marketplaceRepo.findByIdForWorkspace(
-      req.params.id,
+      marketplaceId,
       req.user!.workspaceId!,
     );
     if (!marketplace) {
-      return next(new NotFoundError(`Marketplace not found: ${req.params.id}`));
+      return next(new NotFoundError(`Marketplace not found: ${marketplaceId}`));
     }
     ok(res, presentMarketplace(marketplace));
   };
 
   sync = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const marketplaceId = routeParam(req.params.id);
     // Confirm tenant ownership before enqueuing a sync for this marketplace (S2).
     const marketplace = await this.marketplaceRepo.findByIdForWorkspace(
-      req.params.id,
+      marketplaceId,
       req.user!.workspaceId!,
     );
     if (!marketplace) {
-      return next(new NotFoundError(`Marketplace not found: ${req.params.id}`));
+      return next(new NotFoundError(`Marketplace not found: ${marketplaceId}`));
     }
     const result = await this.listings.syncMarketplace({
-      marketplaceId: req.params.id,
+      marketplaceId,
       actorId: req.user?.userId,
     });
     if (result.isErr()) return next(result.error);
@@ -52,12 +59,13 @@ export class MarketplaceController {
   };
 
   connect = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const marketplaceId = routeParam(req.params.id);
     const marketplace = await this.marketplaceRepo.findByIdForWorkspace(
-      req.params.id,
+      marketplaceId,
       req.user!.workspaceId!,
     );
     if (!marketplace) {
-      return next(new NotFoundError(`Marketplace not found: ${req.params.id}`));
+      return next(new NotFoundError(`Marketplace not found: ${marketplaceId}`));
     }
     marketplace.connect();
     await this.marketplaceRepo.save(marketplace);
@@ -65,12 +73,13 @@ export class MarketplaceController {
   };
 
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const marketplaceId = routeParam(req.params.id);
     const marketplace = await this.marketplaceRepo.findByIdForWorkspace(
-      req.params.id,
+      marketplaceId,
       req.user!.workspaceId!,
     );
     if (!marketplace) {
-      return next(new NotFoundError(`Marketplace not found: ${req.params.id}`));
+      return next(new NotFoundError(`Marketplace not found: ${marketplaceId}`));
     }
     if (typeof req.body?.connected === 'boolean') {
       if (req.body.connected) marketplace.connect();

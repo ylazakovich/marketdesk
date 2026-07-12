@@ -19,6 +19,11 @@ function csv<T extends string>(value: unknown): T[] | undefined {
   return parts.length > 0 ? (parts as T[]) : undefined;
 }
 
+
+function routeParam(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? (value[0] ?? '') : (value ?? '');
+}
+
 export class HermesController {
   constructor(private readonly hermes: HermesApplicationService) {}
 
@@ -42,16 +47,18 @@ export class HermesController {
   };
 
   get = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const event = await this.hermes.getEvent(req.params.id, req.user!.workspaceId!);
+    const eventId = routeParam(req.params.id);
+    const event = await this.hermes.getEvent(eventId, req.user!.workspaceId!);
     if (!event) {
-      return next(new NotFoundError(`Hermes event not found: ${req.params.id}`));
+      return next(new NotFoundError(`Hermes event not found: ${eventId}`));
     }
     ok(res, event);
   };
 
   approve = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const eventId = routeParam(req.params.id);
     const result = await this.hermes.approveEvent({
-      eventId: req.params.id,
+      eventId,
       workspaceId: req.user!.workspaceId!,
       actorId: req.body?.actorId ?? req.user?.userId,
     });
@@ -60,8 +67,9 @@ export class HermesController {
   };
 
   dismiss = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const eventId = routeParam(req.params.id);
     const result = await this.hermes.dismissEvent({
-      eventId: req.params.id,
+      eventId,
       workspaceId: req.user!.workspaceId!,
       actorId: req.body?.actorId ?? req.user?.userId,
       reason: req.body?.reason,

@@ -17,6 +17,11 @@ import { NotFoundError } from '../../../domain/shared/DomainError';
 import { presentListing } from '../../../application/dto/presenters';
 import { ok, paginated } from '../formatters/ResponseFormatter';
 
+
+function routeParam(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? (value[0] ?? '') : (value ?? '');
+}
+
 export interface ListingControllerDeps {
   priceHistoryReader?: IPriceHistoryReader;
   priceHistoryRecorder?: IPriceHistoryRecorder;
@@ -47,22 +52,24 @@ export class ListingController {
   };
 
   get = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const listingId = routeParam(req.params.id);
     const listing = await this.listings.getListing(
-      req.params.id,
+      listingId,
       req.user!.workspaceId!,
     );
-    if (!listing) return next(new NotFoundError(`Listing not found: ${req.params.id}`));
+    if (!listing) return next(new NotFoundError(`Listing not found: ${listingId}`));
     ok(res, listing);
   };
 
   publish = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const listingId = routeParam(req.params.id);
     // Tenant-scoped load (S2) so a listing cannot be published on another tenant's
     // behalf — mirrors the relist/update guard rather than a bare findById.
     const listing = await this.listingRepo.findByIdForWorkspace(
-      req.params.id,
+      listingId,
       req.user!.workspaceId!,
     );
-    if (!listing) return next(new NotFoundError(`Listing not found: ${req.params.id}`));
+    if (!listing) return next(new NotFoundError(`Listing not found: ${listingId}`));
     const result = await this.listings.publishListing({
       listingId: listing.id,
       actorId: req.user!.userId,
@@ -72,12 +79,13 @@ export class ListingController {
   };
 
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const listingId = routeParam(req.params.id);
     // Tenant-scoped load so price cannot be changed on another tenant's listing (S2).
     const listing = await this.listingRepo.findByIdForWorkspace(
-      req.params.id,
+      listingId,
       req.user!.workspaceId!,
     );
-    if (!listing) return next(new NotFoundError(`Listing not found: ${req.params.id}`));
+    if (!listing) return next(new NotFoundError(`Listing not found: ${listingId}`));
 
     if (typeof req.body?.price === 'number') {
       const oldPrice = listing.price.amount;
@@ -103,16 +111,17 @@ export class ListingController {
   };
 
   relist = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const listingId = routeParam(req.params.id);
     // Tenant-scoped load (S2), then route through the publish use case so relist
     // honours the same invariants as publishing — it rejects a sold product and
     // enqueues an actual republish job rather than only flipping status in the DB
     // (C6). The publish use case validates marketplace-connected / price-set /
     // not-sold and enqueues the republish.
     const listing = await this.listingRepo.findByIdForWorkspace(
-      req.params.id,
+      listingId,
       req.user!.workspaceId!,
     );
-    if (!listing) return next(new NotFoundError(`Listing not found: ${req.params.id}`));
+    if (!listing) return next(new NotFoundError(`Listing not found: ${listingId}`));
     const result = await this.listings.relistListing({
       listingId: listing.id,
       actorId: req.user!.userId,
@@ -126,15 +135,16 @@ export class ListingController {
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
+    const listingId = routeParam(req.params.id);
     const listing = await this.listings.getListing(
-      req.params.id,
+      listingId,
       req.user!.workspaceId!,
     );
-    if (!listing) return next(new NotFoundError(`Listing not found: ${req.params.id}`));
+    if (!listing) return next(new NotFoundError(`Listing not found: ${listingId}`));
     // TODO(Group 6): wire IPriceHistoryReader to PriceHistoryRepository. Until then
     // this returns an empty history rather than failing.
     const history = this.deps.priceHistoryReader
-      ? await this.deps.priceHistoryReader.findByListing(req.params.id)
+      ? await this.deps.priceHistoryReader.findByListing(listingId)
       : [];
     ok(res, history);
   };

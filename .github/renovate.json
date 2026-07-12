@@ -5,6 +5,9 @@
     "github>ylazakovich/renovate-config//presets/docker/default",
     "github>ylazakovich/renovate-config//presets/github-actions/default"
   ],
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
   "enabledManagers": [
     "npm",
     "docker-compose",

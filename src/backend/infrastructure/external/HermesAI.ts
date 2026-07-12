@@ -43,6 +43,8 @@ export interface AICompletionRequest {
   maxTokens?: number;
   // When provided, Hermes is instructed to emit JSON matching this schema.
   jsonSchema?: Record<string, unknown>;
+  // Optional stable scope for Hermes conversation/session affinity. Leave unset for stateless calls.
+  sessionKey?: string;
 }
 
 export interface AITextCompletionClient {

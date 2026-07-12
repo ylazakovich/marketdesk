@@ -38,17 +38,14 @@ export class HermesCompletionClient implements AITextCompletionClient {
   }
 
   async complete(request: AICompletionRequest): Promise<string> {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
-
     try {
       const response = await fetch(`${this.apiUrl}/chat/completions`, {
         method: 'POST',
-        signal: controller.signal,
+        signal: AbortSignal.timeout(this.timeoutMs),
         headers: {
           'Content-Type': 'application/json',
           ...(this.apiKey ? { Authorization: `Bearer ${this.apiKey}` } : {}),
-          'X-Hermes-Session-Key': 'marketdesk:ai-provider',
+          ...(request.sessionKey ? { 'X-Hermes-Session-Key': request.sessionKey } : {}),
         },
         body: JSON.stringify({
           model: this.model,
@@ -72,8 +69,11 @@ export class HermesCompletionClient implements AITextCompletionClient {
         throw new Error('Hermes API response did not include assistant content');
       }
       return content;
-    } finally {
-      clearTimeout(timeout);
+    } catch (error) {
+      if (this.isTimeoutError(error)) {
+        throw new Error(`Hermes API request timed out after ${this.timeoutMs}ms`);
+      }
+      throw error;
     }
   }
 
@@ -86,6 +86,12 @@ export class HermesCompletionClient implements AITextCompletionClient {
       }
       return {};
     }
+  }
+
+  private isTimeoutError(error: unknown): boolean {
+    return error instanceof DOMException
+      ? error.name === 'TimeoutError' || error.name === 'AbortError'
+      : error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError');
   }
 
   private withJsonSchemaInstruction(request: AICompletionRequest): string {

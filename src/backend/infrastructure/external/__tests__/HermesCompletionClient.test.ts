@@ -40,8 +40,8 @@ describe('HermesCompletionClient', () => {
     expect(init?.method).toBe('POST');
     expect(init?.headers).toMatchObject({
       Authorization: 'Bearer secret-key',
-      'X-Hermes-Session-Key': 'marketdesk:ai-provider',
     });
+    expect(init?.headers).not.toHaveProperty('X-Hermes-Session-Key');
 
     const body = JSON.parse(init?.body as string);
     expect(body.model).toBe('hermes-agent');
@@ -111,6 +111,48 @@ describe('HermesCompletionClient', () => {
 
     await expect(client.complete({ system: 's', prompt: 'p' })).rejects.toThrow(
       'Hermes API returned a non-JSON success response',
+    );
+  });
+
+  it('sends a Hermes session key only when request scope is provided', async () => {
+    const fetchMock = jest.fn<Promise<Response>, [string | URL, RequestInit?]>(async () =>
+      new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const client = new HermesCompletionClient({
+      apiUrl: 'http://127.0.0.1:8642/v1',
+      apiKey: 'secret-key',
+      model: 'hermes-agent',
+      maxTokens: 123,
+      timeoutMs: 5000,
+    });
+
+    await client.complete({ system: 's', prompt: 'p', sessionKey: 'workspace:42:user:7' });
+
+    expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({
+      'X-Hermes-Session-Key': 'workspace:42:user:7',
+    });
+  });
+
+  it('throws a clear error when the Hermes request times out', async () => {
+    globalThis.fetch = jest.fn(async () => {
+      throw new DOMException('The operation timed out', 'TimeoutError');
+    }) as typeof fetch;
+
+    const client = new HermesCompletionClient({
+      apiUrl: 'http://127.0.0.1:8642/v1',
+      apiKey: '',
+      model: 'hermes-agent',
+      maxTokens: 123,
+      timeoutMs: 50,
+    });
+
+    await expect(client.complete({ system: 's', prompt: 'p' })).rejects.toThrow(
+      'Hermes API request timed out after 50ms',
     );
   });
 });

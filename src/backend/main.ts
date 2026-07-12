@@ -5,6 +5,7 @@ import fs from 'fs';
 import cors from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
+import rateLimit from 'express-rate-limit';
 import pino from 'pino';
 import { env, isDevelopment, isTest } from './config/env.js';
 import { createPool, closePool } from './config/database.js';
@@ -73,7 +74,14 @@ const startServer = async () => {
     }
 
     // Health/readiness endpoints are owned by the process, not the API layer.
-    app.get('/health', (_req, res) => {
+    // Rate-limit health checks to prevent DoS attacks on startup/shutdown probes.
+    const healthLimiter = rateLimit({
+      windowMs: 60 * 1000,
+      max: 30,
+      skip: () => isTest,
+    });
+
+    app.get('/health', healthLimiter, (_req, res) => {
       res.status(200).json({
         status: 'ok',
         timestamp: new Date().toISOString(),
@@ -82,7 +90,7 @@ const startServer = async () => {
       });
     });
 
-    app.get('/ready', async (_req, res) => {
+    app.get('/ready', healthLimiter, async (_req, res) => {
       try {
         const p = createPool();
         await p.query('SELECT NOW()');

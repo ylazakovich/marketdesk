@@ -56,6 +56,16 @@ export interface AppOptions {
   corsOrigin?: string;
 }
 
+function validateCorsOrigin(origin: string | undefined): string {
+  const validated = origin ?? '*';
+  if (isProduction && (validated === '*' || !origin)) {
+    throw new Error(
+      'CORS origin must be an explicit non-wildcard value in production (set CORS_ORIGIN)',
+    );
+  }
+  return validated;
+}
+
 export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
   const app = express();
 
@@ -64,12 +74,7 @@ export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
   // CORS fail-closed in production: with credentials:true a wildcard origin would
   // let any site make authenticated cross-origin calls, so production requires an
   // explicit, non-wildcard origin. Dev keeps the permissive default. (S7)
-  const corsOrigin = options.corsOrigin ?? '*';
-  if (isProduction && (corsOrigin === '*' || !options.corsOrigin)) {
-    throw new Error(
-      'CORS origin must be an explicit non-wildcard value in production (set CORS_ORIGIN)',
-    );
-  }
+  const corsOrigin = validateCorsOrigin(options.corsOrigin);
 
   app.use(
     cors({

@@ -85,8 +85,8 @@ MarketDesk is a multi-marketplace SaaS control panel enabling sellers to manage 
     │  Listings, │    │               │  │  Vinted, eBay...)  │
     │  Events,   │    │ Redis Cache   │  └────────────────────┘
     │  Analytics)│    │               │  ┌─────────────────────────┐
-    └────────────┘    │ Bull Jobs     │  │ Claude API (Hermes)    │
-                      │ (Background   │  │ (LLM for suggestions)   │
+    └────────────┘    │ Bull Jobs     │  │ Hermes Agent API       │
+                      │ (Background   │  │ (native agent runtime)  │
                       │  sync, pub)   │  └─────────────────────────┘
                       └───────────────┘
 ```
@@ -98,7 +98,7 @@ MarketDesk is a multi-marketplace SaaS control panel enabling sellers to manage 
 - **Repositories**: Data access (PostgreSQL), marketplace credential vaults
 - **Event Broker**: Decouples services, enables async workflows
 - **Background Jobs**: Marketplace sync, Hermes runs, analytics aggregation
-- **External APIs**: Marketplace adapters (pluggable), Claude (AI)
+- **External APIs**: Marketplace adapters (pluggable); local Hermes Agent API Server for AI/agent work
 
 ---
 
@@ -247,7 +247,8 @@ src/backend/
 │   │   ├── EbayAdapter.ts (stub)
 │   │   └── BaseMarketplaceAdapter.ts (abstract)
 │   ├── external/
-│   │   ├── ClaudeAI.ts
+│   │   ├── HermesAI.ts
+│   │   ├── HermesCompletionClient.ts
 │   │   ├── EmailProvider.ts
 │   │   └── TelegramBot.ts
 │   ├── eventBroker/
@@ -1293,69 +1294,40 @@ export class HermesDecisionEngine {
 }
 ```
 
-### Claude API Integration
+### Hermes Agent API Integration
 
 ```typescript
-// infrastructure/external/ClaudeAI.ts
-export class ClaudeService {
-  private client: Anthropic;
-  
-  constructor(apiKey: string) {
-    this.client = new Anthropic({ apiKey });
-  }
-  
-  async generatePriceSuggestion(product: Product): Promise<{
-    suggestedPrice: number;
-    reasoning: string;
-  }> {
-    const message = await this.client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 200,
-      messages: [
-        {
-          role: 'user',
-          content: `Product: ${product.name}
-Description: ${product.description}
-Current price: ${product.price} PLN
-Cost: ${product.cost} PLN
-Current margin: ${((product.price - product.cost) / product.price * 100).toFixed(1)}%
-Views: ${product.stats.views}
-Conversion rate: ${product.stats.conversionRate}
-Marketplace: ${product.marketplace.name}
+// infrastructure/external/HermesAI.ts
+export class HermesAI implements IAIProvider {
+  constructor(private readonly client: AITextCompletionClient) {}
 
-Suggest a new price to improve sales while maintaining at least 20% margin. Return JSON: { suggestedPrice: number, reasoning: string }`,
+  async suggestPrice(context: PriceSuggestionContext): Promise<PriceSuggestion> {
+    const currentPrice = context.listing.price.amount;
+    const raw = await this.client.complete({
+      system: 'You output concise marketplace pricing recommendations as strict JSON.',
+      prompt: `Current price: ${currentPrice} ${context.listing.price.currency}.`,
+      jsonSchema: {
+        type: 'object',
+        properties: {
+          suggestedPrice: { type: 'number' },
+          reasoning: { type: 'string' },
+          confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
         },
-      ],
+        required: ['suggestedPrice', 'reasoning', 'confidence'],
+      },
     });
-    
-    const content = message.content[0];
-    if (content.type !== 'text') throw new Error('Unexpected response');
-    
-    return JSON.parse(content.text);
-  }
-  
-  async generateTitle(product: Product): Promise<string> {
-    const message = await this.client.messages.create({
-      model: 'claude-3-5-sonnet-20241022',
-      max_tokens: 100,
-      messages: [
-        {
-          role: 'user',
-          content: `Create a concise, SEO-optimized title (max 60 chars) for this ${product.marketplace.name} listing:
-${product.name} - ${product.description}
 
-Return only the title, no explanation.`,
-        },
-      ],
-    });
-    
-    const content = message.content[0];
-    if (content.type !== 'text') throw new Error('Unexpected response');
-    
-    return content.text.trim();
+    const parsed = this.parseJson(raw);
+    return {
+      suggestedPrice: this.asFiniteNumber(parsed?.suggestedPrice, currentPrice),
+      reasoning: typeof parsed?.reasoning === 'string' ? parsed.reasoning : 'No reasoning provided by Hermes.',
+      confidence: this.asConfidence(parsed?.confidence),
+    };
   }
 }
 ```
+
+`HermesCompletionClient` calls the native Hermes Agent API Server (`/v1/chat/completions`) on the same VPS. The Docker app reaches it via `host.docker.internal:8642`; Hermes keeps provider/model credentials centralized in `~/.hermes/`.
 
 ---
 
@@ -2760,7 +2732,7 @@ Metrics to track:
 | **Events** | Redis Streams | Simple, append-only, self-hosted friendly |
 | **Jobs** | Bull + Redis | Node.js native, reliable, excellent for VPS |
 | **Scheduler** | node-cron | Lightweight, no MongoDB dependency |
-| **AI** | Claude API | Excellent reasoning for price/SEO suggestions |
+| **AI** | Hermes Agent API Server | Uses the native Hermes instance on the same VPS; provider/model/tooling stays centralized |
 | **Email** | SendGrid / Mailgun | Transactional reliability, SMTP fallback |
 | **Telegram** | node-telegram-bot-api | Direct bot integration |
 | **Auth** | JWT + bcrypt | Stateless, scalable, standard |
@@ -2782,7 +2754,7 @@ Metrics to track:
 | **Job Queue** | Bull | Agenda, RQ | Bull integrates with Redis; Agenda needs MongoDB |
 | **Database** | PostgreSQL | MongoDB, MySQL | PG has JSONB (flexibility) + ACID (safety) |
 | **Marketplace Abstraction** | Adapter pattern | Strategy, Factory | Adapter is industry standard; easy to understand |
-| **Hermes AI** | Claude API | GPT-4, local LLM | Claude has excellent reasoning; GPT-4 more expensive |
+| **Hermes AI** | Hermes Agent API Server | Direct vendor APIs, standalone app LLM key | Keeps MarketDesk on the same native Hermes runtime and avoids duplicating provider credentials |
 | **Scheduler** | node-cron | Agenda, Bull | node-cron is lightweight; no external DB needed |
 | **Auth** | JWT | Session cookies, OAuth | JWT is stateless; OAuth adds complexity |
 | **API Style** | REST | GraphQL | REST is simpler for CRUD; GraphQL overkill for v1 |

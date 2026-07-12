@@ -1,4 +1,4 @@
-import { ClaudeAI, AITextCompletionClient, AICompletionRequest } from '../ClaudeAI';
+import { HermesAI, AITextCompletionClient, AICompletionRequest } from '../HermesAI';
 import { Product } from '../../../domain/entities/Product';
 import { Listing } from '../../../domain/entities/Listing';
 import { Marketplace } from '../../../domain/entities/Marketplace';
@@ -60,7 +60,7 @@ function fakeClient(reply: string | ((req: AICompletionRequest) => string)): {
   return { client, calls };
 }
 
-describe('ClaudeAI (IAIProvider)', () => {
+describe('HermesAI (IAIProvider)', () => {
   it('suggestPrice returns the typed PriceSuggestion shape and passes a JSON schema', async () => {
     const { client, calls } = fakeClient(
       JSON.stringify({
@@ -69,7 +69,7 @@ describe('ClaudeAI (IAIProvider)', () => {
         confidence: 'high',
       }),
     );
-    const ai = new ClaudeAI(client);
+    const ai = new HermesAI(client);
     const context: PriceSuggestionContext = {
       listing: buildListing(),
       recentViews: 300,
@@ -87,7 +87,7 @@ describe('ClaudeAI (IAIProvider)', () => {
 
   it('suggestPrice falls back to current price / low confidence on unparseable output', async () => {
     const { client } = fakeClient('not json at all');
-    const ai = new ClaudeAI(client);
+    const ai = new HermesAI(client);
     const result = await ai.suggestPrice({
       listing: buildListing(),
       recentViews: 10,
@@ -101,7 +101,7 @@ describe('ClaudeAI (IAIProvider)', () => {
     const { client } = fakeClient(
       '```json\n{"suggestedPrice": 110, "reasoning": "ok", "confidence": "medium"}\n```',
     );
-    const ai = new ClaudeAI(client);
+    const ai = new HermesAI(client);
     const result = await ai.suggestPrice({
       listing: buildListing(),
       recentViews: 5,
@@ -113,7 +113,7 @@ describe('ClaudeAI (IAIProvider)', () => {
 
   it('generateTitle returns a cleaned single-line title and includes marketplace context', async () => {
     const { client, calls } = fakeClient('  "Retro Sneakers — Classic Lightly Worn"  ');
-    const ai = new ClaudeAI(client);
+    const ai = new HermesAI(client);
 
     const title = await ai.generateTitle(buildProduct(), buildMarketplace());
 
@@ -123,7 +123,7 @@ describe('ClaudeAI (IAIProvider)', () => {
 
   it('generateTitle falls back to the product name on empty model output', async () => {
     const { client } = fakeClient('   ');
-    const ai = new ClaudeAI(client);
+    const ai = new HermesAI(client);
     const title = await ai.generateTitle(buildProduct(), null);
     expect(title).toBe('Retro Sneakers');
   });
@@ -132,7 +132,7 @@ describe('ClaudeAI (IAIProvider)', () => {
     const { client } = fakeClient(
       JSON.stringify({ score: 250, suggestions: ['Add more photos', 42, 'Improve title'] }),
     );
-    const ai = new ClaudeAI(client);
+    const ai = new HermesAI(client);
 
     const analysis = await ai.analyzeListing(buildProduct());
 

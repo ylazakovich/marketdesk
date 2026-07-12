@@ -1,6 +1,6 @@
 // Domain port for the AI provider (ARCHITECTURE_AMENDMENTS FIX #1).
 // The domain depends ONLY on this abstraction — no vendor/model detail leaks in.
-// Concrete implementations (e.g. ClaudeAIProvider) live in infrastructure.
+// Concrete implementations (for example the Hermes Agent API adapter) live in infrastructure.
 
 import type { Product } from '../entities/Product';
 import type { Listing } from '../entities/Listing';

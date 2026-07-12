@@ -11,7 +11,7 @@
 
 ### FIX #1: LLM Provider Must Be Abstracted Behind Port
 
-**Finding**: §10 `ClaudeService` hardcodes `'claude-3-5-sonnet-20241022'` model ID; no `ILLMProvider` port exists in domain.
+**Finding**: §10 originally used a direct Claude service with `'claude-3-5-sonnet-20241022'` model ID; no `ILLMProvider` port exists in domain.
 
 **Correction**:
 
@@ -98,18 +98,14 @@ export class HermesDecisionEngine {
 }
 ```
 
-#### 1.3 Implement Claude provider (new file: `src/backend/infrastructure/external/ClaudeAIProvider.ts`)
+#### 1.3 Implement Hermes Agent provider (new file: `src/backend/infrastructure/external/HermesAI.ts`)
 
 ```typescript
-export class ClaudeAIProvider implements IAIProvider {
-  private client: Anthropic;
-  private modelId: string;
-
-  constructor(apiKey: string, modelId?: string) {
-    this.client = new Anthropic({ apiKey });
-    // Model ID from env/config, not hardcoded
-    this.modelId = modelId || process.env.LLM_MODEL_ID || 'claude-3-5-sonnet-20241022';
-  }
+export class HermesAI implements IAIProvider {
+  constructor(
+    private readonly client: AITextCompletionClient,
+    private readonly maxTokens = Number(process.env.HERMES_MAX_TOKENS ?? 2048),
+  ) {}
 
   async suggestPrice(context: {
     listing: Listing;
@@ -117,21 +113,34 @@ export class ClaudeAIProvider implements IAIProvider {
     conversionRate: number;
     competitorPrice?: number;
   }): Promise<{ suggestedPrice: number; reasoning: string; confidence: 'high' | 'medium' | 'low' }> {
-    const message = await this.client.messages.create({
-      model: this.modelId,
-      max_tokens: 200,
-      messages: [
-        {
-          role: 'user',
-          content: `Suggest a new price for this listing...`,
+    const currentPrice = context.listing.price.amount;
+    const raw = await this.client.complete({
+      system: 'You output strict JSON for marketplace pricing recommendations.',
+      prompt: `Suggest a new price for this listing...`,
+      maxTokens: this.maxTokens,
+      jsonSchema: {
+        type: 'object',
+        properties: {
+          suggestedPrice: { type: 'number' },
+          reasoning: { type: 'string' },
+          confidence: { type: 'string', enum: ['high', 'medium', 'low'] },
         },
-      ],
+        required: ['suggestedPrice', 'reasoning', 'confidence'],
+      },
     });
 
-    const content = message.content[0];
-    if (content.type !== 'text') throw new Error('Unexpected response');
-
-    return JSON.parse(content.text);
+    // parseJson tolerates fenced JSON and returns null for malformed output.
+    // Invalid/missing fields fall back safely instead of throwing from the adapter.
+    const parsed = this.parseJson(raw);
+    return {
+      suggestedPrice: this.asFiniteNumber(parsed?.suggestedPrice, currentPrice),
+      reasoning: typeof parsed?.reasoning === 'string' && parsed.reasoning.trim()
+        ? parsed.reasoning.trim()
+        : 'No reasoning provided by Hermes.',
+      confidence: parsed?.confidence === 'high' || parsed?.confidence === 'medium'
+        ? parsed.confidence
+        : 'low',
+    };
   }
 
   // ... other methods ...
@@ -142,9 +151,9 @@ export class ClaudeAIProvider implements IAIProvider {
 
 ```typescript
 container.register('aiProvider', () => {
-  return new ClaudeAIProvider(
-    process.env.ANTHROPIC_API_KEY,
-    process.env.LLM_MODEL_ID
+  return new HermesAI(
+    new HermesCompletionClient(),
+    { maxTokens: Number(process.env.HERMES_MAX_TOKENS ?? 2048) }
   );
 });
 
@@ -158,7 +167,7 @@ container.register('hermesDecisionEngine', () => {
 });
 ```
 
-**Result**: LLM provider is now swappable. To use OpenAI instead of Claude, implement `OpenAIProvider implements IAIProvider` and swap the registration. Criterion 2.3 (Hermes not coupled to specific LLM) is satisfied.
+**Result**: LLM/agent provider is now swappable and MarketDesk uses the native Hermes Agent runtime by default. Provider credentials stay in Hermes (`~/.hermes/`), not in the app container.
 
 ---
 

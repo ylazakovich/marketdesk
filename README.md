@@ -111,12 +111,28 @@ DATABASE_URL=postgresql://marketdesk:marketdesk@localhost:5432/marketdesk
 REDIS_URL=redis://localhost:6379
 JWT_SECRET=your_jwt_secret_key_change_in_production
 
-# Optional
-HERMES_API_URL=https://api.hermes.example.com
-HERMES_API_KEY=your_hermes_api_key
+# Hermes Agent API Server (native Hermes on the same VPS)
+HERMES_API_URL=http://host.docker.internal:8642/v1
+HERMES_API_KEY=your_local_hermes_api_server_key
+HERMES_MODEL=hermes-agent
 ```
 
-### 3. Start with Docker Compose
+### 3. Enable native Hermes Agent API Server
+
+MarketDesk does not call Claude/Anthropic directly. It calls the native Hermes Agent API Server running on the same VPS, and Hermes owns provider/model/tool execution.
+
+Add the matching server-side key to `~/.hermes/.env` and restart Hermes gateway:
+
+```bash
+API_SERVER_ENABLED=true
+API_SERVER_HOST=0.0.0.0
+API_SERVER_PORT=8642
+API_SERVER_KEY=<same value as HERMES_API_KEY in this project's .env>
+```
+
+The Docker app reaches the host Hermes server through `host.docker.internal:8642`. Because this binds Hermes on a host-reachable interface for Docker, restrict port `8642` at the firewall/security-group level to local Docker traffic and trusted admin IPs only; authentication still requires the bearer `API_SERVER_KEY`.
+
+### 4. Start with Docker Compose
 
 ```bash
 # Start all services (PostgreSQL, Redis, Node app serving API + built SPA)

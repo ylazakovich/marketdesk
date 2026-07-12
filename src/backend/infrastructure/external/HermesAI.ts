@@ -1,9 +1,9 @@
-// Claude-backed implementation of the domain IAIProvider port
-// (ARCHITECTURE_AMENDMENTS FIX #1: IAIProvider is a domain PORT; this Claude
-// implementation is infrastructure). No model ID or API key is hardcoded — both
-// are read from config/env with sensible, overridable defaults. The actual LLM
-// call goes through a thin injectable completion client so the provider is fully
-// unit-testable without any network access.
+// Hermes-agent-backed implementation of the domain IAIProvider port.
+//
+// The application does not call a vendor LLM directly. It talks to the local
+// Hermes Agent API Server through an injectable text-completion boundary, so the
+// same native Hermes instance running on this VPS owns model/provider/tooling
+// decisions.
 
 import type {
   IAIProvider,
@@ -14,48 +14,50 @@ import type {
 import type { Product } from '../../domain/entities/Product';
 import type { Marketplace } from '../../domain/entities/Marketplace';
 
-// A currently-valid Anthropic model id (verified against the current Anthropic
-// model list). Overridable via CLAUDE_MODEL — never hardcoded deep in the
-// domain, never invented. (C4)
-export const DEFAULT_CLAUDE_MODEL = 'claude-opus-4-8';
+export const DEFAULT_HERMES_MODEL = 'hermes-agent';
+export const DEFAULT_HERMES_API_URL = 'http://127.0.0.1:8642/v1';
 
-export interface ClaudeAIConfig {
+export interface HermesAIConfig {
+  apiUrl: string;
   apiKey: string;
   model: string;
   maxTokens: number;
+  timeoutMs: number;
 }
 
-// Read config from the environment. Falls back to the standard ANTHROPIC_API_KEY
-// if CLAUDE_API_KEY is not set. No secret is ever embedded in source.
-export function loadClaudeConfig(): ClaudeAIConfig {
+export function loadHermesConfig(): HermesAIConfig {
   return {
-    apiKey: process.env.CLAUDE_API_KEY ?? process.env.ANTHROPIC_API_KEY ?? '',
-    model: process.env.CLAUDE_MODEL ?? DEFAULT_CLAUDE_MODEL,
-    maxTokens: Number.parseInt(process.env.CLAUDE_MAX_TOKENS ?? '2048', 10),
+    apiUrl: process.env.HERMES_API_URL ?? DEFAULT_HERMES_API_URL,
+    apiKey: process.env.HERMES_API_KEY ?? '',
+    model: process.env.HERMES_MODEL ?? DEFAULT_HERMES_MODEL,
+    maxTokens: Number.parseInt(process.env.HERMES_MAX_TOKENS ?? '2048', 10),
+    timeoutMs: Number.parseInt(process.env.HERMES_REQUEST_TIMEOUT_MS ?? '120000', 10),
   };
 }
 
-// Thin completion boundary. The concrete Anthropic-SDK implementation lives in
-// AnthropicCompletionClient; tests inject a fake.
+// Thin completion boundary. The concrete Hermes API Server implementation lives
+// in HermesCompletionClient; tests inject a fake.
 export interface AICompletionRequest {
   system: string;
   prompt: string;
   maxTokens?: number;
-  // When provided, the model is constrained to emit JSON matching this schema.
+  // When provided, Hermes is instructed to emit JSON matching this schema.
   jsonSchema?: Record<string, unknown>;
+  // Optional stable scope for Hermes conversation/session affinity. Leave unset for stateless calls.
+  sessionKey?: string;
 }
 
 export interface AITextCompletionClient {
   complete(request: AICompletionRequest): Promise<string>;
 }
 
-export class ClaudeAI implements IAIProvider {
+export class HermesAI implements IAIProvider {
   private readonly client: AITextCompletionClient;
   private readonly maxTokens: number;
 
-  constructor(client: AITextCompletionClient, config?: Pick<ClaudeAIConfig, 'maxTokens'>) {
+  constructor(client: AITextCompletionClient, config?: Pick<HermesAIConfig, 'maxTokens'>) {
     this.client = client;
-    this.maxTokens = config?.maxTokens ?? loadClaudeConfig().maxTokens;
+    this.maxTokens = config?.maxTokens ?? loadHermesConfig().maxTokens;
   }
 
   async suggestPrice(context: PriceSuggestionContext): Promise<PriceSuggestion> {
@@ -97,7 +99,7 @@ export class ClaudeAI implements IAIProvider {
     const reasoning =
       typeof parsed?.reasoning === 'string' && parsed.reasoning.trim()
         ? parsed.reasoning.trim()
-        : 'No reasoning provided by the model.';
+        : 'No reasoning provided by Hermes.';
 
     return { suggestedPrice, reasoning, confidence };
   }
@@ -161,7 +163,7 @@ export class ClaudeAI implements IAIProvider {
 
   private parseJson(raw: string): Record<string, unknown> | null {
     const text = raw.trim();
-    // Tolerate fenced code blocks the model may wrap JSON in.
+    // Tolerate fenced code blocks the agent/model may wrap JSON in.
     const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
     const candidate = fenced ? fenced[1].trim() : text;
     try {

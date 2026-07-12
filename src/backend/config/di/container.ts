@@ -38,8 +38,8 @@ import type { EventBroker, EventSubscriber } from '../../infrastructure/eventBro
 import type { RedisCache } from '../../infrastructure/cache/RedisCache';
 import { BullJobQueue } from '../../infrastructure/jobQueue/BullJobQueue';
 import { MarketplaceAdapterFactory } from '../../infrastructure/adapters/MarketplaceAdapterFactory';
-import { ClaudeAI } from '../../infrastructure/external/ClaudeAI';
-import { AnthropicCompletionClient } from '../../infrastructure/external/AnthropicCompletionClient';
+import { HermesAI } from '../../infrastructure/external/HermesAI';
+import { HermesCompletionClient } from '../../infrastructure/external/HermesCompletionClient';
 import { createEmailProvider } from '../../infrastructure/external/EmailProvider';
 import { createTelegramBot } from '../../infrastructure/external/TelegramBot';
 import { PublishListingHandler } from '../../infrastructure/jobQueue/JobHandlers/PublishListingHandler';
@@ -151,7 +151,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
   // 3. Cross-cutting ports.
   const idGenerator: IdGenerator = overrides.idGenerator ?? (() => uuidv4());
   const aiProvider: IAIProvider =
-    overrides.aiProvider ?? new ClaudeAI(new AnthropicCompletionClient());
+    overrides.aiProvider ?? new HermesAI(new HermesCompletionClient());
   const adapterFactory = new MarketplaceAdapterFactory();
   // Notifiers are constructed (stubbed when unconfigured) so the graph is complete
   // and ready for future notification wiring; no consumer requires them yet.

@@ -12,7 +12,7 @@ import {
 import type { SelectChangeEvent } from '@mui/material';
 import SyncIcon from '@mui/icons-material/Sync';
 import LinkIcon from '@mui/icons-material/Link';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import type { Marketplace, MarketplaceAccountStatus, SyncMode } from '@shared/types';
 import { SYNC_MODE_LIST, MARKETPLACE_NAMES } from '@shared/constants';
 import {

@@ -5,7 +5,7 @@ import { Box, Stack, TextField } from '@mui/material';
 import PaidIcon from '@mui/icons-material/PaidOutlined';
 import StorefrontIcon from '@mui/icons-material/StorefrontOutlined';
 import VisibilityIcon from '@mui/icons-material/VisibilityOutlined';
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import { useAnalyticsListings, useAnalyticsOverview } from '../services/hooks/index.js';
 import type { AnalyticsQueryParams } from '../state/api/index.js';
 import { useAppSelector } from '../state/hooks.js';

@@ -16,6 +16,11 @@ import type { ProductStatus } from '../../../../shared/types';
 import { NotFoundError } from '../../../domain/shared/DomainError';
 import { ok, created, paginated } from '../formatters/ResponseFormatter';
 
+
+function routeParam(value: string | string[] | undefined): string {
+  return Array.isArray(value) ? (value[0] ?? '') : (value ?? '');
+}
+
 function csv(value: unknown): string[] | undefined {
   if (typeof value !== 'string' || value.length === 0) return undefined;
   return value
@@ -71,11 +76,12 @@ export class ProductController {
   };
 
   get = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const productId = routeParam(req.params.id);
     const product = await this.products.getProduct(
-      req.params.id,
+      productId,
       req.user!.workspaceId!,
     );
-    if (!product) return next(new NotFoundError(`Product not found: ${req.params.id}`));
+    if (!product) return next(new NotFoundError(`Product not found: ${productId}`));
     ok(res, product);
   };
 
@@ -87,10 +93,11 @@ export class ProductController {
   };
 
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const productId = routeParam(req.params.id);
     // workspaceId comes from the authenticated principal, never the body (S2).
     const dto: UpdateProductDTO = {
       ...req.body,
-      productId: req.params.id,
+      productId,
       workspaceId: req.user!.workspaceId!,
     };
     const result = await this.products.updateProduct(dto);
@@ -99,22 +106,24 @@ export class ProductController {
   };
 
   remove = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const productId = routeParam(req.params.id);
     const workspaceId = req.user!.workspaceId!;
-    const existing = await this.products.getProduct(req.params.id, workspaceId);
-    if (!existing) return next(new NotFoundError(`Product not found: ${req.params.id}`));
-    await this.productRepo.delete(req.params.id, workspaceId);
-    ok(res, { id: req.params.id, deleted: true });
+    const existing = await this.products.getProduct(productId, workspaceId);
+    if (!existing) return next(new NotFoundError(`Product not found: ${productId}`));
+    await this.productRepo.delete(productId, workspaceId);
+    ok(res, { id: productId, deleted: true });
   };
 
   getListings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const productId = routeParam(req.params.id);
     // Confirm the product belongs to the caller's workspace before exposing its
     // listings, otherwise a cross-tenant product id would leak listings (S2).
     const product = await this.products.getProduct(
-      req.params.id,
+      productId,
       req.user!.workspaceId!,
     );
-    if (!product) return next(new NotFoundError(`Product not found: ${req.params.id}`));
-    const listings = await this.listings.listByProduct(req.params.id);
+    if (!product) return next(new NotFoundError(`Product not found: ${productId}`));
+    const listings = await this.listings.listByProduct(productId);
     ok(res, listings);
   };
 }

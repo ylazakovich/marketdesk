@@ -11,9 +11,9 @@
 // so the graph can be built and asserted without any live infrastructure (see the
 // container unit test). Absent overrides, the real config-backed clients are used.
 
+import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import type { Redis } from 'ioredis';
-import { v4 as uuidv4 } from 'uuid';
 
 import { createPool } from '../database';
 import { createRedisClient } from '../redis';
@@ -149,7 +149,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
   const cache = createRedisCache(redis);
 
   // 3. Cross-cutting ports.
-  const idGenerator: IdGenerator = overrides.idGenerator ?? (() => uuidv4());
+  const idGenerator: IdGenerator = overrides.idGenerator ?? randomUUID;
   const aiProvider: IAIProvider =
     overrides.aiProvider ?? new HermesAI(new HermesCompletionClient());
   const adapterFactory = new MarketplaceAdapterFactory();

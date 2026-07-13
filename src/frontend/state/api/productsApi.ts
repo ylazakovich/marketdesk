@@ -65,7 +65,7 @@ export const productsApi = baseApi.injectEndpoints({
       transformResponse: (res: ApiResponse<Listing>) => unwrap(res),
       invalidatesTags: (result, _error, { productId }) => [
         { type: 'Product', id: productId },
-        { type: 'Listing', id: 'LIST' },
+        { type: 'Listing', id: `PRODUCT:${productId}` },
         ...(result ? [{ type: 'Listing' as const, id: result.id }] : []),
       ],
     }),
@@ -73,13 +73,13 @@ export const productsApi = baseApi.injectEndpoints({
     getProductListings: builder.query<Listing[], string>({
       query: (id) => `/products/${id}/listings`,
       transformResponse: (res: ApiResponse<Listing[]>) => unwrap(res),
-      providesTags: (result) =>
+      providesTags: (result, _error, id) =>
         result
           ? [
               ...result.map((l) => ({ type: 'Listing' as const, id: l.id })),
-              { type: 'Listing' as const, id: 'LIST' },
+              { type: 'Listing' as const, id: `PRODUCT:${id}` },
             ]
-          : [{ type: 'Listing' as const, id: 'LIST' }],
+          : [{ type: 'Listing' as const, id: `PRODUCT:${id}` }],
     }),
   }),
 });

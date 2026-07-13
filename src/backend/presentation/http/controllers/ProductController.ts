@@ -50,6 +50,12 @@ function parseSort(value: unknown): SortKey[] | undefined {
   });
 }
 
+function isUniqueListingConflict(err: unknown): boolean {
+  if (!err || typeof err !== 'object') return false;
+  const pgError = err as { code?: string; constraint?: string };
+  return pgError.code === '23505' && pgError.constraint === 'unique_listing';
+}
+
 export class ProductController {
   constructor(
     private readonly products: ProductApplicationService,
@@ -131,7 +137,7 @@ export class ProductController {
     if (!product) return next(new NotFoundError(`Product not found: ${productId}`));
 
     const marketplace = await this.marketplaceRepo.findByKey(workspaceId, req.body.marketplaceKey ?? 'olx');
-    if (!marketplace) {
+    if (!marketplace || !marketplace.isConnected()) {
       return next(new NotFoundError(`Marketplace not found: ${req.body.marketplaceKey ?? 'olx'}`));
     }
 
@@ -152,7 +158,14 @@ export class ProductController {
     });
     if (listing.isErr()) return next(listing.error);
 
-    await this.listingRepo.save(listing.value);
+    try {
+      await this.listingRepo.save(listing.value);
+    } catch (err) {
+      if (isUniqueListingConflict(err)) {
+        return next(new ConflictError(`Listing already exists for marketplace: ${marketplace.key}`));
+      }
+      return next(err);
+    }
     created(res, presentListing(listing.value));
   };
 

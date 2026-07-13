@@ -339,6 +339,36 @@ describe('Presentation API', () => {
       expect(res.body.success).toBe(false);
       expect(res.body.error.code).toBe('CONFLICT');
     });
+
+    it('rejects draft listing creation for a disconnected marketplace', async () => {
+      const { app, marketplaceRepo } = await buildTestApp();
+      const marketplace = await marketplaceRepo.findByKey('ws-1', 'olx');
+      marketplace?.disconnect();
+
+      const res = await auth(request(app).post('/api/products/p-real/listings')).send({
+        marketplaceKey: 'olx',
+      });
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('NOT_FOUND');
+    });
+
+    it('maps concurrent duplicate listing persistence to a conflict response', async () => {
+      const { app, listingRepo } = await buildTestApp();
+      jest.spyOn(listingRepo, 'save').mockRejectedValueOnce({
+        code: '23505',
+        constraint: 'unique_listing',
+      });
+
+      const res = await auth(request(app).post('/api/products/p-real/listings')).send({
+        marketplaceKey: 'olx',
+      });
+
+      expect(res.status).toBe(409);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('CONFLICT');
+    });
   });
 
   describe('hermes', () => {

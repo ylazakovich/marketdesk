@@ -70,9 +70,12 @@ const ListingDetailsPage: React.FC = () => {
 
   const listingItems = listings.data ?? [];
   const listingMarketplaceIds = new Set(listingItems.map((listing) => listing.marketplaceId));
-  const availableMarketplace = marketplaces?.find(
-    (marketplace) => marketplace.connected && !listingMarketplaceIds.has(marketplace.id),
-  );
+  const availableMarketplace =
+    !listings.isLoading && !listings.isError
+      ? marketplaces?.find(
+          (marketplace) => marketplace.connected && !listingMarketplaceIds.has(marketplace.id),
+        )
+      : undefined;
   const primaryListing = listingItems[0];
   const priceHistory = usePriceHistory(primaryListing?.id ?? '', { skip: !primaryListing });
 

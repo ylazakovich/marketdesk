@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.3.1](https://github.com/ylazakovich/hermes-marketdesk/compare/hermes-marketdesk-v0.3.0...hermes-marketdesk-v0.3.1) (2026-07-13)
+
+
+### Bug Fixes
+
+* **deps:** update material-ui monorepo to v9 ([cad76d1](https://github.com/ylazakovich/hermes-marketdesk/commit/cad76d11e243c33e306ca80a1a63fc53f5e178ae))
+* **docker:** restore runtime after upgrades ([#74](https://github.com/ylazakovich/hermes-marketdesk/issues/74)) ([e244388](https://github.com/ylazakovich/hermes-marketdesk/commit/e244388bc99eaa518d61cb18939c1dcb79131c8d))
+
+
+### Documentation
+
+* move design artifacts under docs ([#64](https://github.com/ylazakovich/hermes-marketdesk/issues/64)) ([b2bad3c](https://github.com/ylazakovich/hermes-marketdesk/commit/b2bad3caa9b511006667aaf5a011ca4d2237a25f))
+* move screenshots into design docs ([#68](https://github.com/ylazakovich/hermes-marketdesk/issues/68)) ([6de4669](https://github.com/ylazakovich/hermes-marketdesk/commit/6de46699a559e9ac1e0b063d77a8efe697c83923))
+
+
+### Chores
+
+* **deps:** lock file maintenance ([#73](https://github.com/ylazakovich/hermes-marketdesk/issues/73)) ([0f5ebb1](https://github.com/ylazakovich/hermes-marketdesk/commit/0f5ebb180389ba5bb255478b7994d71633f2bd03))
+* **deps:** pin dependencies ([#67](https://github.com/ylazakovich/hermes-marketdesk/issues/67)) ([0ede209](https://github.com/ylazakovich/hermes-marketdesk/commit/0ede209c4b30e9d7bf34f83aad70ec9efccc76f7))
+* **deps:** pin dependencies ([#69](https://github.com/ylazakovich/hermes-marketdesk/issues/69)) ([c216828](https://github.com/ylazakovich/hermes-marketdesk/commit/c2168286d050ca6ee468992b45f73fe10c5239d2))
+* **deps:** pin dependencies ([#70](https://github.com/ylazakovich/hermes-marketdesk/issues/70)) ([8d9e5bd](https://github.com/ylazakovich/hermes-marketdesk/commit/8d9e5bdaa942c4ffdca1155a52f170836016f222))
+* **deps:** pin dependencies ([#72](https://github.com/ylazakovich/hermes-marketdesk/issues/72)) ([55c775e](https://github.com/ylazakovich/hermes-marketdesk/commit/55c775e96d7c098f2c71937914890b75e9cf794d))
+* **deps:** update @babel/plugin-transform-runtime to v8 ([#71](https://github.com/ylazakovich/hermes-marketdesk/issues/71)) ([1c54f9c](https://github.com/ylazakovich/hermes-marketdesk/commit/1c54f9c563f8110744f27074d8ce3069118e7a45))
+* **deps:** update @types/uuid to v11 ([#66](https://github.com/ylazakovich/hermes-marketdesk/issues/66)) ([6cf0de6](https://github.com/ylazakovich/hermes-marketdesk/commit/6cf0de6a42eed28af236a165ed6655495a279c0b))
+* **deps:** update @vitejs/plugin-react to v6 ([5915dae](https://github.com/ylazakovich/hermes-marketdesk/commit/5915daee792d16cfc9aabc628020ce92bb6727fc))
+* **deps:** update tsx to v4.23.1 ([#25](https://github.com/ylazakovich/hermes-marketdesk/issues/25)) ([bb8dbfa](https://github.com/ylazakovich/hermes-marketdesk/commit/bb8dbfad5632167ebc8f21e19edb3c66b5a70ab7))
+* **deps:** update typescript to v7 ([e14ee7a](https://github.com/ylazakovich/hermes-marketdesk/commit/e14ee7a96223df148b9c25167e993560c2c1335f))
+
 ## [0.3.0](https://github.com/ylazakovich/hermes-marketdesk/compare/hermes-marketdesk-v0.2.1...hermes-marketdesk-v0.3.0) (2026-07-12)
 
 

@@ -220,7 +220,7 @@ async function buildTestApp() {
   if (listing.isErr()) throw listing.error;
   await listingRepo.save(listing.value);
 
-  return { app: buildApp(deps, { enableRateLimit: false }), authUserStore, listingRepo };
+  return { app: buildApp(deps, { enableRateLimit: false }), authUserStore, listingRepo, marketplaceRepo };
 }
 
 const token = signToken({ userId: 'u-1', workspaceId: 'ws-1' });
@@ -351,6 +351,23 @@ describe('Presentation API', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data.dryRun).toBe(true);
       expect(res.body.data.canPublish).toBe(true);
+      expect(after?.status).toBe('draft');
+      expect(after?.marketplaceListingId).toBeNull();
+    });
+
+    it('returns publish preview warnings without publishing invalid listings', async () => {
+      const { app, listingRepo, marketplaceRepo } = await buildTestApp();
+      const marketplace = await marketplaceRepo.findById('marketplace-olx');
+      marketplace?.disconnect();
+
+      const res = await auth(request(app).post('/api/listings/listing-preview/publish-preview')).send({});
+      const after = await listingRepo.findById('listing-preview');
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.canPublish).toBe(false);
+      expect(res.body.data.warnings.length).toBeGreaterThan(0);
+      expect(res.body.data.warnings[0]).toContain('not connected');
       expect(after?.status).toBe('draft');
       expect(after?.marketplaceListingId).toBeNull();
     });

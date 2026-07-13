@@ -17,6 +17,7 @@ import type { IdGenerator } from '../../../application/ports/IdGenerator';
 import { Money } from '../../../domain/valueObjects/Money';
 import { NotFoundError } from '../../../domain/shared/DomainError';
 import { presentListing } from '../../../application/dto/presenters';
+import { evaluatePublishEligibility } from '../../../application/usecases/PublishListingUseCase';
 import { ok, paginated } from '../formatters/ResponseFormatter';
 
 
@@ -44,20 +45,18 @@ export class ListingController {
     const listing = await this.listingRepo.findByIdForWorkspace(listingId, workspaceId);
     if (!listing) return null;
     const product = this.deps.productRepo
-      ? await this.deps.productRepo.findById(listing.productId)
+      ? await this.deps.productRepo.findByIdForWorkspace(listing.productId, workspaceId)
       : null;
     const marketplace = this.deps.marketplaceRepo
-      ? await this.deps.marketplaceRepo.findById(listing.marketplaceId)
+      ? await this.deps.marketplaceRepo.findByIdForWorkspace(listing.marketplaceId, workspaceId)
       : null;
 
     const warnings: string[] = [];
     if (!product) warnings.push(`Product not found: ${listing.productId}`);
     if (!marketplace) warnings.push(`Marketplace not found: ${listing.marketplaceId}`);
-    if (marketplace && !marketplace.isConnected()) {
-      warnings.push(`Marketplace ${marketplace.key} is not connected`);
+    if (product && marketplace) {
+      warnings.push(...evaluatePublishEligibility(listing, product, marketplace).warnings);
     }
-    if (product && !product.canPublish()) warnings.push('Cannot publish a sold product');
-    if (listing.price.isZero()) warnings.push('Listing price must be set before publish');
 
     return {
       dryRun: true,
@@ -116,10 +115,7 @@ export class ListingController {
   publish = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const listingId = routeParam(req.params.id);
     if (req.body?.dryRun === true) {
-      const preview = await this.buildPublishPreview(listingId, req.user!.workspaceId!);
-      if (!preview) return next(new NotFoundError(`Listing not found: ${listingId}`));
-      ok(res, preview);
-      return;
+      return this.publishPreview(req, res, next);
     }
     // Tenant-scoped load (S2) so a listing cannot be published on another tenant's
     // behalf — mirrors the relist/update guard rather than a bare findById.

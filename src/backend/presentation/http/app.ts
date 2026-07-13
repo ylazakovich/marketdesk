@@ -4,7 +4,7 @@
 // fulfils AppDeps from the DI container; tests fulfil it with in-memory doubles.
 
 import express, { type Express, type Request, type Response } from 'express';
-import cors from 'cors';
+import cors, { type CorsOptions } from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import crypto from 'crypto';
@@ -22,7 +22,6 @@ import type { IPriceHistoryRecorder } from '../../application/ports/IPriceHistor
 import type { IdGenerator } from '../../application/ports/IdGenerator';
 import type { IAuthUserStore } from './ports/IAuthUserStore';
 
-import { isProduction } from '../../config/env';
 import { NotFoundError } from '../../domain/shared/DomainError';
 import { ProductController } from './controllers/ProductController';
 import { ListingController } from './controllers/ListingController';
@@ -57,14 +56,34 @@ export interface AppOptions {
   corsOrigin?: string;
 }
 
-function validateCorsOrigin(origin: string | undefined): string {
-  const validated = origin ?? '*';
-  if (isProduction && (validated === '*' || !origin)) {
-    throw new Error(
-      'CORS origin must be an explicit non-wildcard value in production (set CORS_ORIGIN)',
-    );
-  }
-  return validated;
+const DEFAULT_CORS_ORIGIN = 'http://localhost:5173';
+
+function parseCorsAllowlist(originConfig: string | undefined): Set<string> {
+  const configured = originConfig ?? DEFAULT_CORS_ORIGIN;
+  const origins = configured
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+    .filter((origin) => origin !== '*');
+  return new Set(origins.length > 0 ? origins : [DEFAULT_CORS_ORIGIN]);
+}
+
+export function createCorsOptions(originConfig: string | undefined): CorsOptions {
+  const allowlist = parseCorsAllowlist(originConfig);
+  return {
+    origin: (requestOrigin, callback) => {
+      if (!requestOrigin) {
+        callback(null, true);
+        return;
+      }
+      callback(null, allowlist.has(requestOrigin) ? requestOrigin : false);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    maxAge: 3600,
+    exposedHeaders: ['X-Total-Count', 'X-Page-Count'],
+  };
 }
 
 export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
@@ -72,21 +91,11 @@ export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
 
   app.use(helmet());
   app.use(compression());
-  // CORS fail-closed in production: with credentials:true a wildcard origin would
-  // let any site make authenticated cross-origin calls, so production requires an
-  // explicit, non-wildcard origin. Dev keeps the permissive default. (S7)
-  const corsOrigin = validateCorsOrigin(options.corsOrigin);
-
-  app.use(
-    cors({
-      origin: corsOrigin,
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
-      maxAge: 3600,
-      exposedHeaders: ['X-Total-Count', 'X-Page-Count'],
-    }),
-  );
+  // CORS is allowlist-based when credentials are enabled. We intentionally avoid
+  // reflecting a user-controlled env value directly into `origin`, which CodeQL
+  // treats as permissive CORS configuration. Multiple allowed origins can be
+  // supplied via comma-separated CORS_ORIGIN values.
+  app.use(cors(createCorsOptions(options.corsOrigin)));
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ limit: '10mb', extended: true }));
 

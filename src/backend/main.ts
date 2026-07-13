@@ -10,7 +10,7 @@ import pino from 'pino';
 import { env, isDevelopment, isTest } from './config/env.js';
 import { createPool, closePool } from './config/database.js';
 import { createRedisClient, closeRedis } from './config/redis.js';
-import { buildApp } from './presentation/http/app.js';
+import { buildApp, createCorsOptions } from './presentation/http/app.js';
 import { HermesLiveUpdates } from './presentation/websocket/HermesLiveUpdates.js';
 import { buildContainer, type AppContainer } from './config/di/index.js';
 
@@ -69,7 +69,7 @@ const startServer = async () => {
       app = express();
       app.use(helmet());
       app.use(compression());
-      app.use(cors({ origin: env.cors.origin, credentials: true }));
+      app.use(cors(createCorsOptions(env.cors.origin)));
       app.use(express.json({ limit: '10mb' }));
     }
 

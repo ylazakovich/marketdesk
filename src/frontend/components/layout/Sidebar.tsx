@@ -101,7 +101,9 @@ export const Sidebar: React.FC = () => {
               {showLabels && (
                 <ListItemText
                   primary={item.label}
-                  primaryTypographyProps={{ fontWeight: active ? 700 : 500, variant: 'body2' }}
+                  slotProps={{
+                    primary: { variant: 'body2', sx: { fontWeight: active ? 700 : 500 } },
+                  }}
                 />
               )}
             </ListItemButton>

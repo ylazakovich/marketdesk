@@ -16,7 +16,7 @@ import {
 } from '@mui/material';
 import VisibilityIcon from '@mui/icons-material/VisibilityOutlined';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import ReplayIcon from '@mui/icons-material/Replay';
 import PublishIcon from '@mui/icons-material/Publish';
 import type { Listing } from '@shared/types';

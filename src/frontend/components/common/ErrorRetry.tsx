@@ -2,7 +2,7 @@
 // renders a friendly message; onRetry typically calls the query's refetch().
 import React from 'react';
 import { Box, Button, Stack, Typography } from '@mui/material';
-import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import RefreshIcon from '@mui/icons-material/Refresh';
 
 export interface ErrorRetryProps {

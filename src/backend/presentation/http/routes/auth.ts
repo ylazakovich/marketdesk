@@ -1,7 +1,7 @@
 // Auth routes. login/register are public (public rate limiter when supplied); /me is
 // protected by the JWT auth middleware.
 
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { Router, type RequestHandler } from 'express';
 import type { AuthController } from '../controllers/AuthController';
 import { asyncHandler } from '../middleware/asyncHandler';
@@ -15,7 +15,7 @@ const passthrough: RequestHandler = (_req, _res, next) => next();
 const authLimiter: RequestHandler = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100, // 100 requests per 15 minutes
-  keyGenerator: (req) => req.user?.userId || req.ip || 'unknown',
+  keyGenerator: (req) => req.user?.userId || ipKeyGenerator(req.ip || 'unknown'),
   skip: () => process.env.NODE_ENV === 'test',
 });
 

@@ -5,12 +5,12 @@
 // All limiters emit the §18 error envelope (429, RATE_LIMITED) on rejection.
 
 import type { Request, Response } from 'express';
-import rateLimit, { type RateLimitRequestHandler } from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator, type RateLimitRequestHandler } from 'express-rate-limit';
 
 const WINDOW_MS = 60 * 1000;
 
 function keyByWorkspace(req: Request): string {
-  return req.user?.workspaceId ?? req.ip ?? 'unknown';
+  return req.user?.workspaceId ?? ipKeyGenerator(req.ip ?? 'unknown');
 }
 
 function rejection(_req: Request, res: Response): void {

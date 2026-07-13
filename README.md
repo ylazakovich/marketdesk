@@ -167,6 +167,11 @@ The `app` image builds both the backend (`dist/backend`) and the frontend
 (`dist/frontend`); the backend serves the SPA, so once healthy the full application
 is available at `http://localhost:3000` (API under `/api`).
 
+> PostgreSQL 18 stores its cluster under `/var/lib/postgresql`. Before deploying
+> this Compose file over an existing pre-18 `postgres_data` volume, create a
+> database dump/backup and restore it into a fresh PG18 volume; otherwise Docker
+> will initialize a new empty cluster at the new mount path.
+
 > Redis auth: `REDIS_PASSWORD` is empty by default (no auth). Set it in `.env` to a
 > non-empty value to enable `--requirepass`; the app authenticates with the same
 > value automatically. Leaving it empty starts Redis cleanly without a password.

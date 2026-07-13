@@ -8,7 +8,7 @@ RUN apk add --no-cache python3 make g++
 
 # Install ALL dependencies (dev included) so the backend (tsc) and frontend (vite)
 # build toolchains are available.
-COPY package*.json ./
+COPY package*.json .npmrc ./
 RUN npm ci
 
 # Copy source and build both the backend (-> dist/backend) and the frontend

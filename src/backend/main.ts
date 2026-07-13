@@ -126,15 +126,16 @@ const startServer = async () => {
         skip: () => isTest,
       });
       app.use(express.static(frontendDir));
-      app.get('*', spaLimiter, (req, res, next) => {
+      app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
         if (
+          !['GET', 'HEAD'].includes(req.method) ||
           req.path.startsWith('/api') ||
           req.path === '/health' ||
           req.path === '/ready'
         ) {
           return next();
         }
-        res.sendFile(indexHtml);
+        spaLimiter(req, res, () => res.sendFile(indexHtml));
       });
       logger.info({ frontendDir }, 'Serving built frontend (SPA) from backend');
     } else {

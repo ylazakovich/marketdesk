@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/ylazakovich/hermes-marketdesk/compare/hermes-marketdesk-v0.4.0...hermes-marketdesk-v0.4.1) (2026-07-13)
+
+
+### Bug Fixes
+
+* **security:** enforce strict CORS allowlist ([#80](https://github.com/ylazakovich/hermes-marketdesk/issues/80)) ([8840541](https://github.com/ylazakovich/hermes-marketdesk/commit/884054168c26c7ff2eb8ded01d06597dbc2e8ec7))
+
 ## [0.4.0](https://github.com/ylazakovich/hermes-marketdesk/compare/hermes-marketdesk-v0.3.1...hermes-marketdesk-v0.4.0) (2026-07-13)
 
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.0](https://github.com/ylazakovich/hermes-marketdesk/compare/hermes-marketdesk-v0.3.1...hermes-marketdesk-v0.4.0) (2026-07-13)
+
+
+### Features
+
+* **auth:** provision OLX marketplace for new workspaces ([#75](https://github.com/ylazakovich/hermes-marketdesk/issues/75)) ([8449d75](https://github.com/ylazakovich/hermes-marketdesk/commit/8449d7597bc3e091092f584cbaedfa7da6a89c81))
+* **listings:** add publish preview dry run ([#77](https://github.com/ylazakovich/hermes-marketdesk/issues/77)) ([d096106](https://github.com/ylazakovich/hermes-marketdesk/commit/d0961064639e5667322144a124878e6db00b5e91))
+* **listings:** create draft listings from products ([#76](https://github.com/ylazakovich/hermes-marketdesk/issues/76)) ([22cbcd6](https://github.com/ylazakovich/hermes-marketdesk/commit/22cbcd6378ce520116f5a3941ad187f3c9ba976e))
+
 ## [0.3.1](https://github.com/ylazakovich/hermes-marketdesk/compare/hermes-marketdesk-v0.3.0...hermes-marketdesk-v0.3.1) (2026-07-13)
 
 

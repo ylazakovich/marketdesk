@@ -7,6 +7,7 @@ import type {
   ListingListParams,
   PublishListingInput,
   UpdateListingArg,
+  PublishListingPreview,
 } from './dto.js';
 
 export const listingsApi = baseApi.injectEndpoints({
@@ -27,6 +28,12 @@ export const listingsApi = baseApi.injectEndpoints({
       query: (id) => `/listings/${id}`,
       transformResponse: (res: ApiResponse<Listing>) => unwrap(res),
       providesTags: (_result, _error, id) => [{ type: 'Listing', id }],
+    }),
+
+    // POST /listings/:id/publish-preview — validate without enqueueing/publishing.
+    publishListingPreview: builder.mutation<PublishListingPreview, string>({
+      query: (id) => ({ url: `/listings/${id}/publish-preview`, method: 'POST' }),
+      transformResponse: (res: ApiResponse<PublishListingPreview>) => unwrap(res),
     }),
 
     // POST /listings/:id/publish — publish an existing (draft) listing.
@@ -76,6 +83,7 @@ export const listingsApi = baseApi.injectEndpoints({
 export const {
   useGetListingsQuery,
   useGetListingQuery,
+  usePublishListingPreviewMutation,
   usePublishListingMutation,
   useUpdateListingMutation,
   useRelistListingMutation,

@@ -16,6 +16,7 @@ import { Ok, Err } from '../../domain/shared/Result';
 import { InvalidStateError, NotFoundError } from '../../domain/shared/DomainError';
 import { Product } from '../../domain/entities/Product';
 import { Marketplace } from '../../domain/entities/Marketplace';
+import { Listing } from '../../domain/entities/Listing';
 import { Money } from '../../domain/valueObjects/Money';
 import type { ProductApplicationService } from '../../application/services/ProductApplicationService';
 import type { ListingApplicationService } from '../../application/services/ListingApplicationService';
@@ -194,7 +195,7 @@ async function buildTestApp() {
     workspaceId: 'ws-1',
     sku: 'S-REAL',
     name: 'Real widget',
-    description: 'A real widget for listing creation tests',
+    description: 'A real widget for listing and publish preview tests',
     costPrice: cost.value,
     sellingPrice: price.value,
     condition: 'good',
@@ -212,7 +213,6 @@ async function buildTestApp() {
   });
   if (marketplace.isErr()) throw marketplace.error;
   await marketplaceRepo.save(marketplace.value);
-
   return {
     app: buildApp(deps, { enableRateLimit: false }),
     authUserStore,
@@ -221,6 +221,20 @@ async function buildTestApp() {
     listingRepo,
   };
 }
+
+async function seedPreviewListing(listingRepo: InMemoryListingRepository): Promise<void> {
+  const price = Money.of(20, 'PLN');
+  if (price.isErr()) throw new Error('money fixture failed');
+  const listing = Listing.create({
+    id: 'listing-preview',
+    productId: 'p-real',
+    marketplaceId: 'marketplace-olx',
+    price: price.value,
+  });
+  if (listing.isErr()) throw listing.error;
+  await listingRepo.save(listing.value);
+}
+
 const token = signToken({ userId: 'u-1', workspaceId: 'ws-1' });
 const auth = (req: request.Test) => req.set('Authorization', `Bearer ${token}`);
 
@@ -411,6 +425,60 @@ describe('Presentation API', () => {
       expect(res.status).toBe(409);
       expect(res.body.success).toBe(false);
       expect(res.body.error.code).toBe('CONFLICT');
+    });
+  });
+
+  describe('listings', () => {
+    it('returns publish preview without publishing or enqueueing', async () => {
+      const { app, listingRepo } = await buildTestApp();
+      await seedPreviewListing(listingRepo);
+      const before = await listingRepo.findById('listing-preview');
+      const res = await auth(request(app).post('/api/listings/listing-preview/publish-preview')).send({});
+      const after = await listingRepo.findById('listing-preview');
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.dryRun).toBe(true);
+      expect(res.body.data.canPublish).toBe(true);
+      expect(res.body.data.payload.productName).toBe('Real widget');
+      expect(res.body.data.payload.price).toBe(20);
+      expect(before?.status).toBe('draft');
+      expect(after?.status).toBe('draft');
+      expect(after?.marketplaceListingId).toBeNull();
+    });
+
+    it('supports dryRun on the publish endpoint without publishing', async () => {
+      const { app, listingRepo } = await buildTestApp();
+      await seedPreviewListing(listingRepo);
+      const res = await auth(request(app).post('/api/listings/listing-preview/publish')).send({
+        dryRun: true,
+      });
+      const after = await listingRepo.findById('listing-preview');
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.dryRun).toBe(true);
+      expect(res.body.data.canPublish).toBe(true);
+      expect(after?.status).toBe('draft');
+      expect(after?.marketplaceListingId).toBeNull();
+    });
+
+    it('returns publish preview warnings without publishing invalid listings', async () => {
+      const { app, listingRepo, marketplaceRepo } = await buildTestApp();
+      await seedPreviewListing(listingRepo);
+      const marketplace = await marketplaceRepo.findById('marketplace-olx');
+      marketplace?.disconnect();
+
+      const res = await auth(request(app).post('/api/listings/listing-preview/publish-preview')).send({});
+      const after = await listingRepo.findById('listing-preview');
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.canPublish).toBe(false);
+      expect(res.body.data.warnings.length).toBeGreaterThan(0);
+      expect(res.body.data.warnings[0]).toContain('not connected');
+      expect(after?.status).toBe('draft');
+      expect(after?.marketplaceListingId).toBeNull();
     });
   });
 

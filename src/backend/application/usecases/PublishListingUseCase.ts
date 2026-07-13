@@ -11,6 +11,8 @@ import {
   GuardrailViolationError,
 } from '../../domain/shared/DomainError';
 import type { Listing } from '../../domain/entities/Listing';
+import type { Product } from '../../domain/entities/Product';
+import type { Marketplace } from '../../domain/entities/Marketplace';
 import type { IListingRepository } from '../../domain/repositories/interfaces/IListingRepository';
 import type { IProductRepository } from '../../domain/repositories/interfaces/IProductRepository';
 import type { IMarketplaceRepository } from '../../domain/repositories/interfaces/IMarketplaceRepository';
@@ -18,6 +20,38 @@ import type { IActivityLogRepository } from '../../domain/repositories/interface
 import type { IJobQueue, PublishListingJob } from '../ports/IJobQueue';
 import type { IdGenerator } from '../ports/IdGenerator';
 import type { PublishListingDTO } from '../dto/PublishListingDTO';
+
+export interface PublishEligibility {
+  canPublish: boolean;
+  warnings: string[];
+  error?: GuardrailViolationError | InvalidStateError;
+}
+
+export function evaluatePublishEligibility(
+  listing: Listing,
+  product: Product,
+  marketplace: Marketplace,
+): PublishEligibility {
+  const warnings: string[] = [];
+  let error: GuardrailViolationError | InvalidStateError | undefined;
+
+  if (!marketplace.isConnected()) {
+    warnings.push(`Marketplace ${marketplace.key} is not connected`);
+    error ??= new GuardrailViolationError(
+      `Marketplace ${marketplace.key} must be connected before publishing`,
+    );
+  }
+  if (!product.canPublish()) {
+    warnings.push('Cannot publish a sold product');
+    error ??= new InvalidStateError('Cannot publish a listing for a sold product');
+  }
+  if (listing.price.isZero()) {
+    warnings.push('Listing price must be set before publish');
+    error ??= new InvalidStateError('Listing price must be set before publish');
+  }
+
+  return { canPublish: warnings.length === 0, warnings, error };
+}
 
 export class PublishListingUseCase {
   constructor(
@@ -45,18 +79,9 @@ export class PublishListingUseCase {
       return Err(new NotFoundError(`Marketplace not found: ${listing.marketplaceId}`));
     }
 
-    if (!marketplace.isConnected()) {
-      return Err(
-        new GuardrailViolationError(
-          `Marketplace ${marketplace.key} must be connected before publishing`,
-        ),
-      );
-    }
-    if (!product.canPublish()) {
-      return Err(new InvalidStateError('Cannot publish a listing for a sold product'));
-    }
-    if (listing.price.isZero()) {
-      return Err(new InvalidStateError('Listing price must be set before publish'));
+    const eligibility = evaluatePublishEligibility(listing, product, marketplace);
+    if (!eligibility.canPublish) {
+      return Err(eligibility.error ?? new InvalidStateError(eligibility.warnings[0]));
     }
 
     await this.publishQueue.enqueue({

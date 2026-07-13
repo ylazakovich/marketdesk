@@ -14,12 +14,14 @@ import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useNavigate, useParams } from 'react-router-dom';
 import type { Listing } from '@shared/types';
+import type { PublishListingPreview } from '../state/api/dto.js';
 import {
   useProduct,
   useProductListings,
   useUpdateProduct,
   useUpdateListing,
   useRelistListing,
+  usePublishListingPreview,
   usePublishListing,
   useCreateProductListing,
   usePriceHistory,
@@ -61,11 +63,13 @@ const ListingDetailsPage: React.FC = () => {
   const [updateProduct, { isLoading: updating }] = useUpdateProduct();
   const [updateListing, { isLoading: pricing }] = useUpdateListing();
   const [relistListing] = useRelistListing();
+  const [publishListingPreview] = usePublishListingPreview();
   const [publishListing] = usePublishListing();
   const [createListing, { isLoading: creatingListing }] = useCreateProductListing();
 
   const [editOpen, setEditOpen] = useState(false);
   const [priceListing, setPriceListing] = useState<Listing | null>(null);
+  const [publishCandidate, setPublishCandidate] = useState<{ listing: Listing; preview: PublishListingPreview } | null>(null);
   const [activeImage, setActiveImage] = useState(0);
 
   const listingItems = listings.data ?? [];
@@ -126,8 +130,23 @@ const ListingDetailsPage: React.FC = () => {
 
   const handlePublish = async (listing: Listing) => {
     try {
-      await publishListing({ id: listing.id }).unwrap();
+      const preview = await publishListingPreview(listing.id).unwrap();
+      if (!preview.canPublish) {
+        dispatch(enqueueToast({ message: preview.warnings.join('; '), severity: 'warning' }));
+        return;
+      }
+      setPublishCandidate({ listing, preview });
+    } catch (err) {
+      dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
+    }
+  };
+
+  const handleConfirmPublish = async () => {
+    if (!publishCandidate) return;
+    try {
+      await publishListing({ id: publishCandidate.listing.id }).unwrap();
       dispatch(enqueueToast({ message: 'Listing published.', severity: 'success' }));
+      setPublishCandidate(null);
     } catch (err) {
       dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
     }
@@ -355,6 +374,36 @@ const ListingDetailsPage: React.FC = () => {
           onSubmit={handleEdit}
           onCancel={() => setEditOpen(false)}
         />
+      </Modal>
+
+      <Modal
+        open={Boolean(publishCandidate)}
+        onClose={() => setPublishCandidate(null)}
+        title="Confirm publish"
+        subtitle={publishCandidate?.preview.marketplaceKey?.toUpperCase() ?? 'Marketplace'}
+        maxWidth="xs"
+        actions={
+          <Stack direction="row" spacing={1}>
+            <Button variant="outlined" onClick={() => setPublishCandidate(null)}>
+              Cancel
+            </Button>
+            <Button variant="contained" onClick={handleConfirmPublish}>
+              Publish
+            </Button>
+          </Stack>
+        }
+      >
+        <Stack spacing={1}>
+          <Typography variant="body2">
+            Publish {publishCandidate?.preview.payload?.productName ?? 'listing'} to{' '}
+            {publishCandidate?.preview.marketplaceKey?.toUpperCase() ?? 'marketplace'}?
+          </Typography>
+          {publishCandidate?.preview.payload && (
+            <Typography variant="body2" color="text.secondary">
+              Price: {publishCandidate.preview.payload.price} {publishCandidate.preview.payload.currency}
+            </Typography>
+          )}
+        </Stack>
       </Modal>
 
       <Modal

@@ -61,6 +61,7 @@ export const createListingSchema = z.object({
 
 export const publishListingSchema = z.object({
   actorId: z.string().optional(),
+  dryRun: z.boolean().optional(),
 });
 
 export const updateWorkspaceSchema = z

@@ -64,6 +64,25 @@ export interface CreateProductListingInput {
 export interface PublishListingInput {
   id: string;
   actorId?: string;
+  dryRun?: boolean;
+}
+
+export interface PublishListingPreview {
+  dryRun: true;
+  canPublish: boolean;
+  listingId: string;
+  status: ListingStatus;
+  marketplaceKey?: Marketplace['key'];
+  payload: {
+    productName: string;
+    description: string;
+    price: number;
+    currency: string;
+    category: string;
+    condition: Product['condition'];
+    imageCount: number;
+  } | null;
+  warnings: string[];
 }
 
 // Canonical route: PATCH /listings/:id with body { price, reason? }.

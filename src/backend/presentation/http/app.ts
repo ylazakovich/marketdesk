@@ -104,6 +104,8 @@ export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
       priceHistoryReader: deps.priceHistoryReader,
       priceHistoryRecorder: deps.priceHistoryRecorder,
       idGenerator: deps.idGenerator,
+      productRepo: deps.productRepo,
+      marketplaceRepo: deps.marketplaceRepo,
     }),
     marketplaces: new MarketplaceController(deps.marketplaceRepo, deps.listingService),
     hermes: new HermesController(deps.hermesService),

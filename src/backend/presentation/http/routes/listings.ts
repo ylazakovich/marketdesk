@@ -18,6 +18,7 @@ export function createListingRoutes(
   router.get('/:id', asyncHandler(controller.get));
   router.get('/:id/price-history', asyncHandler(controller.priceHistory));
   router.patch('/:id', sensitiveLimiter, asyncHandler(controller.update));
+  router.post('/:id/publish-preview', sensitiveLimiter, asyncHandler(controller.publishPreview));
   router.post(
     '/:id/publish',
     sensitiveLimiter,

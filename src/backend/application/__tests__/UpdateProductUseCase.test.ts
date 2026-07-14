@@ -113,4 +113,5 @@ describe('UpdateProductUseCase', () => {
     expect(productRepo.saved[0]?.costPrice.amount).toBe(549);
     expect(productRepo.saved[0]?.sellingPrice.amount).toBe(599);
   });
+
 });

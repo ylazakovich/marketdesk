@@ -58,23 +58,12 @@ export class UpdateProductUseCase {
       nextSellingPrice = price.value;
     }
 
-    if (nextCostPrice && nextSellingPrice) {
-      const sellFirst = !nextSellingPrice.isLessThan(product.costPrice);
-      const first = sellFirst
-        ? product.updateSellingPrice(nextSellingPrice, dto.allowBelowCost ?? false)
-        : product.updateCostPrice(nextCostPrice);
-      if (first.isErr()) return first;
-      const second = sellFirst
-        ? product.updateCostPrice(nextCostPrice)
-        : product.updateSellingPrice(nextSellingPrice, dto.allowBelowCost ?? false);
-      if (second.isErr()) return second;
-    } else if (nextCostPrice) {
-      const r = product.updateCostPrice(nextCostPrice);
-      if (r.isErr()) return r;
-    } else if (nextSellingPrice) {
-      const r = product.updateSellingPrice(nextSellingPrice, dto.allowBelowCost ?? false);
-      if (r.isErr()) return r;
-    }
+    const priceUpdate = product.updatePrices(
+      nextCostPrice,
+      nextSellingPrice,
+      dto.allowBelowCost ?? false,
+    );
+    if (priceUpdate.isErr()) return priceUpdate;
 
     if (dto.condition !== undefined) {
       const r = product.updateCondition(dto.condition);

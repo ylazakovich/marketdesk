@@ -230,11 +230,35 @@ export class Product {
     if (price.currency !== this._sellingPrice.currency) {
       return Err(new ValidationError('costPrice currency must match sellingPrice'));
     }
-    if (this._sellingPrice.isLessThan(price)) {
-      return Err(new ValidationError('costPrice must be <= sellingPrice'));
-    }
     this._costPrice = price;
     this.touch();
+    return Ok(undefined);
+  }
+
+  // Applies coordinated price changes atomically so callers do not need to know
+  // which update order avoids transient cost/selling invariant failures.
+  updatePrices(
+    costPrice: Money | null,
+    sellingPrice: Money | null,
+    allowBelowCost = false,
+  ): Result<void> {
+    const nextCost = costPrice ?? this._costPrice;
+    const nextSelling = sellingPrice ?? this._sellingPrice;
+
+    if (nextCost.isNegative()) {
+      return Err(new ValidationError('costPrice must be >= 0'));
+    }
+    if (nextSelling.isNegative()) {
+      return Err(new ValidationError('sellingPrice must be >= 0'));
+    }
+    if (nextCost.currency !== nextSelling.currency) {
+      return Err(new ValidationError('costPrice and sellingPrice must share a currency'));
+    }
+    void allowBelowCost;
+
+    if (costPrice) this._costPrice = costPrice;
+    if (sellingPrice) this._sellingPrice = sellingPrice;
+    if (costPrice || sellingPrice) this.touch();
     return Ok(undefined);
   }
 

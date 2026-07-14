@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.5.0](https://github.com/ylazakovich/hermes-marketdesk/compare/hermes-marketdesk-v0.4.1...hermes-marketdesk-v0.5.0) (2026-07-14)
+
+
+### Features
+
+* **olx:** prepare real API transport ([#79](https://github.com/ylazakovich/hermes-marketdesk/issues/79)) ([ee64067](https://github.com/ylazakovich/hermes-marketdesk/commit/ee640670bdb93bba434740fc34cd44eb37946133))
+
+
+### Chores
+
+* **deps:** update actions/setup-node action to v7 ([#83](https://github.com/ylazakovich/hermes-marketdesk/issues/83)) ([5217bc5](https://github.com/ylazakovich/hermes-marketdesk/commit/5217bc5ff02996655266e60ed87ab76a8ccce54e))
+
 ## [0.4.1](https://github.com/ylazakovich/hermes-marketdesk/compare/hermes-marketdesk-v0.4.0...hermes-marketdesk-v0.4.1) (2026-07-13)
 
 

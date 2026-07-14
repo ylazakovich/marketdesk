@@ -161,7 +161,7 @@ ActivityLog (Audit Trail)
 
 ```typescript
 // Product invariants
-- sellingPrice >= costPrice (except in bulk-edit warning)
+- sellingPrice >= 0; selling below cost is allowed as an intentional seller decision and surfaced as a warning
 - description.length >= 20 && <= 2000
 - status transitions: draft → active → attention → sold (not reverse)
 
@@ -2317,11 +2317,11 @@ POST   /api/hermes/events/:id/dismiss  → Dismiss suggestion
   "success": false,
   "error": {
     "code": "VALIDATION_ERROR",
-    "message": "Price below cost",
+    "message": "Description is too short",
     "details": [
       {
-        "field": "sellingPrice",
-        "message": "Must be >= costPrice"
+        "field": "description",
+        "message": "Must be at least 20 characters"
       }
     ]
   }

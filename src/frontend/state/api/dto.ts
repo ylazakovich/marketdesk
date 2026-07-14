@@ -28,11 +28,13 @@ export interface ProductListParams {
   offset?: number;
 }
 
-export type CreateProductInput = Omit<Product, 'id' | 'createdAt' | 'updatedAt'>;
+export type CreateProductInput = Omit<Product, 'id' | 'createdAt' | 'updatedAt'> & {
+  allowBelowCost?: boolean;
+};
 
 export type UpdateProductInput = Partial<
   Omit<Product, 'id' | 'workspaceId' | 'createdAt' | 'updatedAt'>
->;
+> & { allowBelowCost?: boolean };
 
 export interface UpdateProductArg {
   id: string;

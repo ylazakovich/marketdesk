@@ -38,12 +38,13 @@ describe('Product invariants', () => {
     expect(r.isErr()).toBe(true);
   });
 
-  it('rejects sellingPrice below costPrice by default', () => {
+  it('allows sellingPrice below costPrice as an intentional seller decision', () => {
     const r = Product.create(baseProps({ costPrice: money(80), sellingPrice: money(50) }));
-    expect(r.isErr()).toBe(true);
+    expect(r.isOk()).toBe(true);
+    expect(unwrap(r).sellingPrice.amount).toBeCloseTo(50);
   });
 
-  it('allows sellingPrice below costPrice when allowBelowCost is set (bulk-edit)', () => {
+  it('accepts the legacy allowBelowCost flag without changing below-cost behaviour', () => {
     const r = Product.create(
       baseProps({ costPrice: money(80), sellingPrice: money(50), allowBelowCost: true }),
     );
@@ -80,12 +81,13 @@ describe('Product status transitions (forward-only)', () => {
 });
 
 describe('Product price / description updates', () => {
-  it('rejects updating selling price below cost by default', () => {
+  it('allows updating selling price below cost', () => {
     const product = unwrap(Product.create(baseProps()));
-    expect(product.updateSellingPrice(money(10)).isErr()).toBe(true);
+    expect(product.updateSellingPrice(money(10)).isOk()).toBe(true);
+    expect(product.sellingPrice.amount).toBeCloseTo(10);
   });
 
-  it('accepts a below-cost update when explicitly allowed', () => {
+  it('accepts the legacy allowBelowCost flag on below-cost updates', () => {
     const product = unwrap(Product.create(baseProps()));
     expect(product.updateSellingPrice(money(10), true).isOk()).toBe(true);
     expect(product.sellingPrice.amount).toBeCloseTo(10);

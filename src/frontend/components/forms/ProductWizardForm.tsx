@@ -14,9 +14,10 @@ import {
 import {
   emptyProductValues,
   marginWarning,
+  toProductSubmissionValues,
   validateProductValues,
 } from './productFormModel.js';
-import type { ProductFormValues, ProductFieldErrors } from './productFormModel.js';
+import type { ProductFormValues, ProductFieldErrors, ProductSubmissionValues } from './productFormModel.js';
 import {
   DescriptionTagsFields,
   ImagesField,
@@ -27,7 +28,7 @@ import {
 
 export interface ProductWizardFormProps {
   submitting?: boolean;
-  onSubmit: (values: ProductFormValues) => void;
+  onSubmit: (values: ProductSubmissionValues) => void;
   onCancel?: () => void;
 }
 
@@ -86,7 +87,7 @@ export const ProductWizardForm: React.FC<ProductWizardFormProps> = ({
       if (firstBad >= 0) setActiveStep(firstBad);
       return;
     }
-    onSubmit(values);
+    onSubmit(toProductSubmissionValues(values));
   };
 
   return (

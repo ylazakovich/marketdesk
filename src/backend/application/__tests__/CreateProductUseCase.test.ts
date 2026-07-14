@@ -50,6 +50,22 @@ describe('CreateProductUseCase', () => {
     expect(publisher.published.map((e) => e.type)).toContain('product.created');
   });
 
+  it('creates a product with an intentional below-cost selling price', async () => {
+    const { useCase, productRepo } = setup();
+
+    const result = await useCase.execute({
+      ...validDto,
+      costPrice: 649,
+      sellingPrice: 399,
+    });
+
+    expect(result.isOk()).toBe(true);
+    const product = unwrap(result);
+    expect(product.costPrice.amount).toBe(649);
+    expect(product.sellingPrice.amount).toBe(399);
+    expect(productRepo.items.get(product.id)).toBe(product);
+  });
+
   it('fails validation when the description is too short', async () => {
     const { useCase, productRepo } = setup();
 

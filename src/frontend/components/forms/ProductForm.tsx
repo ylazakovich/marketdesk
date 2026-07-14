@@ -7,9 +7,10 @@ import {
   emptyProductValues,
   marginWarning,
   productToValues,
+  toProductSubmissionValues,
   validateProductValues,
 } from './productFormModel.js';
-import type { ProductFormValues, ProductFieldErrors } from './productFormModel.js';
+import type { ProductFormValues, ProductFieldErrors, ProductSubmissionValues } from './productFormModel.js';
 import {
   DescriptionTagsFields,
   ImagesField,
@@ -21,7 +22,7 @@ import {
 export interface ProductFormProps {
   initial?: Product;
   submitting?: boolean;
-  onSubmit: (values: ProductFormValues) => void;
+  onSubmit: (values: ProductSubmissionValues) => void;
   onCancel?: () => void;
   submitLabel?: string;
 }
@@ -50,7 +51,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     const validation = validateProductValues(values);
     setErrors(validation);
     if (Object.keys(validation).length > 0) return;
-    onSubmit(values);
+    onSubmit(toProductSubmissionValues(values));
   };
 
   return (

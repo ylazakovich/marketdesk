@@ -9,5 +9,6 @@ export {
   productToValues,
   validateProductValues,
   marginWarning,
+  toProductSubmissionValues,
 } from './productFormModel.js';
-export type { ProductFormValues, ProductFieldErrors } from './productFormModel.js';
+export type { ProductFormValues, ProductSubmissionValues, ProductFieldErrors } from './productFormModel.js';

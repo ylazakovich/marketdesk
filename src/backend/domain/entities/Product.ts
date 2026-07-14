@@ -1,5 +1,5 @@
 // Product aggregate root. Enforces the invariants from ARCHITECTURE.md §3:
-//   - sellingPrice >= 0 (and >= costPrice, except explicit bulk-edit warning)
+//   - sellingPrice >= 0 (selling below cost is allowed but surfaced as a warning upstream)
 //   - description length in [20, 2000]
 //   - status transitions are forward-only: draft -> active -> attention -> sold
 
@@ -29,7 +29,7 @@ export interface CreateProductProps {
   images?: string[];
   createdAt?: Date;
   updatedAt?: Date;
-  // When true, allow sellingPrice < costPrice (surfaced as a warning upstream).
+  // Backwards-compatible API flag; below-cost selling is now always allowed.
   allowBelowCost?: boolean;
 }
 
@@ -82,12 +82,6 @@ export class Product {
         new ValidationError('costPrice and sellingPrice must share a currency'),
       );
     }
-    if (!props.allowBelowCost && props.sellingPrice.isLessThan(props.costPrice)) {
-      return Err(
-        new ValidationError('sellingPrice must be >= costPrice'),
-      );
-    }
-
     const now = new Date();
     return Ok(
       new Product(
@@ -217,15 +211,12 @@ export class Product {
     return this.transitionTo('sold');
   }
 
-  updateSellingPrice(price: Money, allowBelowCost = false): Result<void> {
+  updateSellingPrice(price: Money, _allowBelowCost = false): Result<void> {
     if (price.isNegative()) {
       return Err(new ValidationError('sellingPrice must be >= 0'));
     }
     if (price.currency !== this._costPrice.currency) {
       return Err(new ValidationError('sellingPrice currency must match costPrice'));
-    }
-    if (!allowBelowCost && price.isLessThan(this._costPrice)) {
-      return Err(new ValidationError('sellingPrice must be >= costPrice'));
     }
     this._sellingPrice = price;
     this.touch();

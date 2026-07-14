@@ -101,9 +101,27 @@ export interface UpdateListingArg {
 // ----------------------------------------------------------------------------
 
 export interface ConnectMarketplaceInput {
-  code?: string;
-  handle?: string;
-  scopes?: string[];
+  returnTo?: string;
+}
+
+export interface MarketplaceOAuthStart {
+  authorizationUrl: string;
+  state: string;
+  expiresAt: string;
+}
+
+export interface MarketplaceOAuthStatus {
+  connected: boolean;
+  marketplaceId: string;
+  providerKey: Marketplace['key'];
+  account: {
+    id: string;
+    handle: string;
+    status: 'connected' | 'disconnected' | 'error';
+    scopes: string[];
+  } | null;
+  tokenExpiresAt?: string;
+  refreshable: boolean;
 }
 
 export type UpdateMarketplaceInput = Partial<

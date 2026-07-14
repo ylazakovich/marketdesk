@@ -1,14 +1,13 @@
-// OLX marketplace adapter. Modeled on ARCHITECTURE.md §9 (OLX example). Maps the
-// domain ListingPublishInput <-> the OLX `/user/ads` payload shape. The HTTP
-// boundary is injectable; when none is provided a deterministic stub is used so
-// the adapter is exercisable without touching the real OLX API.
+// OLX Partner API adapter. Maps domain listing data to the documented
+// `POST /api/partner/adverts` contract. The HTTP boundary stays injectable so
+// OAuth credentials are resolved per marketplace account by the publish worker.
 
-import { BaseMarketplaceAdapter, MarketplaceAdapterOptions } from './BaseMarketplaceAdapter';
+import { BaseMarketplaceAdapter, type MarketplaceAdapterOptions } from './BaseMarketplaceAdapter';
 import {
-  MarketplaceHttpClient,
+  type MarketplaceHttpClient,
   StubMarketplaceHttpClient,
-  StubResponder,
-  HttpResponse,
+  type StubResponder,
+  type HttpResponse,
 } from './MarketplaceHttpClient';
 import type {
   ListingPublishInput,
@@ -16,10 +15,11 @@ import type {
   SyncedListing,
 } from '../../domain/services/MarketplaceAdapter';
 
-const OLX_BASE_URL = 'https://api.olx.pl/v1';
+const OLX_PARTNER_BASE_URL = 'https://www.olx.pl/api/partner';
 
-// OLX category ids (subset — a real integration would load the full taxonomy).
-const OLX_CATEGORY_MAP: Record<string, number> = {
+// Stub/demo fallback only. Real mode sets requirePublishDetails=true and must
+// provide an approved category id instead of relying on these placeholders.
+const STUB_CATEGORY_MAP: Record<string, number> = {
   electronics: 2000,
   clothing: 3000,
   home: 4000,
@@ -36,33 +36,97 @@ const OLX_CONDITION_MAP: Record<string, string> = {
   refurbished: 'used',
 };
 
-interface OlxAdResponse {
-  id: string;
+export interface OlxAdapterConfig {
+  baseUrl?: string;
+  requirePublishDetails?: boolean;
+  categoryIds?: Record<string, number>;
+  defaultCategoryId?: number;
+  cityId?: number;
+  districtId?: number;
+  contactName?: string;
+  contactPhone?: string;
+  advertiserType?: 'private' | 'business';
+  priceNegotiable?: boolean;
+  conditionAttributeCode?: string;
+  deliveryAttributeCode?: string;
+  deliveryOptionCode?: string;
+}
+
+interface OlxAdvertResponse {
+  id: string | number;
   status: string;
   metrics?: { views?: number; favorites?: number; messages?: number };
 }
 
+interface OlxResponseEnvelope<T> {
+  data: T;
+}
+
 export class OLXAdapter extends BaseMarketplaceAdapter {
-  constructor(http?: MarketplaceHttpClient, options?: MarketplaceAdapterOptions) {
+  private readonly baseUrl: string;
+
+  constructor(
+    http?: MarketplaceHttpClient,
+    options?: MarketplaceAdapterOptions,
+    private readonly config: OlxAdapterConfig = {},
+  ) {
     super(http ?? new StubMarketplaceHttpClient(OLXAdapter.stubResponder), 'olx', options);
+    this.baseUrl = (config.baseUrl ?? OLX_PARTNER_BASE_URL).replace(/\/$/, '');
   }
 
   protected async doPublish(input: ListingPublishInput): Promise<PublishResult> {
-    const res = await this.http.request<OlxAdResponse>({
-      method: 'POST',
-      url: `${OLX_BASE_URL}/user/ads`,
-      body: {
-        title: input.productName,
-        description: input.description,
-        price: input.price,
+    const categoryId = this.mapCategory(input.category);
+    this.assertPublishDetails(categoryId);
+
+    const body: Record<string, unknown> = {
+      title: input.productName,
+      description: input.description,
+      category_id: categoryId,
+      advertiser_type: this.config.advertiserType ?? 'private',
+      price: {
+        value: input.price,
         currency: input.currency,
-        category_id: this.mapCategory(input.category),
-        images: input.imageUrls,
-        params: { condition: this.mapCondition(input.condition) },
+        negotiable: this.config.priceNegotiable ?? false,
       },
+      images: input.imageUrls.map((url) => ({ url })),
+    };
+    if (this.config.cityId) {
+      body.location = {
+        city_id: this.config.cityId,
+        ...(this.config.districtId ? { district_id: this.config.districtId } : {}),
+      };
+    }
+    if (this.config.contactName) {
+      body.contact = {
+        name: this.config.contactName,
+        ...(this.config.contactPhone ? { phone: this.config.contactPhone } : {}),
+      };
+    }
+    const attributes: Array<{ code: string; value: string }> = [];
+    if (this.config.conditionAttributeCode) {
+      attributes.push({
+        code: this.config.conditionAttributeCode,
+        value: this.mapCondition(input.condition),
+      });
+    }
+    if (this.config.deliveryAttributeCode && this.config.deliveryOptionCode) {
+      attributes.push({
+        code: this.config.deliveryAttributeCode,
+        value: this.config.deliveryOptionCode,
+      });
+    }
+    if (attributes.length > 0) body.attributes = attributes;
+
+    const res = await this.http.request<
+      OlxAdvertResponse | OlxResponseEnvelope<OlxAdvertResponse>
+    >({
+      method: 'POST',
+      url: `${this.baseUrl}/adverts`,
+      body,
     });
+    const advert = this.unwrapAdvert(res.data);
     return {
-      externalListingId: res.data.id,
+      externalListingId: String(advert.id),
       publishedAt: new Date(),
     };
   }
@@ -72,12 +136,18 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
     changes: Partial<Pick<ListingPublishInput, 'price' | 'description' | 'productName'>>,
   ): Promise<void> {
     const body: Record<string, unknown> = {};
-    if (changes.price !== undefined) body.price = changes.price;
+    if (changes.price !== undefined) {
+      body.price = {
+        value: changes.price,
+        currency: 'PLN',
+        negotiable: this.config.priceNegotiable ?? false,
+      };
+    }
     if (changes.description !== undefined) body.description = changes.description;
     if (changes.productName !== undefined) body.title = changes.productName;
     await this.http.request({
       method: 'PUT',
-      url: `${OLX_BASE_URL}/user/ads/${externalListingId}`,
+      url: `${this.baseUrl}/adverts/${externalListingId}`,
       body,
     });
   }
@@ -85,36 +155,44 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
   protected async doDelist(externalListingId: string): Promise<void> {
     await this.http.request({
       method: 'DELETE',
-      url: `${OLX_BASE_URL}/user/ads/${externalListingId}`,
+      url: `${this.baseUrl}/adverts/${externalListingId}`,
     });
   }
 
   protected async doSync(externalListingIds: string[]): Promise<SyncedListing[]> {
     const responses = await Promise.all(
       externalListingIds.map((id) =>
-        this.http.request<OlxAdResponse>({
+        this.http.request<OlxAdvertResponse | OlxResponseEnvelope<OlxAdvertResponse>>({
           method: 'GET',
-          url: `${OLX_BASE_URL}/user/ads/${id}`,
+          url: `${this.baseUrl}/adverts/${id}`,
         }),
       ),
     );
-    return responses.map((res) => this.toSyncedListing(res.data));
+    return responses.map((res) => this.toSyncedListing(this.unwrapAdvert(res.data)));
   }
 
   protected async doFetchListing(
     externalListingId: string,
   ): Promise<SyncedListing | null> {
-    const res = await this.http.request<OlxAdResponse | null>({
+    const res = await this.http.request<
+      OlxAdvertResponse | OlxResponseEnvelope<OlxAdvertResponse> | null
+    >({
       method: 'GET',
-      url: `${OLX_BASE_URL}/user/ads/${externalListingId}`,
+      url: `${this.baseUrl}/adverts/${externalListingId}`,
     });
     if (!res.data) return null;
-    return this.toSyncedListing(res.data);
+    return this.toSyncedListing(this.unwrapAdvert(res.data));
   }
 
-  private toSyncedListing(data: OlxAdResponse): SyncedListing {
+  private unwrapAdvert(
+    response: OlxAdvertResponse | OlxResponseEnvelope<OlxAdvertResponse>,
+  ): OlxAdvertResponse {
+    return 'data' in response ? response.data : response;
+  }
+
+  private toSyncedListing(data: OlxAdvertResponse): SyncedListing {
     return {
-      externalListingId: data.id,
+      externalListingId: String(data.id),
       status: this.mapStatus(data.status),
       views: data.metrics?.views ?? 0,
       watchers: data.metrics?.favorites ?? 0,
@@ -122,17 +200,30 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
     };
   }
 
-  private mapCategory(domainCategory: string): number {
-    return OLX_CATEGORY_MAP[domainCategory.toLowerCase()] ?? OLX_CATEGORY_MAP.electronics;
+  private assertPublishDetails(categoryId: number | undefined): asserts categoryId is number {
+    if (!this.config.requirePublishDetails) return;
+    if (!categoryId) throw new Error('OLX category id is required for live publish');
+    if (!this.config.cityId) throw new Error('OLX city id is required for live publish');
+    if (!this.config.contactName?.trim()) {
+      throw new Error('OLX contact name is required for live publish');
+    }
+  }
+
+  private mapCategory(domainCategory: string): number | undefined {
+    const key = domainCategory.toLowerCase();
+    return (
+      this.config.categoryIds?.[key] ??
+      this.config.defaultCategoryId ??
+      (this.config.requirePublishDetails ? undefined : STUB_CATEGORY_MAP[key] ?? STUB_CATEGORY_MAP.electronics)
+    );
   }
 
   private mapCondition(domainCondition: string): string {
     return OLX_CONDITION_MAP[domainCondition.toLowerCase()] ?? 'used';
   }
 
-  // Deterministic stub transport for no-network / demo operation.
   private static stubResponder: StubResponder = (config): HttpResponse => {
-    const idMatch = config.url.match(/\/user\/ads\/([^/?]+)/);
+    const idMatch = config.url.match(/\/adverts\/([^/?]+)/);
     const externalId = idMatch ? idMatch[1] : `olx-${Date.now()}`;
     if (config.method === 'POST') {
       return { status: 201, data: { id: `olx-${Date.now()}`, status: 'active' } };

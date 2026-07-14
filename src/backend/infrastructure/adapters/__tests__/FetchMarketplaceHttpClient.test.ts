@@ -41,7 +41,10 @@ describe('FetchMarketplaceHttpClient', () => {
     );
   });
 
-  it('blocks live OLX create-listing POST unless explicitly enabled', async () => {
+  it.each([
+    'https://api.olx.pl/v1/user/ads',
+    'https://www.olx.pl/api/partner/adverts',
+  ])('blocks live OLX create-listing POST unless explicitly enabled: %s', async (url) => {
     const fetchMock = jest.fn();
     global.fetch = fetchMock as unknown as typeof fetch;
 
@@ -50,7 +53,7 @@ describe('FetchMarketplaceHttpClient', () => {
     await expect(
       client.request({
         method: 'POST',
-        url: 'https://api.olx.pl/v1/user/ads',
+        url,
         body: { title: 'AirPods 4' },
       }),
     ).rejects.toMatchObject({ status: 412 });

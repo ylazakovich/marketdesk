@@ -8,10 +8,7 @@
 //     emits a domain event.
 
 import { Result, Ok, Err } from '../../domain/shared/Result';
-import {
-  NotFoundError,
-  InvalidStateError,
-} from '../../domain/shared/DomainError';
+import { NotFoundError, InvalidStateError } from '../../domain/shared/DomainError';
 import { Money } from '../../domain/valueObjects/Money';
 import type { HermesEvent } from '../../domain/entities/HermesEvent';
 import type { Product } from '../../domain/entities/Product';
@@ -26,6 +23,7 @@ import type { IPriceHistoryRecorder } from '../ports/IPriceHistoryRecorder';
 import type { IJobQueue, PublishListingJob } from '../ports/IJobQueue';
 import type { IdGenerator } from '../ports/IdGenerator';
 import type { ApproveEventDTO } from '../dto/ApproveEventDTO';
+import type { MarketplaceAccountRepository } from '../services/MarketplaceOAuthService';
 
 export class ApproveHermesEventUseCase {
   constructor(
@@ -38,14 +36,12 @@ export class ApproveHermesEventUseCase {
     private readonly publishQueue: IJobQueue<PublishListingJob>,
     private readonly eventPublisher: IEventPublisher,
     private readonly idGenerator: IdGenerator,
+    private readonly marketplaceAccountRepo?: MarketplaceAccountRepository
   ) {}
 
   async execute(input: ApproveEventDTO): Promise<Result<HermesEvent>> {
     // Tenant-scoped load: reject events belonging to another workspace (S2).
-    const event = await this.eventRepo.findByIdForWorkspace(
-      input.eventId,
-      input.workspaceId,
-    );
+    const event = await this.eventRepo.findByIdForWorkspace(input.eventId, input.workspaceId);
     if (!event) {
       return Err(new NotFoundError(`Hermes event not found: ${input.eventId}`));
     }
@@ -53,8 +49,8 @@ export class ApproveHermesEventUseCase {
     if (event.status !== 'pending_review') {
       return Err(
         new InvalidStateError(
-          `Cannot approve event in ${event.status} state (must be pending_review)`,
-        ),
+          `Cannot approve event in ${event.status} state (must be pending_review)`
+        )
       );
     }
 
@@ -119,8 +115,8 @@ export class ApproveHermesEventUseCase {
         // manually / via the publish flow.
         return Err(
           new InvalidStateError(
-            'create_listing events cannot be applied automatically; create the listing via the publish flow',
-          ),
+            'create_listing events cannot be applied automatically; create the listing via the publish flow'
+          )
         );
       default:
         return Ok(undefined);
@@ -129,7 +125,7 @@ export class ApproveHermesEventUseCase {
 
   private async applyPriceChange(
     event: HermesEvent,
-    change: Extract<ProposedChange, { kind: 'price' }>,
+    change: Extract<ProposedChange, { kind: 'price' }>
   ): Promise<Result<void>> {
     const loaded = await this.requireProduct(event.productId);
     if (loaded.isErr()) return loaded;
@@ -169,35 +165,42 @@ export class ApproveHermesEventUseCase {
       const product = await this.productRepo.findById(listing.productId);
       const marketplace = await this.marketplaceRepo.findById(listing.marketplaceId);
       if (!product || !marketplace) continue;
+      if (!marketplace.isConnected()) continue;
+      if (this.marketplaceAccountRepo) {
+        const account = await this.marketplaceAccountRepo.findByMarketplaceId(marketplace.id);
+        if (!account || account.status !== 'connected') continue;
+      }
 
-      await this.publishQueue.enqueue({
-        marketplaceKey: marketplace.key,
-        listingId: listing.id,
-        input: {
-          productName: product.name,
-          description: product.description,
-          price: listing.price.amount,
-          currency: listing.price.currency,
-          category: product.category,
-          condition: product.condition,
-          imageUrls: [...product.images],
+      const operationId = this.idGenerator();
+      await this.publishQueue.enqueue(
+        {
+          operationId,
+          mode: 'relist',
+          listingUpdatedAt: listing.updatedAt.toISOString(),
+          marketplaceKey: marketplace.key,
+          marketplaceId: marketplace.id,
+          listingId: listing.id,
+          input: {
+            productName: product.name,
+            description: product.description,
+            price: listing.price.amount,
+            currency: listing.price.currency,
+            category: product.category,
+            condition: product.condition,
+            imageUrls: [...product.images],
+          },
         },
-      });
+        { jobId: `publish:${operationId}` }
+      );
       enqueued++;
     }
     if (enqueued === 0 && listingIds.length > 0) {
-      return Err(
-        new InvalidStateError(
-          'relist event references no valid listings to publish',
-        ),
-      );
+      return Err(new InvalidStateError('relist event references no valid listings to publish'));
     }
     return Ok(undefined);
   }
 
-  private async requireProduct(
-    productId: string | null,
-  ): Promise<Result<Product>> {
+  private async requireProduct(productId: string | null): Promise<Result<Product>> {
     if (!productId) {
       return Err(new InvalidStateError('Event has no product to apply the change to'));
     }

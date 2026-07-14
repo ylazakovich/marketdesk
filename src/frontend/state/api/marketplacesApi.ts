@@ -4,6 +4,8 @@ import { baseApi } from './baseApi.js';
 import { unwrap } from './envelope.js';
 import type {
   ConnectMarketplaceInput,
+  MarketplaceOAuthStart,
+  MarketplaceOAuthStatus,
   UpdateMarketplaceArg,
 } from './dto.js';
 
@@ -37,8 +39,9 @@ export const marketplacesApi = baseApi.injectEndpoints({
       ],
     }),
 
+    // Starts provider OAuth. Connection is not marked successful until callback completes.
     connectMarketplace: builder.mutation<
-      Marketplace,
+      MarketplaceOAuthStart,
       { id: string; input?: ConnectMarketplaceInput }
     >({
       query: ({ id, input }) => ({
@@ -46,11 +49,13 @@ export const marketplacesApi = baseApi.injectEndpoints({
         method: 'POST',
         body: input ?? {},
       }),
-      transformResponse: (res: ApiResponse<Marketplace>) => unwrap(res),
-      invalidatesTags: (_result, _error, { id }) => [
-        { type: 'Marketplace', id },
-        { type: 'Marketplace', id: 'LIST' },
-      ],
+      transformResponse: (res: ApiResponse<MarketplaceOAuthStart>) => unwrap(res),
+    }),
+
+    checkMarketplace: builder.query<MarketplaceOAuthStatus, string>({
+      query: (id) => `/marketplaces/${id}/check`,
+      transformResponse: (res: ApiResponse<MarketplaceOAuthStatus>) => unwrap(res),
+      providesTags: (_result, _error, id) => [{ type: 'Marketplace', id }],
     }),
 
     updateMarketplace: builder.mutation<Marketplace, UpdateMarketplaceArg>({
@@ -73,5 +78,6 @@ export const {
   useGetMarketplaceQuery,
   useSyncMarketplaceMutation,
   useConnectMarketplaceMutation,
+  useLazyCheckMarketplaceQuery,
   useUpdateMarketplaceMutation,
 } = marketplacesApi;

@@ -31,7 +31,14 @@ export interface ListingPublishJobInput {
 }
 
 export interface PublishListingJob {
+  // Stable id for one logical publish/relist operation. Queue retries reuse it;
+  // a later relist of the same listing receives a new id and checkpoint.
+  operationId?: string;
+  mode?: 'publish' | 'relist';
+  // Listing generation observed when the logical operation was enqueued.
+  listingUpdatedAt?: string;
   marketplaceKey: MarketplaceKey;
+  marketplaceId: string;
   listingId: string;
   input: ListingPublishJobInput;
 }

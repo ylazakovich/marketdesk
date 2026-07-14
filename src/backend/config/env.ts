@@ -5,6 +5,28 @@ dotenv.config();
 const nodeEnv = process.env.NODE_ENV || 'development';
 const runningInProduction = nodeEnv === 'production';
 
+function optionalPositiveInt(value: string | undefined): number | undefined {
+  if (!value?.trim()) return undefined;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`Expected a positive integer, received: ${value}`);
+  }
+  return parsed;
+}
+
+function parseCategoryIds(value: string | undefined): Record<string, number> {
+  if (!value?.trim()) return {};
+  const decoded = JSON.parse(value) as Record<string, unknown>;
+  return Object.fromEntries(
+    Object.entries(decoded).map(([key, raw]) => {
+      if (!Number.isInteger(raw) || Number(raw) <= 0) {
+        throw new Error(`Invalid OLX category id for ${key}`);
+      }
+      return [key.toLowerCase(), Number(raw)];
+    }),
+  );
+}
+
 // Resolve a JWT signing secret fail-closed. In production a missing secret, an
 // empty secret, or a leftover `your_`-prefixed placeholder is fatal (throws at
 // boot) so the app never signs tokens with a guessable key. Outside production
@@ -33,6 +55,7 @@ export const env = {
   appName: process.env.APP_NAME || 'hermes-marketdesk',
   appPort: parseInt(process.env.APP_PORT || '3000', 10),
   logLevel: process.env.LOG_LEVEL || 'info',
+  trustProxy: process.env.TRUST_PROXY === 'true',
 
   // Database
   database: {
@@ -74,16 +97,35 @@ export const env = {
     olx: {
       market: process.env.OLX_MARKET || 'PL',
       adapterMode: process.env.OLX_ADAPTER_MODE || 'stub',
-      apiBaseUrl: process.env.OLX_API_BASE_URL || 'https://api.olx.pl/v1',
+      apiBaseUrl: process.env.OLX_API_BASE_URL || 'https://www.olx.pl/api/partner',
+      authUrl: process.env.OLX_AUTH_URL || 'https://www.olx.pl/oauth/authorize',
+      tokenUrl: process.env.OLX_TOKEN_URL || 'https://www.olx.pl/api/open/oauth/token',
       clientId: process.env.OLX_CLIENT_ID || '',
       clientSecret: process.env.OLX_CLIENT_SECRET || '',
       redirectUri: process.env.OLX_REDIRECT_URI || '',
+      requiredScopes: process.env.OLX_REQUIRED_SCOPES || 'read write v2',
+      oauthSuccessUrl:
+        process.env.OLX_OAUTH_SUCCESS_URL || 'http://localhost:3000/marketplaces',
       accessToken: process.env.OLX_ACCESS_TOKEN || '',
       refreshToken: process.env.OLX_REFRESH_TOKEN || '',
       livePublishEnabled: process.env.OLX_LIVE_PUBLISH_ENABLED === 'true',
       requestTimeoutMs: parseInt(process.env.OLX_REQUEST_TIMEOUT_MS || '30000', 10),
+      categoryIds: parseCategoryIds(process.env.OLX_CATEGORY_IDS_JSON),
+      defaultCategoryId: optionalPositiveInt(process.env.OLX_DEFAULT_CATEGORY_ID),
+      cityId: optionalPositiveInt(process.env.OLX_CITY_ID),
+      districtId: optionalPositiveInt(process.env.OLX_DISTRICT_ID),
+      contactName: process.env.OLX_CONTACT_NAME || '',
+      contactPhone: process.env.OLX_CONTACT_PHONE || '',
+      advertiserType:
+        process.env.OLX_ADVERTISER_TYPE === 'business' ? ('business' as const) : ('private' as const),
+      priceNegotiable: process.env.OLX_PRICE_NEGOTIABLE === 'true',
+      conditionAttributeCode: process.env.OLX_CONDITION_ATTRIBUTE_CODE || '',
+      deliveryAttributeCode: process.env.OLX_DELIVERY_ATTRIBUTE_CODE || '',
+      deliveryOptionCode: process.env.OLX_DELIVERY_OPTION_CODE || '',
     },
   },
+
+  marketplaceCredentialsKey: process.env.MARKETPLACE_CREDENTIALS_KEY || '',
 
   // CORS
   cors: {

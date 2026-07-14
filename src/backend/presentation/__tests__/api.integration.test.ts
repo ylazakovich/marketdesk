@@ -22,6 +22,7 @@ import type { ProductApplicationService } from '../../application/services/Produ
 import type { ListingApplicationService } from '../../application/services/ListingApplicationService';
 import type { HermesApplicationService } from '../../application/services/HermesApplicationService';
 import type { AnalyticsApplicationService } from '../../application/services/AnalyticsApplicationService';
+import type { MarketplaceOAuthService } from '../../application/services/MarketplaceOAuthService';
 import type { IProductRepository } from '../../domain/repositories/interfaces/IProductRepository';
 import type { IListingRepository } from '../../domain/repositories/interfaces/IListingRepository';
 import type { IMarketplaceRepository } from '../../domain/repositories/interfaces/IMarketplaceRepository';
@@ -159,6 +160,38 @@ function stubAnalyticsService(): AnalyticsApplicationService {
   } as unknown as AnalyticsApplicationService;
 }
 
+function stubMarketplaceOAuthService(): MarketplaceOAuthService {
+  const status = {
+    connected: true,
+    marketplaceId: 'marketplace-olx',
+    providerKey: 'olx' as const,
+    account: {
+      id: 'account-1',
+      handle: 'OLX account',
+      status: 'connected' as const,
+      scopes: ['basic'],
+    },
+    tokenExpiresAt: '2026-07-14T13:00:00.000Z',
+    refreshable: true,
+  };
+  return {
+    async start() {
+      return {
+        authorizationUrl: 'https://www.olx.pl/oauth/authorize?state=oauth-state',
+        state: 'oauth-state',
+        expiresAt: '2026-07-14T12:10:00.000Z',
+      };
+    },
+    async complete() {
+      return status;
+    },
+    async check() {
+      return status;
+    },
+    async disconnect() {},
+  } as unknown as MarketplaceOAuthService;
+}
+
 async function buildTestApp() {
   const authUserStore = new InMemoryAuthStore();
   const productRepo = new InMemoryProductRepository();
@@ -182,6 +215,8 @@ async function buildTestApp() {
     productRepo: productRepo as IProductRepository,
     listingRepo: listingRepo as IListingRepository,
     marketplaceRepo: marketplaceRepo as IMarketplaceRepository,
+    marketplaceOAuthService: stubMarketplaceOAuthService(),
+    marketplaceOAuthReturnUrl: 'http://localhost:5173/marketplaces',
     workspaceRepo: workspaceRepo as IWorkspaceRepository,
     authUserStore,
     idGenerator: () => 'listing-1',
@@ -276,7 +311,7 @@ describe('Presentation API', () => {
       expect(res.body.error.message).toBe('Invalid email or password');
     });
 
-    it('provisions a connected OLX marketplace for a new workspace on register', async () => {
+    it('provisions a disconnected OLX marketplace pending OAuth on register', async () => {
       const { app, marketplaceRepo } = await buildTestApp();
       const res = await request(app).post('/api/auth/register').send({
         email: 'seller@example.com',
@@ -292,7 +327,7 @@ describe('Presentation API', () => {
       const olx = await marketplaceRepo.findByKey(workspaceId, 'olx');
       expect(olx).not.toBeNull();
       expect(olx?.name).toBe('OLX');
-      expect(olx?.isConnected()).toBe(true);
+      expect(olx?.isConnected()).toBe(false);
       expect(olx?.syncMode).toBe('manual');
     });
 
@@ -425,6 +460,46 @@ describe('Presentation API', () => {
       expect(res.status).toBe(409);
       expect(res.body.success).toBe(false);
       expect(res.body.error.code).toBe('CONFLICT');
+    });
+  });
+
+  describe('marketplace OAuth', () => {
+    it('starts OLX OAuth from an authenticated workspace without marking local success', async () => {
+      const { app } = await buildTestApp();
+      const res = await auth(
+        request(app).post('/api/marketplaces/marketplace-olx/connect'),
+      ).send({});
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.authorizationUrl).toContain('https://www.olx.pl/oauth/authorize');
+      expect(res.body.data.state).toBe('oauth-state');
+    });
+
+    it('accepts the provider callback without a bearer token and returns the API envelope', async () => {
+      const { app } = await buildTestApp();
+      const res = await request(app)
+        .get('/api/marketplaces/olx/oauth/callback')
+        .query({ code: 'authorization-code', state: 'oauth-state', response: 'json' })
+        .set('Accept', 'application/json');
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.connected).toBe(true);
+      expect(res.body.data.account.status).toBe('connected');
+    });
+
+    it('returns app-authoritative OLX account status from the protected check endpoint', async () => {
+      const { app } = await buildTestApp();
+      const res = await auth(
+        request(app).get('/api/marketplaces/marketplace-olx/check'),
+      );
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.connected).toBe(true);
+      expect(JSON.stringify(res.body)).not.toContain('access-token');
+      expect(JSON.stringify(res.body)).not.toContain('refresh-token');
     });
   });
 

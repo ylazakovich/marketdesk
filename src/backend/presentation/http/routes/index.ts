@@ -24,6 +24,7 @@ import { createMarketplaceRoutes } from './marketplaces';
 import { createHermesRoutes } from './hermes';
 import { createAnalyticsRoutes } from './analytics';
 import { createWorkspaceRoutes } from './workspaces';
+import { asyncHandler } from '../middleware/asyncHandler';
 
 export interface ApiControllers {
   auth: AuthController;
@@ -59,6 +60,11 @@ export function createApiRouter(
 
   // Public
   api.use('/auth', createAuthRoutes(c.auth, publicLimiter));
+  api.get(
+    '/marketplaces/:provider/oauth/callback',
+    ...(publicLimiter ? [publicLimiter] : []),
+    asyncHandler(c.marketplaces.callback),
+  );
 
   // Protected + workspace-scoped
   const guard: RequestHandler[] = [authMiddleware];

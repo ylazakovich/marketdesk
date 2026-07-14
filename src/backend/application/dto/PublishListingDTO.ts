@@ -4,6 +4,7 @@
 
 export interface PublishListingDTO {
   listingId: string;
+  mode?: 'publish' | 'relist';
   // Actor requesting the publish (for the activity log). Optional for system flows.
   actorId?: string;
 }

@@ -12,6 +12,7 @@ export function createMarketplaceRoutes(controller: MarketplaceController): Rout
   router.get('/:id', asyncHandler(controller.get));
   router.post('/:id/sync', asyncHandler(controller.sync));
   router.post('/:id/connect', asyncHandler(controller.connect));
+  router.get('/:id/check', asyncHandler(controller.check));
   router.patch('/:id', validateBody(updateMarketplaceSchema), asyncHandler(controller.update));
   return router;
 }

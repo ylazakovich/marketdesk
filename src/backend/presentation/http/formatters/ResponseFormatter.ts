@@ -42,6 +42,8 @@ export function statusForError(error: unknown): number {
       case 'INVALID_STATE':
       case 'GUARDRAIL_VIOLATION':
         return 422;
+      case 'SERVICE_UNAVAILABLE':
+        return 503;
       default:
         return 500;
     }

@@ -55,6 +55,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: marketdesk-app
+    env_file:
+      - ./.env
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       APP_NAME: ${APP_NAME:-hermes-marketdesk}
@@ -82,7 +84,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
-      - "${APP_PORT:-3000}:3000"
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
     depends_on:
       postgres:
         condition: service_healthy

@@ -99,7 +99,7 @@ export class AuthController {
             workspaceId,
             key: 'olx',
             name: 'OLX',
-            connected: true,
+            connected: false,
             syncMode: 'manual',
           });
           if (olx.isErr()) return next(olx.error);

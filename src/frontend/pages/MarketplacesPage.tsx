@@ -1,6 +1,7 @@
 // Marketplaces grid: connection status, sync mode, last-sync/error info, and
 // sync / connect actions per marketplace.
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -19,6 +20,7 @@ import {
   useMarketplaces,
   useSyncMarketplace,
   useConnectMarketplace,
+  useCheckMarketplace,
   useUpdateMarketplace,
 } from '../services/hooks/index.js';
 import { useAppDispatch } from '../state/hooks.js';
@@ -47,11 +49,51 @@ function errorMessage(err: unknown): string {
 
 const MarketplacesPage: React.FC = () => {
   const dispatch = useAppDispatch();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const handledOAuthResult = useRef<string | null>(null);
   const { data, isLoading, isError, error, refetch } = useMarketplaces();
   const [syncMarketplace] = useSyncMarketplace();
   const [connectMarketplace] = useConnectMarketplace();
+  const [checkMarketplace] = useCheckMarketplace();
   const [updateMarketplace] = useUpdateMarketplace();
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const oauthResult = searchParams.get('oauth');
+    const marketplaceId = searchParams.get('marketplaceId');
+    const resultKey = `${oauthResult ?? ''}:${marketplaceId ?? ''}:${searchParams.get('code') ?? ''}`;
+    if (!oauthResult || handledOAuthResult.current === resultKey) return;
+    handledOAuthResult.current = resultKey;
+
+    const cleanParams = new URLSearchParams(searchParams);
+    cleanParams.delete('oauth');
+    cleanParams.delete('marketplaceId');
+    cleanParams.delete('code');
+    setSearchParams(cleanParams, { replace: true });
+
+    if (oauthResult !== 'success' || !marketplaceId) {
+      dispatch(
+        enqueueToast({
+          message: 'OLX authorization was not completed. Please try again.',
+          severity: 'error',
+        }),
+      );
+      return;
+    }
+
+    setBusyId(marketplaceId);
+    void checkMarketplace(marketplaceId)
+      .unwrap()
+      .then((status) => {
+        if (!status.connected) throw new Error('OLX account is not connected');
+        dispatch(enqueueToast({ message: 'OLX account connected.', severity: 'success' }));
+        void refetch();
+      })
+      .catch((err: unknown) => {
+        dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
+      })
+      .finally(() => setBusyId(null));
+  }, [checkMarketplace, dispatch, refetch, searchParams, setSearchParams]);
 
   const handleSync = async (m: Marketplace) => {
     setBusyId(m.id);
@@ -68,8 +110,8 @@ const MarketplacesPage: React.FC = () => {
   const handleConnect = async (m: Marketplace) => {
     setBusyId(m.id);
     try {
-      await connectMarketplace({ id: m.id }).unwrap();
-      dispatch(enqueueToast({ message: `${m.name} connected.`, severity: 'success' }));
+      const oauth = await connectMarketplace({ id: m.id }).unwrap();
+      window.location.assign(oauth.authorizationUrl);
     } catch (err) {
       dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
     } finally {
@@ -208,7 +250,7 @@ const MarketplacesPage: React.FC = () => {
                         disabled={busy}
                         fullWidth
                       >
-                        {busy ? 'Connecting…' : 'Connect'}
+                        {busy ? 'Opening OLX…' : 'Connect with OLX'}
                       </Button>
                     )}
                   </Stack>

@@ -73,6 +73,10 @@ const startServer = async () => {
       app.use(express.json({ limit: '10mb' }));
     }
 
+    // Trust one reverse proxy only when explicitly enabled. In the tunnel setup
+    // Docker publishes this service on loopback, preventing direct XFF spoofing.
+    if (env.trustProxy) app.set('trust proxy', 1);
+
     // Health/readiness endpoints are owned by the process, not the API layer.
     // Rate-limit health checks to prevent DoS attacks on startup/shutdown probes.
     const healthLimiter = rateLimit({
@@ -110,6 +114,14 @@ const startServer = async () => {
         });
       }
     });
+
+    // Product images must be publicly reachable while OLX imports them.
+    const uploadsDir = path.resolve(process.cwd(), env.upload.uploadDir);
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    app.use(
+      '/uploads',
+      express.static(uploadsDir, { dotfiles: 'deny', index: false, maxAge: '1h' }),
+    );
 
     // Serve the built frontend (single-service deployment) when a production build
     // exists at dist/frontend. Registered AFTER the /api router + its 404 handler so

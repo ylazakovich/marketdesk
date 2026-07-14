@@ -13,8 +13,9 @@ async function runMigrations() {
     logger.info('Starting database migrations...');
 
     // Get all migration files
-    const files = fs.readdirSync(migrationsDir)
-      .filter(f => f.endsWith('.sql'))
+    const files = fs
+      .readdirSync(migrationsDir)
+      .filter((f) => f.endsWith('.sql'))
       .sort();
 
     if (files.length === 0) {
@@ -29,7 +30,32 @@ async function runMigrations() {
 
       try {
         logger.info(`Running migration: ${file}`);
-        await pool.query(sql);
+        if (/\bCREATE\s+(?:UNIQUE\s+)?INDEX\s+CONCURRENTLY\b/i.test(sql)) {
+          // Concurrent index DDL must run outside a transaction, but multiple app
+          // instances still need serialization around the name/validity check.
+          const client = await pool.connect();
+          const lockKey = `marketdesk:migration:${file}`;
+          let locked = false;
+          try {
+            await client.query('SELECT pg_advisory_lock(hashtext($1))', [lockKey]);
+            locked = true;
+            await client.query(sql);
+          } finally {
+            if (locked) {
+              try {
+                await client.query('SELECT pg_advisory_unlock(hashtext($1))', [lockKey]);
+              } catch (unlockError) {
+                logger.warn(
+                  { error: unlockError, file },
+                  'Failed to release migration advisory lock'
+                );
+              }
+            }
+            client.release();
+          }
+        } else {
+          await pool.query(sql);
+        }
         logger.info(`Completed migration: ${file}`);
       } catch (error) {
         logger.error({ error, file }, `Failed to run migration: ${file}`);

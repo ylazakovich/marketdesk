@@ -20,7 +20,9 @@ function withQuery(url: string, query?: HttpRequestConfig['query']): string {
 }
 
 function isCreateListingRequest(config: HttpRequestConfig): boolean {
-  return config.method === 'POST' && /\/user\/ads\/?(?:$|[?#])/.test(config.url);
+  if (config.method !== 'POST') return false;
+  const pathname = new URL(config.url).pathname.replace(/\/$/, '');
+  return pathname.endsWith('/user/ads') || pathname.endsWith('/api/partner/adverts');
 }
 
 /**

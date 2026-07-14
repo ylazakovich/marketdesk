@@ -18,7 +18,7 @@ export class ListingApplicationService {
   constructor(
     private readonly listingRepo: IListingRepository,
     private readonly publishListingUseCase: PublishListingUseCase,
-    private readonly syncMarketplaceUseCase: SyncMarketplaceUseCase,
+    private readonly syncMarketplaceUseCase: SyncMarketplaceUseCase
   ) {}
 
   async publishListing(dto: PublishListingDTO): Promise<Result<ListingView>> {
@@ -31,13 +31,11 @@ export class ListingApplicationService {
   // and a real republish job is enqueued, instead of only flipping the DB status
   // (C6). Callers must scope the listing to the tenant before invoking this.
   async relistListing(dto: PublishListingDTO): Promise<Result<ListingView>> {
-    const result = await this.publishListingUseCase.execute(dto);
+    const result = await this.publishListingUseCase.execute({ ...dto, mode: 'relist' });
     return result.isErr() ? result : Ok(presentListing(result.value));
   }
 
-  async syncMarketplace(
-    dto: SyncMarketplaceDTO,
-  ): Promise<Result<SyncMarketplaceEnqueueResult>> {
+  async syncMarketplace(dto: SyncMarketplaceDTO): Promise<Result<SyncMarketplaceEnqueueResult>> {
     return this.syncMarketplaceUseCase.execute(dto);
   }
 
@@ -56,12 +54,10 @@ export class ListingApplicationService {
   async listByWorkspace(
     workspaceId: string,
     limit?: number,
-    offset?: number,
+    offset?: number
   ): Promise<PaginatedResponse<ListingView>> {
     const listings = await this.listingRepo.findByWorkspace(workspaceId);
-    const sorted = [...listings].sort(
-      (a, b) => b.updatedAt.getTime() - a.updatedAt.getTime(),
-    );
+    const sorted = [...listings].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
     return paginate(sorted, normalizeOffset(offset), normalizeLimit(limit), presentListing);
   }
 }

@@ -31,6 +31,7 @@ import { HermesController } from './controllers/HermesController';
 import { AnalyticsController } from './controllers/AnalyticsController';
 import { WorkspaceController } from './controllers/WorkspaceController';
 import { AuthController } from './controllers/AuthController';
+import type { MarketplaceOAuthService } from '../../application/services/MarketplaceOAuthService';
 import { createApiRouter } from './routes';
 import { createErrorHandler, type ErrorLogger } from './middleware/ErrorHandlingMiddleware';
 
@@ -43,6 +44,8 @@ export interface AppDeps {
   productRepo: IProductRepository;
   listingRepo: IListingRepository;
   marketplaceRepo: IMarketplaceRepository;
+  marketplaceOAuthService: MarketplaceOAuthService;
+  marketplaceOAuthReturnUrl: string;
   workspaceRepo: IWorkspaceRepository;
   authUserStore: IAuthUserStore;
   // Optional ports (graceful degradation until wired).
@@ -137,7 +140,13 @@ export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
       productRepo: deps.productRepo,
       marketplaceRepo: deps.marketplaceRepo,
     }),
-    marketplaces: new MarketplaceController(deps.marketplaceRepo, deps.listingService),
+    marketplaces: new MarketplaceController(
+      deps.marketplaceRepo,
+      deps.listingService,
+      deps.marketplaceOAuthService,
+      deps.marketplaceOAuthReturnUrl,
+      deps.logger,
+    ),
     hermes: new HermesController(deps.hermesService),
     analytics: new AnalyticsController(deps.analyticsService),
     workspaces: new WorkspaceController(deps.workspaceRepo),

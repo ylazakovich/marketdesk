@@ -1,6 +1,7 @@
 import { ApproveHermesEventUseCase } from '../usecases/ApproveHermesEventUseCase';
 import { Product } from '../../domain/entities/Product';
 import { Listing } from '../../domain/entities/Listing';
+import { Marketplace } from '../../domain/entities/Marketplace';
 import { HermesEvent } from '../../domain/entities/HermesEvent';
 import {
   InMemoryProductRepository,
@@ -31,7 +32,7 @@ function makeProduct() {
       sellingPrice: money(100),
       condition: 'good',
       category: 'home',
-    }),
+    })
   );
 }
 
@@ -42,11 +43,11 @@ function makeListing() {
       productId: 'prod-1',
       marketplaceId: 'mp-1',
       price: money(100),
-    }),
+    })
   );
 }
 
-function setup() {
+function setup(accountStatus: 'connected' | 'missing' = 'connected') {
   const productRepo = new InMemoryProductRepository();
   const listingRepo = new InMemoryListingRepository();
   const marketplaceRepo = new InMemoryMarketplaceRepository();
@@ -58,8 +59,39 @@ function setup() {
 
   const product = makeProduct();
   const listing = makeListing();
+  const marketplace = unwrap(
+    Marketplace.create({
+      id: 'mp-1',
+      workspaceId: 'ws-1',
+      key: 'olx',
+      name: 'OLX',
+      connected: true,
+    })
+  );
   productRepo.items.set(product.id, product);
   listingRepo.items.set(listing.id, listing);
+  marketplaceRepo.items.set(marketplace.id, marketplace);
+  const accountRepo = {
+    findByMarketplaceId: async () =>
+      accountStatus === 'connected'
+        ? {
+            id: 'account-1',
+            marketplaceId: marketplace.id,
+            handle: 'OLX account',
+            credentials: {},
+            status: 'connected' as const,
+            scopes: ['basic'],
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }
+        : null,
+    upsert: async () => {
+      throw new Error('not used');
+    },
+    updateConnectedIfUnchanged: async () => {
+      throw new Error('not used');
+    },
+  };
 
   const useCase = new ApproveHermesEventUseCase(
     eventRepo,
@@ -71,6 +103,7 @@ function setup() {
     publishQueue,
     publisher,
     idFactory('rec'),
+    accountRepo
   );
 
   return {
@@ -81,6 +114,7 @@ function setup() {
     priceHistory,
     publisher,
     product,
+    publishQueue,
   };
 }
 
@@ -98,7 +132,7 @@ describe('ApproveHermesEventUseCase', () => {
         title: 'Lower the price',
         detail: 'Move stock faster',
         proposedChange: { kind: 'price', field: 'price', from: 100, to: 90 },
-      }),
+      })
     );
     await eventRepo.save(event);
 
@@ -136,7 +170,7 @@ describe('ApproveHermesEventUseCase', () => {
         severity: 'warning',
         title: 'Lower the price',
         proposedChange: { kind: 'price', field: 'price', from: 100, to: 90 },
-      }),
+      })
     );
     unwrap(event.approve()); // move to applied
     await eventRepo.save(event);
@@ -154,6 +188,28 @@ describe('ApproveHermesEventUseCase', () => {
     if (result.isErr()) expect(result.error.code).toBe('NOT_FOUND');
   });
 
+  it('does not enqueue a relist when the OAuth account is disconnected', async () => {
+    const { useCase, eventRepo, publishQueue } = setup('missing');
+    const event = unwrap(
+      HermesEvent.create({
+        id: 'evt-relist',
+        workspaceId: 'ws-1',
+        productId: 'prod-1',
+        type: 'needs_relisting',
+        severity: 'warning',
+        title: 'Relist product',
+        proposedChange: { kind: 'relist', listingIds: ['lst-1'] },
+      })
+    );
+    await eventRepo.save(event);
+
+    const result = await useCase.execute({ eventId: event.id, workspaceId: 'ws-1' });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) expect(result.error.code).toBe('INVALID_STATE');
+    expect(publishQueue.jobs).toHaveLength(0);
+  });
+
   it('returns NOT_FOUND when approving an event from another workspace (IDOR, S2)', async () => {
     const { useCase, eventRepo, product } = setup();
     const event = unwrap(
@@ -165,7 +221,7 @@ describe('ApproveHermesEventUseCase', () => {
         severity: 'warning',
         title: 'Lower the price',
         proposedChange: { kind: 'price', field: 'price', from: 100, to: 90 },
-      }),
+      })
     );
     await eventRepo.save(event);
 

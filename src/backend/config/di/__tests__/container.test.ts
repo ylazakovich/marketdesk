@@ -9,7 +9,7 @@
 
 import type { Pool } from 'pg';
 import type { Redis } from 'ioredis';
-import { buildContainer, type ManagedQueue } from '../container';
+import { buildBullAddOptions, buildContainer, type ManagedQueue } from '../container';
 import { buildApp } from '../../../presentation/http/app';
 import type { IAIProvider } from '../../../domain/ports/IAIProvider';
 
@@ -34,6 +34,7 @@ const fakeAi: IAIProvider = {
   generateTitle: async (product) => product.name,
   analyzeListing: async () => ({ score: 0, suggestions: [] }),
 };
+const validCredentialsKey = Buffer.alloc(32, 7).toString('base64');
 
 function makeQueue<T>(): ManagedQueue<T> {
   return {
@@ -49,6 +50,7 @@ function build() {
     redis: fakeRedis,
     aiProvider: fakeAi,
     idGenerator: () => 'fixed-id',
+    marketplaceCredentialsKey: validCredentialsKey,
     createQueue: <T>(_name: string) => makeQueue<T>(),
   });
 }
@@ -56,6 +58,26 @@ function build() {
 // --- Tests -------------------------------------------------------------------
 
 describe('buildContainer (composition root)', () => {
+  it('fails during container construction for an invalid credential-vault key', () => {
+    expect(() =>
+      buildContainer({
+        pool: fakePool,
+        redis: fakeRedis,
+        aiProvider: fakeAi,
+        marketplaceCredentialsKey: '',
+        createQueue: <T>(_name: string) => makeQueue<T>(),
+      })
+    ).toThrow('MARKETPLACE_CREDENTIALS_KEY');
+  });
+
+  it('retries checkpointed publish jobs with exponential backoff', () => {
+    expect(buildBullAddOptions('publish-listing')).toMatchObject({
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 1_000 },
+    });
+    expect(buildBullAddOptions('sync-marketplace')).not.toHaveProperty('attempts');
+  });
+
   it('populates every required AppDeps field', () => {
     const { deps } = build();
     expect(deps.productService).toBeDefined();
@@ -118,13 +140,12 @@ describe('buildContainer (composition root)', () => {
       redis: fakeRedis,
       aiProvider: fakeAi,
       idGenerator: () => 'fixed-id',
+      marketplaceCredentialsKey: validCredentialsKey,
       createQueue: capturingQueue,
     });
 
     expect(hermesHandler).toBeDefined();
-    await expect(
-      hermesHandler!({ workspaceId: 'missing', trigger: 'manual' }),
-    ).rejects.toThrow();
+    await expect(hermesHandler!({ workspaceId: 'missing', trigger: 'manual' })).rejects.toThrow();
   });
 
   it('exposes lifecycle handles and a resolving shutdown()', async () => {

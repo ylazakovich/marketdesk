@@ -1,7 +1,7 @@
 # OLX PL real API readiness
 
-This document tracks what MarketDesk can safely prepare before the OLX developer
-application/OAuth credentials are approved.
+This document tracks the implemented OAuth/publish path and the gates required
+before a real OLX listing is created.
 
 ## Current seller context
 
@@ -28,35 +28,54 @@ in the deployment `.env` or the platform secret store):
 ```env
 OLX_MARKET=PL
 OLX_ADAPTER_MODE=real
-OLX_API_BASE_URL=https://api.olx.pl/v1
+OLX_API_BASE_URL=https://www.olx.pl/api/partner
 OLX_CLIENT_ID=[REDACTED]
 OLX_CLIENT_SECRET=[REDACTED]
 OLX_REDIRECT_URI=https://<domain>/api/marketplaces/olx/oauth/callback
-OLX_ACCESS_TOKEN=[REDACTED]
-OLX_REFRESH_TOKEN=[REDACTED]
+OLX_OAUTH_SUCCESS_URL=https://<domain>/marketplaces
+OLX_AUTH_URL=https://www.olx.pl/oauth/authorize
+OLX_TOKEN_URL=https://www.olx.pl/api/open/oauth/token
+MARKETPLACE_CREDENTIALS_KEY=[REDACTED_BASE64_32_BYTES]
 OLX_LIVE_PUBLISH_ENABLED=false
 ```
 
-`OLX_ACCESS_TOKEN` / `OLX_REFRESH_TOKEN` are temporary placeholders for the first
-transport probe. The production implementation should replace them with per-
-workspace encrypted token storage plus refresh flow.
+Access and refresh tokens are obtained only through OAuth, encrypted with
+AES-256-GCM, and stored per marketplace account. They must not be copied into
+environment variables or logs.
 
 ## Prepared in code
 
 - Fetch-backed marketplace transport can be wired into the OLX adapter.
 - Real transport is opt-in via `OLX_ADAPTER_MODE=real`.
-- Live `POST /user/ads` is blocked unless `OLX_LIVE_PUBLISH_ENABLED=true`.
+- Live Partner API `POST /adverts` is blocked unless
+  `OLX_LIVE_PUBLISH_ENABLED=true`.
+- `POST /api/marketplaces/:id/connect` creates a short-lived one-time OAuth state.
+- `GET /api/marketplaces/olx/oauth/callback` exchanges the code and persists the
+  encrypted account credentials before marking the marketplace connected.
+- `GET /api/marketplaces/:id/check` reports app-authoritative account state without
+  exposing credentials.
+- Expired access tokens are refreshed and rotated before a real publish job.
+- Publish jobs contain `marketplaceId`; access tokens are resolved inside the
+  worker and are never placed in Redis job payloads.
 - Existing Product → Listing and publish-preview flows let us validate the final
   payload before attempting live publish.
 
-## Remaining implementation after approval
+## First live validation
 
-- OAuth connect/callback endpoints.
-- Encrypted per-workspace token storage and refresh-token rotation.
-- Full OLX PL taxonomy/category/location/required-params mapping.
-- Image upload flow and attachment IDs/URLs expected by OLX.
-- Read-only account/profile probe to verify the token before any publish.
-- Final live publish runbook with explicit human confirmation.
+The first manual run completed the full guarded path: browser OAuth callback,
+encrypted account persistence, warning-free preview, one-attempt queue publish,
+database finalization, authenticated Partner API readback, and anonymous public
+readback after the provider status became `active`. The concrete seller account,
+advert ID, contact details, and credentials are intentionally not recorded here.
+
+## Next stage
+
+- Resolve account-scoped OAuth credentials in the existing marketplace sync worker.
+- Reconcile remote advert status with local listing state.
+- Add scheduled polling or provider webhooks; stage 1 sync remains manual.
+- Expand OLX PL taxonomy/location/required-attribute mapping beyond the validated
+  category and location.
+- Harden media hosting for long-lived production use.
 
 ## AirPods 4 draft checklist
 

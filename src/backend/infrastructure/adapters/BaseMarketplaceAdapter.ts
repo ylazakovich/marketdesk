@@ -34,6 +34,35 @@ export interface MarketplaceAdapterOptions {
 const defaultSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
+const SENSITIVE_PROVIDER_KEYS =
+  /(access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization|password|phone|e[-_]?mail)/i;
+
+function sanitizeProviderBody(value: unknown, depth = 0): unknown {
+  if (depth > 5) return '[TRUNCATED]';
+  if (Array.isArray(value)) {
+    return value.slice(0, 25).map((item) => sanitizeProviderBody(item, depth + 1));
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([key, item]) => [
+        key,
+        SENSITIVE_PROVIDER_KEYS.test(key) ? '[REDACTED]' : sanitizeProviderBody(item, depth + 1),
+      ]),
+    );
+  }
+  return typeof value === 'string' && value.length > 500 ? `${value.slice(0, 500)}…` : value;
+}
+
+function providerErrorSuffix(body: unknown): string {
+  if (body === undefined || body === null || body === '') return '';
+  try {
+    const detail = JSON.stringify(sanitizeProviderBody(body));
+    return detail ? `: ${detail.slice(0, 2_000)}` : '';
+  } catch {
+    return '';
+  }
+}
+
 export abstract class BaseMarketplaceAdapter implements IMarketplaceAdapter {
   protected readonly maxRetries: number;
   protected readonly baseRetryDelayMs: number;
@@ -174,7 +203,10 @@ export abstract class BaseMarketplaceAdapter implements IMarketplaceAdapter {
       if (raw.status >= 500) {
         return new MarketplaceTransientError(`${label}: upstream error ${raw.status}`, raw);
       }
-      return new MarketplaceUnknownError(`${label}: HTTP ${raw.status}`, raw);
+      return new MarketplaceUnknownError(
+        `${label}: HTTP ${raw.status}${providerErrorSuffix(raw.body)}`,
+        raw,
+      );
     }
     const message = raw instanceof Error ? raw.message : String(raw);
     return new MarketplaceUnknownError(`${label}: ${message}`, raw);

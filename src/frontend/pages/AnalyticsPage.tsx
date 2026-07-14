@@ -16,6 +16,49 @@ import { StatCard } from '../components/common/StatCard.js';
 import { RevenueChart, ViewsChart, ConversionChart } from '../components/charts/index.js';
 import { AnalyticsTable } from '../components/tables/index.js';
 
+export interface AnalyticsDateRangeControlsProps {
+  from: string;
+  to: string;
+  onFromChange: (value: string) => void;
+  onToChange: (value: string) => void;
+}
+
+export const AnalyticsDateRangeControls: React.FC<AnalyticsDateRangeControlsProps> = ({
+  from,
+  to,
+  onFromChange,
+  onToChange,
+}) => (
+  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="stretch">
+    <Stack spacing={0.5} sx={{ minWidth: 160 }}>
+      <Typography component="label" variant="caption" color="text.secondary" htmlFor="analytics-from">
+        From
+      </Typography>
+      <TextField
+        id="analytics-from"
+        size="small"
+        type="date"
+        value={from}
+        onChange={(e) => onFromChange(e.target.value)}
+        inputProps={{ 'aria-label': 'From date' }}
+      />
+    </Stack>
+    <Stack spacing={0.5} sx={{ minWidth: 160 }}>
+      <Typography component="label" variant="caption" color="text.secondary" htmlFor="analytics-to">
+        To
+      </Typography>
+      <TextField
+        id="analytics-to"
+        size="small"
+        type="date"
+        value={to}
+        onChange={(e) => onToChange(e.target.value)}
+        inputProps={{ 'aria-label': 'To date' }}
+      />
+    </Stack>
+  </Stack>
+);
+
 const AnalyticsPage: React.FC = () => {
   const currency = useAppSelector((s) => s.workspace.currency);
 
@@ -43,34 +86,12 @@ const AnalyticsPage: React.FC = () => {
         title="Analytics"
         subtitle="Performance across marketplaces."
         actions={
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="stretch">
-            <Stack spacing={0.5} sx={{ minWidth: 160 }}>
-              <Typography component="label" variant="caption" color="text.secondary" htmlFor="analytics-from">
-                From
-              </Typography>
-              <TextField
-                id="analytics-from"
-                size="small"
-                type="date"
-                value={from}
-                onChange={(e) => setFrom(e.target.value)}
-                inputProps={{ 'aria-label': 'From date' }}
-              />
-            </Stack>
-            <Stack spacing={0.5} sx={{ minWidth: 160 }}>
-              <Typography component="label" variant="caption" color="text.secondary" htmlFor="analytics-to">
-                To
-              </Typography>
-              <TextField
-                id="analytics-to"
-                size="small"
-                type="date"
-                value={to}
-                onChange={(e) => setTo(e.target.value)}
-                inputProps={{ 'aria-label': 'To date' }}
-              />
-            </Stack>
-          </Stack>
+          <AnalyticsDateRangeControls
+            from={from}
+            to={to}
+            onFromChange={setFrom}
+            onToChange={setTo}
+          />
         }
       />
 

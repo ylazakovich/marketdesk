@@ -24,9 +24,9 @@ export interface SyncedListing {
   status: ListingStatus;
   remoteStatus?: string;
   missing?: boolean;
-  views: number;
-  watchers: number;
-  messages: number;
+  views?: number | null;
+  watchers?: number | null;
+  messages?: number | null;
 }
 
 export interface IMarketplaceAdapter {

@@ -78,7 +78,7 @@ export interface OlxAdapterConfig {
 interface OlxAdvertResponse {
   id: string | number;
   status: string;
-  metrics?: { views?: number; favorites?: number; messages?: number };
+  metrics?: { views?: unknown; favorites?: unknown; messages?: unknown };
 }
 
 interface OlxResponseEnvelope<T> {
@@ -246,10 +246,17 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
       externalListingId: String(data.id),
       status: OLX_STATUS_TO_LOCAL[remoteStatus] ?? 'draft',
       remoteStatus,
-      views: data.metrics?.views ?? 0,
-      watchers: data.metrics?.favorites ?? 0,
-      messages: data.metrics?.messages ?? 0,
+      views: this.parseCounter(data.metrics?.views),
+      watchers: this.parseCounter(data.metrics?.favorites),
+      messages: this.parseCounter(data.metrics?.messages),
     };
+  }
+
+  private parseCounter(value: unknown): number | null {
+    if (value === undefined || value === null) return null;
+    const parsed = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(parsed) || parsed < 0) return null;
+    return Math.trunc(parsed);
   }
 
   private assertPublishDetails(categoryId: number | undefined): asserts categoryId is number {

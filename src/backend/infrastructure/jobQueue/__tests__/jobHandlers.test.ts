@@ -465,6 +465,39 @@ describe('SyncMarketplaceHandler', () => {
     expect(adapter.sync).toHaveBeenCalledWith(['ext-1']);
   });
 
+  it('preserves existing engagement counters when OLX reports a metric as unavailable', async () => {
+    const synced: SyncedListing[] = [
+      { externalListingId: 'ext-1', status: 'live', views: null, watchers: 4, messages: null },
+    ];
+    const adapter = fakeAdapter({ sync: jest.fn(async () => synced) });
+    const { resolver } = resolverFor(adapter);
+    const listing = unwrap(
+      Listing.create({
+        id: 'l-1',
+        productId: 'p-1',
+        marketplaceId: 'm-1',
+        price: money(50),
+        status: 'live',
+        marketplaceListingId: 'ext-1',
+        publishedAt: new Date(),
+      })
+    );
+    listing.recordSyncStats({ views: 10, watchers: 2, messages: 1 });
+    const handler = new SyncMarketplaceHandler(resolver, {
+      listingStore: {
+        findByMarketplace: jest.fn(async () => [listing]),
+        saveAll: jest.fn(async () => undefined),
+      },
+    });
+
+    await handler.handle({ marketplaceKey: 'olx', marketplaceId: 'm-1', externalListingIds: ['ext-1'] });
+
+    expect(listing.views).toBe(10);
+    expect(listing.watchers).toBe(4);
+    expect(listing.messages).toBe(1);
+    expect(listing.lastSyncAt).not.toBeNull();
+  });
+
   it('records a marketplace sync error and rethrows when the adapter fails (C5)', async () => {
     const adapter = fakeAdapter({
       sync: jest.fn(async () => {

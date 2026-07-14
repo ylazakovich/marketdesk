@@ -187,9 +187,14 @@ export interface Listing {
   marketplaceListingId?: string;
   price: number;
   status: ListingStatus;
-  views: number;
-  watchers: number;
-  messages: number;
+  views: number | null;
+  watchers: number | null;
+  messages: number | null;
+  metricsAvailability?: {
+    views: boolean;
+    watchers: boolean;
+    messages: boolean;
+  };
   publishedAt?: string;
   expiresAt?: string;
   syncError?: string;

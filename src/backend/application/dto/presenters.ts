@@ -48,6 +48,11 @@ export function presentListing(listing: Listing): ListingView {
     views: listing.views,
     watchers: listing.watchers,
     messages: listing.messages,
+    metricsAvailability: {
+      views: listing.views !== null,
+      watchers: listing.watchers !== null,
+      messages: listing.messages !== null,
+    },
     publishedAt: iso(listing.publishedAt),
     expiresAt: iso(listing.expiresAt),
     syncError: listing.syncError ?? undefined,

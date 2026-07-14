@@ -8,6 +8,10 @@ import type { IListingRepository } from '../../domain/repositories/interfaces/IL
 import type { IMarketplaceRepository } from '../../domain/repositories/interfaces/IMarketplaceRepository';
 import type { ProductStatus, ListingStatus } from '../../../shared/types';
 
+function counter(value: number | null): number {
+  return value ?? 0;
+}
+
 export interface DashboardMetrics {
   workspaceId: string;
   productCount: number;
@@ -70,9 +74,9 @@ export class AnalyticsApplicationService {
     let totalMessages = 0;
     for (const l of listings) {
       listingsByStatus[l.status] += 1;
-      totalViews += l.views;
-      totalWatchers += l.watchers;
-      totalMessages += l.messages;
+      totalViews += counter(l.views);
+      totalWatchers += counter(l.watchers);
+      totalMessages += counter(l.messages);
     }
 
     return {
@@ -111,9 +115,9 @@ export class AnalyticsApplicationService {
           marketplaceListingId: listing.marketplaceListingId,
           status: listing.status,
           price: listing.price.amount,
-          views: listing.views,
-          watchers: listing.watchers,
-          messages: listing.messages,
+          views: counter(listing.views),
+          watchers: counter(listing.watchers),
+          messages: counter(listing.messages),
         };
       })
       .sort((a, b) => b.views - a.views);

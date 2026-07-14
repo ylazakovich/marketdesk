@@ -73,7 +73,7 @@ describe('OLXAdapter', () => {
     ]);
   });
 
-  it('maps a synced OLX ad to the domain SyncedListing shape', async () => {
+  it('maps a synced OLX ad without metrics as unavailable rather than zero', async () => {
     const http = mockClient(() => ({
       status: 200,
       data: { data: { id: 9, status: 'active' } },
@@ -86,9 +86,9 @@ describe('OLXAdapter', () => {
       externalListingId: '9',
       status: 'live',
       remoteStatus: 'active',
-      views: 0,
-      watchers: 0,
-      messages: 0,
+      views: null,
+      watchers: null,
+      messages: null,
     });
   });
 
@@ -118,6 +118,31 @@ describe('OLXAdapter', () => {
     });
   });
 
+  it('maps supported OLX engagement counters and parses numeric strings safely', async () => {
+    const http = mockClient(() => ({
+      status: 200,
+      data: {
+        data: {
+          id: 9,
+          status: 'active',
+          metrics: { views: '42', favorites: 3, messages: 0 },
+        },
+      },
+    }));
+    const adapter = new OLXAdapter(http, fastOptions);
+
+    const [synced] = await adapter.sync(['olx-9']);
+
+    expect(synced).toMatchObject({
+      externalListingId: '9',
+      status: 'live',
+      remoteStatus: 'active',
+      views: 42,
+      watchers: 3,
+      messages: 0,
+    });
+  });
+
   it('returns a missing sync record for OLX 404 without hiding auth or transport failures', async () => {
     const http = mockClient((config) => {
       if (config.url.endsWith('/adverts/missing')) throw new HttpError(404, 'not found');
@@ -140,6 +165,24 @@ describe('OLXAdapter', () => {
     await expect(adapter.sync(['rate-limited'])).rejects.toBeInstanceOf(
       MarketplaceRateLimitError,
     );
+  });
+
+  it('treats invalid, negative, and schema-changed OLX counters as unavailable', async () => {
+    const http = mockClient(() => ({
+      status: 200,
+      data: {
+        data: {
+          id: 9,
+          status: 'active',
+          metrics: { views: -1, favorites: 'not-a-number', messages: { count: 2 } },
+        },
+      },
+    }));
+    const adapter = new OLXAdapter(http, fastOptions);
+
+    const [synced] = await adapter.sync(['olx-9']);
+
+    expect(synced).toMatchObject({ views: null, watchers: null, messages: null });
   });
 
   it('fails closed before a live publish when required OLX details are missing', async () => {

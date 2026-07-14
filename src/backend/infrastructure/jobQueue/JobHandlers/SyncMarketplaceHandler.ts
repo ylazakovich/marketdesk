@@ -71,7 +71,8 @@ export class SyncMarketplaceHandler {
     let synced: SyncedListing[];
     try {
       const adapter = await this.createAdapter(data);
-      synced = await adapter.sync(data.externalListingIds);
+      const externalListingIds = await this.resolveExternalListingIds(data);
+      synced = await adapter.sync(externalListingIds);
     } catch (error) {
       // Record the failed sync attempt on the marketplace before surfacing the
       // error so the Bull job fails/retries and errorCount reflects reality.
@@ -102,6 +103,16 @@ export class SyncMarketplaceHandler {
       );
     }
     return this.adapters.create(data.marketplaceKey);
+  }
+
+  private async resolveExternalListingIds(data: SyncMarketplaceJobData): Promise<string[]> {
+    if (data.externalListingIds.length > 0) return data.externalListingIds;
+    const store = this.deps.listingStore;
+    if (!store) return [];
+    const listings = await store.findByMarketplace(data.marketplaceId);
+    return listings
+      .map((listing) => listing.marketplaceListingId)
+      .filter((id): id is string => id !== null && id.length > 0);
   }
 
   // Write fetched engagement stats and reconcile safe remote lifecycle states.

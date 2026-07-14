@@ -1,8 +1,12 @@
 import { createCorsOptions } from '../app';
 
 describe('createCorsOptions', () => {
-  function resolveOrigin(config: string | undefined, requestOrigin?: string): Promise<unknown> {
-    const origin = createCorsOptions(config).origin;
+  function resolveOrigin(
+    config: string | undefined,
+    requestOrigin?: string,
+    isProduction = false,
+  ): Promise<unknown> {
+    const origin = createCorsOptions(config, isProduction).origin;
     if (typeof origin !== 'function') throw new Error('expected functional CORS origin');
     return new Promise((resolve, reject) => {
       origin(requestOrigin, (error, value) => {
@@ -31,5 +35,23 @@ describe('createCorsOptions', () => {
 
   it('allows same-origin/server-to-server requests with no Origin header', async () => {
     await expect(resolveOrigin('https://app.example.com', undefined)).resolves.toBe(true);
+  });
+
+  it('rejects missing CORS_ORIGIN in production', () => {
+    expect(() => createCorsOptions(undefined, true)).toThrow(
+      'CORS_ORIGIN in production must be an explicit, non-wildcard allowlist',
+    );
+  });
+
+  it('rejects wildcard-only CORS_ORIGIN in production', () => {
+    expect(() => createCorsOptions('*', true)).toThrow(
+      'CORS_ORIGIN in production must be an explicit, non-wildcard allowlist',
+    );
+  });
+
+  it('rejects blank CORS_ORIGIN in production', () => {
+    expect(() => createCorsOptions('   ', true)).toThrow(
+      'CORS_ORIGIN in production must be an explicit, non-wildcard allowlist',
+    );
   });
 });

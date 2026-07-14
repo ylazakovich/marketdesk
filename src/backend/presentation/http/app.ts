@@ -23,6 +23,7 @@ import type { IdGenerator } from '../../application/ports/IdGenerator';
 import type { IAuthUserStore } from './ports/IAuthUserStore';
 
 import { NotFoundError } from '../../domain/shared/DomainError';
+import { isProduction } from '../../config/env';
 import { ProductController } from './controllers/ProductController';
 import { ListingController } from './controllers/ListingController';
 import { MarketplaceController } from './controllers/MarketplaceController';
@@ -58,8 +59,28 @@ export interface AppOptions {
 
 const DEFAULT_CORS_ORIGIN = 'http://localhost:5173';
 
-function parseCorsAllowlist(originConfig: string | undefined): Set<string> {
-  const configured = originConfig ?? DEFAULT_CORS_ORIGIN;
+function parseCorsAllowlist(
+  originConfig: string | undefined,
+  isProductionMode: boolean,
+): Set<string> {
+  const configured = (originConfig ?? '').trim();
+
+  if (isProductionMode) {
+    const configuredOrigins = configured
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean)
+      .filter((origin) => origin !== '*');
+
+    if (configuredOrigins.length === 0) {
+      throw new Error(
+        'CORS_ORIGIN in production must be an explicit, non-wildcard allowlist',
+      );
+    }
+
+    return new Set(configuredOrigins);
+  }
+
   const origins = configured
     .split(',')
     .map((origin) => origin.trim())
@@ -68,8 +89,8 @@ function parseCorsAllowlist(originConfig: string | undefined): Set<string> {
   return new Set(origins.length > 0 ? origins : [DEFAULT_CORS_ORIGIN]);
 }
 
-export function createCorsOptions(originConfig: string | undefined): CorsOptions {
-  const allowlist = parseCorsAllowlist(originConfig);
+export function createCorsOptions(originConfig: string | undefined, isProd = isProduction): CorsOptions {
+  const allowlist = parseCorsAllowlist(originConfig, isProd);
   return {
     origin: (requestOrigin, callback) => {
       if (!requestOrigin) {

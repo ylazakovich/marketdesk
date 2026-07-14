@@ -168,11 +168,6 @@ const HermesActivityPage: React.FC = () => {
           title="No Hermes activity"
           description="Run Hermes to generate optimisation suggestions for your listings."
           icon={<AutoAwesomeIcon sx={{ fontSize: 48 }} />}
-          action={
-            <Button variant="contained" startIcon={<AutoAwesomeIcon />} onClick={handleRun}>
-              Run Hermes
-            </Button>
-          }
         />
       ) : (
         <Stack spacing={2}>

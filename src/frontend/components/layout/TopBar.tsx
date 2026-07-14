@@ -82,6 +82,16 @@ export const TopBar: React.FC = () => {
         >
           New product
         </Button>
+        <Tooltip title="New product">
+          <IconButton
+            color="inherit"
+            onClick={() => navigate('/products?newProduct=1')}
+            aria-label="New product"
+            sx={{ display: { xs: 'inline-flex', sm: 'none' } }}
+          >
+            <AddIcon />
+          </IconButton>
+        </Tooltip>
 
         <Tooltip title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
           <IconButton onClick={() => dispatch(toggleTheme())} aria-label="Toggle theme">

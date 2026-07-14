@@ -23,6 +23,7 @@ import { ProductRepository } from '../../infrastructure/persistence/repositories
 import { ListingRepository } from '../../infrastructure/persistence/repositories/ListingRepository';
 import { MarketplaceRepository } from '../../infrastructure/persistence/repositories/MarketplaceRepository';
 import { MarketplaceAccountRepository } from '../../infrastructure/persistence/repositories/MarketplaceAccountRepository';
+import { PublishAttemptRepository } from '../../infrastructure/persistence/repositories/PublishAttemptRepository';
 import { EventRepository } from '../../infrastructure/persistence/repositories/EventRepository';
 import { WorkspaceRepository } from '../../infrastructure/persistence/repositories/WorkspaceRepository';
 import { ActivityLogRepository } from '../../infrastructure/persistence/repositories/ActivityLogRepository';
@@ -35,7 +36,10 @@ import {
   createEventPublisher,
   createRedisCache,
 } from '../../infrastructure/eventBroker/RedisWiring';
-import type { EventBroker, EventSubscriber } from '../../infrastructure/eventBroker/RedisEventBroker';
+import type {
+  EventBroker,
+  EventSubscriber,
+} from '../../infrastructure/eventBroker/RedisEventBroker';
 import type { RedisCache } from '../../infrastructure/cache/RedisCache';
 import { BullJobQueue } from '../../infrastructure/jobQueue/BullJobQueue';
 import { MarketplaceAdapterFactory } from '../../infrastructure/adapters/MarketplaceAdapterFactory';
@@ -100,9 +104,12 @@ export function buildBullAddOptions(name: string, options?: JobEnqueueOptions) {
   return {
     delay: options?.delayMs,
     jobId: options?.jobId,
-    // Publishing is a non-idempotent external POST. Never let Bull retry it:
-    // an ambiguous timeout after OLX accepted the advert could create duplicates.
-    ...(name === 'publish-listing' ? { attempts: 1 } : {}),
+    // Publish retries resume from the durable checkpoint and never repeat an
+    // ambiguous external POST. Backoff gives transient finalization failures time
+    // to recover without hot-looping the queue.
+    ...(name === 'publish-listing'
+      ? { attempts: 3, backoff: { type: 'exponential', delay: 1_000 } }
+      : {}),
   };
 }
 
@@ -204,8 +211,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
   createEmailProvider();
   createTelegramBot();
 
-  const createQueue =
-    overrides.createQueue ?? (<T>(name: string) => new BullManagedQueue<T>(name));
+  const createQueue = overrides.createQueue ?? (<T>(name: string) => new BullManagedQueue<T>(name));
 
   // 4. Repositories. They use the injected pool (or the module-level default if
   //    not overridden). An optional PoolClient can enlist them in an outer transaction.
@@ -213,6 +219,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
   const listingRepo = new ListingRepository(pool);
   const marketplaceRepo = new MarketplaceRepository(pool);
   const marketplaceAccountRepo = new MarketplaceAccountRepository(pool);
+  const publishAttemptRepo = new PublishAttemptRepository(pool);
   const eventRepo = new EventRepository(pool);
   const workspaceRepo = new WorkspaceRepository(pool);
   const activityLogRepo = new ActivityLogRepository(pool);
@@ -235,9 +242,9 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
       timeoutMs: env.marketplaces.olx.requestTimeoutMs,
     }),
     credentialVault: new AesGcmCredentialVault(
-      overrides.marketplaceCredentialsKey ?? env.marketplaceCredentialsKey,
+      overrides.marketplaceCredentialsKey ?? env.marketplaceCredentialsKey
     ),
-    refreshLock: new RedisMarketplaceOAuthRefreshLock(redis),
+    refreshLock: new RedisMarketplaceOAuthRefreshLock(redis, overrides.logger),
     idGenerator,
     stateGenerator: () => randomBytes(32).toString('base64url'),
   });
@@ -254,7 +261,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     listingRepo,
     productRepo,
     marketplaceRepo,
-    eventPublisher,
+    eventPublisher
   );
   const hermesEngine = new HermesDecisionEngine(
     productRepo,
@@ -262,14 +269,14 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     eventRepo,
     eventPublisher,
     aiProvider,
-    idGenerator,
+    idGenerator
   );
 
   // 7. Application use cases.
   const createProductUC = new CreateProductUseCase(
     productDomainService,
     workspaceRepo,
-    idGenerator,
+    idGenerator
   );
   const updateProductUC = new UpdateProductUseCase(productRepo, eventPublisher);
   const publishListingUC = new PublishListingUseCase(
@@ -279,13 +286,9 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     publishQueue,
     activityLogRepo,
     idGenerator,
-    marketplaceAccountRepo,
+    marketplaceAccountRepo
   );
-  const syncMarketplaceUC = new SyncMarketplaceUseCase(
-    marketplaceRepo,
-    listingRepo,
-    syncQueue,
-  );
+  const syncMarketplaceUC = new SyncMarketplaceUseCase(marketplaceRepo, listingRepo, syncQueue);
   const runHermesUC = new RunHermesUseCase(hermesEngine, workspaceRepo);
   const approveEventUC = new ApproveHermesEventUseCase(
     eventRepo,
@@ -297,31 +300,31 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     publishQueue,
     eventPublisher,
     idGenerator,
-    marketplaceAccountRepo,
+    marketplaceAccountRepo
   );
   const dismissEventUC = new DismissHermesEventUseCase(
     eventRepo,
     activityLogRepo,
     eventPublisher,
-    idGenerator,
+    idGenerator
   );
 
   // 8. Application services (the facades buildApp consumes).
   const productService = new ProductApplicationService(
     productRepo,
     createProductUC,
-    updateProductUC,
+    updateProductUC
   );
   const listingService = new ListingApplicationService(
     listingRepo,
     publishListingUC,
-    syncMarketplaceUC,
+    syncMarketplaceUC
   );
   const hermesService = new HermesApplicationService(
     eventRepo,
     runHermesUC,
     approveEventUC,
-    dismissEventUC,
+    dismissEventUC
   );
   const analyticsService = new AnalyticsApplicationService(productRepo, listingRepo);
 
@@ -342,6 +345,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
             livePublishEnabled: env.marketplaces.olx.livePublishEnabled,
           })
       : undefined,
+    publishAttemptRepo
   );
   publishQueue.registerHandler((data) => publishHandler.handle(data));
 

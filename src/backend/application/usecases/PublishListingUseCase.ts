@@ -31,7 +31,7 @@ export interface PublishEligibility {
 export function evaluatePublishEligibility(
   listing: Listing,
   product: Product,
-  marketplace: Marketplace,
+  marketplace: Marketplace
 ): PublishEligibility {
   const warnings: string[] = [];
   let error: GuardrailViolationError | InvalidStateError | undefined;
@@ -39,7 +39,7 @@ export function evaluatePublishEligibility(
   if (!marketplace.isConnected()) {
     warnings.push(`Marketplace ${marketplace.key} is not connected`);
     error ??= new GuardrailViolationError(
-      `Marketplace ${marketplace.key} must be connected before publishing`,
+      `Marketplace ${marketplace.key} must be connected before publishing`
     );
   }
   if (!product.canPublish()) {
@@ -62,7 +62,7 @@ export class PublishListingUseCase {
     private readonly publishQueue: IJobQueue<PublishListingJob>,
     private readonly activityLog: IActivityLogRepository,
     private readonly idGenerator: IdGenerator,
-    private readonly marketplaceAccountRepo?: MarketplaceAccountRepository,
+    private readonly marketplaceAccountRepo?: MarketplaceAccountRepository
   ) {}
 
   async execute(input: PublishListingDTO): Promise<Result<Listing>> {
@@ -91,26 +91,31 @@ export class PublishListingUseCase {
       if (!account || account.status !== 'connected') {
         return Err(
           new GuardrailViolationError(
-            `Marketplace ${marketplace.key} OAuth account must be connected before publishing`,
-          ),
+            `Marketplace ${marketplace.key} OAuth account must be connected before publishing`
+          )
         );
       }
     }
 
-    await this.publishQueue.enqueue({
-      marketplaceKey: marketplace.key,
-      marketplaceId: marketplace.id,
-      listingId: listing.id,
-      input: {
-        productName: product.name,
-        description: product.description,
-        price: listing.price.amount,
-        currency: listing.price.currency,
-        category: product.category,
-        condition: product.condition,
-        imageUrls: [...product.images],
+    const operationId = this.idGenerator();
+    await this.publishQueue.enqueue(
+      {
+        operationId,
+        marketplaceKey: marketplace.key,
+        marketplaceId: marketplace.id,
+        listingId: listing.id,
+        input: {
+          productName: product.name,
+          description: product.description,
+          price: listing.price.amount,
+          currency: listing.price.currency,
+          category: product.category,
+          condition: product.condition,
+          imageUrls: [...product.images],
+        },
       },
-    });
+      { jobId: `publish:${operationId}` }
+    );
 
     await this.activityLog.record({
       id: this.idGenerator(),

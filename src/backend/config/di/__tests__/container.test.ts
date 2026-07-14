@@ -66,12 +66,15 @@ describe('buildContainer (composition root)', () => {
         aiProvider: fakeAi,
         marketplaceCredentialsKey: '',
         createQueue: <T>(_name: string) => makeQueue<T>(),
-      }),
+      })
     ).toThrow('MARKETPLACE_CREDENTIALS_KEY');
   });
 
-  it('forces non-idempotent publish jobs to a single Bull attempt', () => {
-    expect(buildBullAddOptions('publish-listing')).toMatchObject({ attempts: 1 });
+  it('retries checkpointed publish jobs with exponential backoff', () => {
+    expect(buildBullAddOptions('publish-listing')).toMatchObject({
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 1_000 },
+    });
     expect(buildBullAddOptions('sync-marketplace')).not.toHaveProperty('attempts');
   });
 
@@ -142,9 +145,7 @@ describe('buildContainer (composition root)', () => {
     });
 
     expect(hermesHandler).toBeDefined();
-    await expect(
-      hermesHandler!({ workspaceId: 'missing', trigger: 'manual' }),
-    ).rejects.toThrow();
+    await expect(hermesHandler!({ workspaceId: 'missing', trigger: 'manual' })).rejects.toThrow();
   });
 
   it('exposes lifecycle handles and a resolving shutdown()', async () => {

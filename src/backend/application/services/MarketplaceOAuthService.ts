@@ -31,7 +31,7 @@ export interface MarketplaceAccountRecord {
 export interface MarketplaceAccountRepository {
   findByMarketplaceId(marketplaceId: string): Promise<MarketplaceAccountRecord | null>;
   upsert(
-    account: Omit<MarketplaceAccountRecord, 'createdAt' | 'updatedAt'>,
+    account: Omit<MarketplaceAccountRecord, 'createdAt' | 'updatedAt'>
   ): Promise<MarketplaceAccountRecord>;
 }
 
@@ -59,7 +59,14 @@ export interface MarketplaceCredentialVault {
 }
 
 export interface MarketplaceOAuthRefreshLock {
-  withLock<T>(marketplaceId: string, operation: () => Promise<T>): Promise<T>;
+  withLock<T>(
+    marketplaceId: string,
+    operation: (lease: MarketplaceOAuthRefreshLease) => Promise<T>
+  ): Promise<T>;
+}
+
+export interface MarketplaceOAuthRefreshLease {
+  assertOwned(): Promise<void>;
 }
 
 export interface MarketplaceOAuthServiceDeps {
@@ -107,8 +114,7 @@ function normalizeTokens(tokens: OlxOAuthTokens): OlxOAuthTokens {
     accessToken: requireValue(tokens.accessToken, 'OLX access token'),
     tokenType: tokens.tokenType || 'Bearer',
     scopes: [...new Set(tokens.scopes)],
-    expiresAt:
-      tokens.expiresAt instanceof Date ? tokens.expiresAt : new Date(tokens.expiresAt),
+    expiresAt: tokens.expiresAt instanceof Date ? tokens.expiresAt : new Date(tokens.expiresAt),
   };
 }
 
@@ -129,7 +135,7 @@ export class MarketplaceOAuthService {
   }): Promise<MarketplaceOAuthStartResult> {
     const marketplace = await this.requireOwnedOlxMarketplace(
       input.marketplaceId,
-      input.workspaceId,
+      input.workspaceId
     );
     const state = requireValue(this.deps.stateGenerator(), 'OAuth state');
     const expiresAt = new Date(this.now().getTime() + this.stateTtlSeconds * 1000);
@@ -165,7 +171,7 @@ export class MarketplaceOAuthService {
 
     const marketplace = await this.requireOwnedOlxMarketplace(
       context.marketplaceId,
-      context.workspaceId,
+      context.workspaceId
     );
 
     let tokens: OlxOAuthTokens;
@@ -196,7 +202,13 @@ export class MarketplaceOAuthService {
     // and durably persisted in marketplace_accounts.
     marketplace.connect();
     await this.deps.marketplaceRepo.save(marketplace);
-    return this.toStatus(marketplace.id, marketplace.key, marketplace.isConnected(), account, tokens);
+    return this.toStatus(
+      marketplace.id,
+      marketplace.key,
+      marketplace.isConnected(),
+      account,
+      tokens
+    );
   }
 
   async check(input: {
@@ -205,17 +217,11 @@ export class MarketplaceOAuthService {
   }): Promise<MarketplaceOAuthStatus> {
     const marketplace = await this.requireOwnedOlxMarketplace(
       input.marketplaceId,
-      input.workspaceId,
+      input.workspaceId
     );
     const account = await this.deps.accountRepo.findByMarketplaceId(marketplace.id);
     if (!account) {
-      return this.toStatus(
-        marketplace.id,
-        marketplace.key,
-        marketplace.isConnected(),
-        null,
-        null,
-      );
+      return this.toStatus(marketplace.id, marketplace.key, marketplace.isConnected(), null, null);
     }
 
     if (account.status !== 'connected') {
@@ -224,7 +230,7 @@ export class MarketplaceOAuthService {
         marketplace.key,
         marketplace.isConnected(),
         account,
-        null,
+        null
       );
     }
 
@@ -235,7 +241,7 @@ export class MarketplaceOAuthService {
         marketplace.key,
         marketplace.isConnected(),
         account,
-        tokens,
+        tokens
       );
     } catch {
       return this.toStatus(
@@ -243,7 +249,7 @@ export class MarketplaceOAuthService {
         marketplace.key,
         marketplace.isConnected(),
         { ...account, status: 'error' },
-        null,
+        null
       );
     }
   }
@@ -251,21 +257,29 @@ export class MarketplaceOAuthService {
   async disconnect(input: { marketplaceId: string; workspaceId: string }): Promise<void> {
     const marketplace = await this.requireOwnedOlxMarketplace(
       input.marketplaceId,
-      input.workspaceId,
+      input.workspaceId
     );
-    const account = await this.deps.accountRepo.findByMarketplaceId(marketplace.id);
-    if (account) {
-      await this.deps.accountRepo.upsert({
-        id: account.id,
-        marketplaceId: account.marketplaceId,
-        handle: account.handle,
-        credentials: {},
-        status: 'disconnected',
-        scopes: account.scopes,
-      });
+    const disconnect = async (lease?: MarketplaceOAuthRefreshLease): Promise<void> => {
+      const account = await this.deps.accountRepo.findByMarketplaceId(marketplace.id);
+      await lease?.assertOwned();
+      if (account) {
+        await this.deps.accountRepo.upsert({
+          id: account.id,
+          marketplaceId: account.marketplaceId,
+          handle: account.handle,
+          credentials: {},
+          status: 'disconnected',
+          scopes: account.scopes,
+        });
+      }
+      marketplace.disconnect();
+      await this.deps.marketplaceRepo.save(marketplace);
+    };
+    if (this.deps.refreshLock) {
+      await this.deps.refreshLock.withLock(marketplace.id, disconnect);
+    } else {
+      await disconnect();
     }
-    marketplace.disconnect();
-    await this.deps.marketplaceRepo.save(marketplace);
   }
 
   async getValidAccessToken(marketplaceId: string): Promise<string> {
@@ -279,13 +293,17 @@ export class MarketplaceOAuthService {
       return tokens.accessToken;
     }
 
-    const refresh = () => this.refreshAccessToken(marketplaceId);
+    const refresh = (lease?: MarketplaceOAuthRefreshLease) =>
+      this.refreshAccessToken(marketplaceId, lease);
     return this.deps.refreshLock
       ? this.deps.refreshLock.withLock(marketplaceId, refresh)
       : refresh();
   }
 
-  private async refreshAccessToken(marketplaceId: string): Promise<string> {
+  private async refreshAccessToken(
+    marketplaceId: string,
+    lease?: MarketplaceOAuthRefreshLease
+  ): Promise<string> {
     const account = await this.deps.accountRepo.findByMarketplaceId(marketplaceId);
     if (!account || account.status !== 'connected') {
       throw new InvalidStateError('OLX account is not connected');
@@ -303,7 +321,7 @@ export class MarketplaceOAuthService {
     let refreshed: OlxOAuthTokens;
     try {
       refreshed = normalizeTokens(
-        await this.deps.oauthClient.refreshAccessToken(tokens.refreshToken),
+        await this.deps.oauthClient.refreshAccessToken(tokens.refreshToken)
       );
     } catch (error) {
       if (error instanceof ConfigurationError) throw error;
@@ -311,6 +329,15 @@ export class MarketplaceOAuthService {
     }
     if (!refreshed.refreshToken) refreshed.refreshToken = tokens.refreshToken;
 
+    await lease?.assertOwned();
+    const current = await this.deps.accountRepo.findByMarketplaceId(marketplaceId);
+    if (
+      !current ||
+      current.status !== 'connected' ||
+      current.updatedAt.getTime() !== account.updatedAt.getTime()
+    ) {
+      throw new InvalidStateError('OLX account changed while its access token was refreshing');
+    }
     await this.deps.accountRepo.upsert({
       id: account.id,
       marketplaceId: account.marketplaceId,
@@ -334,7 +361,7 @@ export class MarketplaceOAuthService {
   private async requireOwnedOlxMarketplace(marketplaceId: string, workspaceId: string) {
     const marketplace = await this.deps.marketplaceRepo.findByIdForWorkspace(
       marketplaceId,
-      workspaceId,
+      workspaceId
     );
     if (!marketplace) {
       throw new NotFoundError(`Marketplace not found: ${marketplaceId}`);
@@ -350,10 +377,9 @@ export class MarketplaceOAuthService {
     providerKey: MarketplaceKey,
     marketplaceConnected: boolean,
     account: MarketplaceAccountRecord | null,
-    tokens: OlxOAuthTokens | null,
+    tokens: OlxOAuthTokens | null
   ): MarketplaceOAuthStatus {
-    const connected =
-      marketplaceConnected && account?.status === 'connected' && tokens !== null;
+    const connected = marketplaceConnected && account?.status === 'connected' && tokens !== null;
     return {
       connected,
       marketplaceId,

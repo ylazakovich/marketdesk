@@ -5,6 +5,8 @@ import {
 import {
   PublishListingHandler,
   ListingFinalizationError,
+  type PublishAttemptCheckpoint,
+  type PublishAttemptStore,
 } from '../JobHandlers/PublishListingHandler';
 import { HermesRunHandler, HermesEngine } from '../JobHandlers/HermesRunHandler';
 import type {
@@ -17,7 +19,7 @@ import type { MarketplaceKey } from '../../../../shared/types';
 import { Listing } from '../../../domain/entities/Listing';
 import { Marketplace } from '../../../domain/entities/Marketplace';
 import { Ok, Err } from '../../../domain/shared/Result';
-import { NotFoundError } from '../../../domain/shared/DomainError';
+import { NotFoundError, ServiceUnavailableError } from '../../../domain/shared/DomainError';
 import { unwrap, money } from '../../../domain/testkit/support';
 
 function fakeAdapter(overrides: Partial<IMarketplaceAdapter> = {}): IMarketplaceAdapter {
@@ -38,6 +40,36 @@ function resolverFor(adapter: IMarketplaceAdapter): {
 } {
   const create = jest.fn((_key: MarketplaceKey) => adapter);
   return { resolver: { create }, create };
+}
+
+function memoryPublishAttempts(): PublishAttemptStore {
+  const attempts = new Map<string, PublishAttemptCheckpoint>();
+  return {
+    find: async (operationId) => attempts.get(operationId) ?? null,
+    begin: async (operationId: string, listingId: string, marketplaceKey: MarketplaceKey) => {
+      const existing = attempts.get(operationId);
+      if (existing) return { created: false, checkpoint: existing };
+      const checkpoint: PublishAttemptCheckpoint = {
+        operationId,
+        listingId,
+        marketplaceKey,
+        status: 'publishing',
+        externalListingId: null,
+        publishedAt: null,
+      };
+      attempts.set(operationId, checkpoint);
+      return { created: true, checkpoint };
+    },
+    markPublished: async (operationId, result) => {
+      const existing = attempts.get(operationId)!;
+      attempts.set(operationId, {
+        ...existing,
+        status: 'published',
+        externalListingId: result.externalListingId,
+        publishedAt: result.publishedAt,
+      });
+    },
+  };
 }
 
 describe('SyncMarketplaceHandler', () => {
@@ -82,7 +114,7 @@ describe('SyncMarketplaceHandler', () => {
         status: 'live',
         marketplaceListingId: 'ext-1',
         publishedAt: new Date(),
-      }),
+      })
     );
     const saved: Listing[] = [];
     const listingStore = {
@@ -93,7 +125,7 @@ describe('SyncMarketplaceHandler', () => {
     };
 
     const marketplace = unwrap(
-      Marketplace.create({ id: 'm-1', workspaceId: 'w-1', key: 'olx', name: 'OLX' }),
+      Marketplace.create({ id: 'm-1', workspaceId: 'w-1', key: 'olx', name: 'OLX' })
     );
     marketplace.recordSyncError(); // errorCount = 1 so success reset is observable
     const marketplaceStore = {
@@ -130,7 +162,7 @@ describe('SyncMarketplaceHandler', () => {
     });
     const { resolver } = resolverFor(adapter);
     const marketplace = unwrap(
-      Marketplace.create({ id: 'm-1', workspaceId: 'w-1', key: 'olx', name: 'OLX' }),
+      Marketplace.create({ id: 'm-1', workspaceId: 'w-1', key: 'olx', name: 'OLX' })
     );
     const marketplaceStore = {
       findById: jest.fn(async () => marketplace),
@@ -139,7 +171,7 @@ describe('SyncMarketplaceHandler', () => {
     const handler = new SyncMarketplaceHandler(resolver, { marketplaceStore });
 
     await expect(
-      handler.handle({ marketplaceKey: 'olx', marketplaceId: 'm-1', externalListingIds: [] }),
+      handler.handle({ marketplaceKey: 'olx', marketplaceId: 'm-1', externalListingIds: [] })
     ).rejects.toThrow('adapter down');
     expect(marketplace.errorCount).toBe(1);
     expect(marketplaceStore.save).toHaveBeenCalled();
@@ -173,6 +205,7 @@ describe('PublishListingHandler', () => {
     const handler = new PublishListingHandler(resolver, events);
 
     const result = await handler.handle({
+      operationId: 'op-1',
       marketplaceKey: 'olx',
       marketplaceId: 'm-1',
       listingId: 'l-1',
@@ -200,10 +233,11 @@ describe('PublishListingHandler', () => {
       undefined,
       undefined,
       tokenProvider,
-      clientFactory,
+      clientFactory
     );
 
     await handler.handle({
+      operationId: 'op-1',
       marketplaceKey: 'olx',
       marketplaceId: 'm-1',
       listingId: 'l-oauth',
@@ -220,7 +254,13 @@ describe('PublishListingHandler', () => {
     const { resolver } = resolverFor(adapter);
     const handler = new PublishListingHandler(resolver);
     await expect(
-      handler.handle({ marketplaceKey: 'olx', marketplaceId: 'm-1', listingId: 'l-2', input }),
+      handler.handle({
+        operationId: 'op-1',
+        marketplaceKey: 'olx',
+        marketplaceId: 'm-1',
+        listingId: 'l-2',
+        input,
+      })
     ).resolves.toMatchObject({ listingId: 'l-2', finalized: false });
   });
 
@@ -237,6 +277,7 @@ describe('PublishListingHandler', () => {
     const handler = new PublishListingHandler(resolver, events, { publishListing });
 
     const result = await handler.handle({
+      operationId: 'op-1',
       marketplaceKey: 'olx',
       marketplaceId: 'm-1',
       listingId: 'l-3',
@@ -244,11 +285,7 @@ describe('PublishListingHandler', () => {
     });
 
     // The listing was finalized with the adapter-returned external id + timestamp.
-    expect(publishListing).toHaveBeenCalledWith(
-      'l-3',
-      'olx-99',
-      publishResult.publishedAt,
-    );
+    expect(publishListing).toHaveBeenCalledWith('l-3', 'olx-99', publishResult.publishedAt);
     expect(result.finalized).toBe(true);
     // The handler must NOT double-emit; the finalizer owns the canonical event.
     expect(published).toHaveLength(0);
@@ -260,27 +297,28 @@ describe('PublishListingHandler', () => {
     const { resolver } = resolverFor(adapter);
     const getValidAccessToken = jest
       .fn<Promise<string>, [string]>()
-      .mockRejectedValueOnce(new Error('temporary OAuth failure'))
+      .mockRejectedValueOnce(new ServiceUnavailableError('temporary OAuth failure'))
       .mockResolvedValue('workspace-access-token');
     const publishListing = jest
       .fn()
-      .mockResolvedValueOnce(Err(new NotFoundError('temporary database failure')))
+      .mockResolvedValueOnce(Err(new ServiceUnavailableError('temporary database failure')))
       .mockResolvedValue(Ok({} as unknown as Listing));
     const handler = new PublishListingHandler(
       resolver,
       undefined,
       { publishListing },
       { getValidAccessToken },
-      () => ({ request: jest.fn() }),
+      () => ({ request: jest.fn() })
     );
 
     await expect(
       handler.handle({
+        operationId: 'op-1',
         marketplaceKey: 'olx',
         marketplaceId: 'm-1',
         listingId: 'l-safe-retry',
         input,
-      }),
+      })
     ).resolves.toMatchObject({ finalized: true });
 
     expect(getValidAccessToken).toHaveBeenCalledTimes(2);
@@ -288,8 +326,81 @@ describe('PublishListingHandler', () => {
     expect(publishListing).toHaveBeenCalledTimes(2);
   });
 
-  it('throws (does NOT report success) when finalization fails after a successful publish (CR3)', async () => {
+  it('does not retry permanent finalization failures', async () => {
     const adapter = fakeAdapter({ publish: jest.fn(async () => publishResult) });
+    const { resolver } = resolverFor(adapter);
+    const publishListing = jest.fn(async () => Err(new NotFoundError('Listing missing')));
+    const handler = new PublishListingHandler(resolver, undefined, { publishListing });
+
+    await expect(
+      handler.handle({
+        operationId: 'op-1',
+        marketplaceKey: 'olx',
+        marketplaceId: 'm-1',
+        listingId: 'l-permanent',
+        input,
+      })
+    ).rejects.toBeInstanceOf(ListingFinalizationError);
+    expect(publishListing).toHaveBeenCalledTimes(1);
+  });
+
+  it('resumes finalization from a durable checkpoint without re-publishing', async () => {
+    const publish = jest.fn(async () => publishResult);
+    const adapter = fakeAdapter({ publish });
+    const { resolver } = resolverFor(adapter);
+    const attempts = memoryPublishAttempts();
+    const first = new PublishListingHandler(
+      resolver,
+      undefined,
+      {
+        publishListing: jest.fn(async () =>
+          Err(new ServiceUnavailableError('database unavailable'))
+        ),
+      },
+      undefined,
+      undefined,
+      attempts
+    );
+
+    await expect(
+      first.handle({
+        operationId: 'op-1',
+        marketplaceKey: 'olx',
+        marketplaceId: 'm-1',
+        listingId: 'l-checkpoint',
+        input,
+      })
+    ).rejects.toBeInstanceOf(ListingFinalizationError);
+
+    const secondFinalizer = jest.fn(async () => Ok({} as unknown as Listing));
+    const second = new PublishListingHandler(
+      resolver,
+      undefined,
+      { publishListing: secondFinalizer },
+      undefined,
+      undefined,
+      attempts
+    );
+    await expect(
+      second.handle({
+        operationId: 'op-1',
+        marketplaceKey: 'olx',
+        marketplaceId: 'm-1',
+        listingId: 'l-checkpoint',
+        input,
+      })
+    ).resolves.toMatchObject({ finalized: true });
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(secondFinalizer).toHaveBeenCalledWith(
+      'l-checkpoint',
+      publishResult.externalListingId,
+      publishResult.publishedAt
+    );
+  });
+
+  it('throws (does NOT report success) when finalization fails after a successful publish (CR3)', async () => {
+    const publish = jest.fn(async () => publishResult);
+    const adapter = fakeAdapter({ publish });
     const { resolver } = resolverFor(adapter);
     const published: DomainEvent[] = [];
     const events: IEventPublisher = {
@@ -297,23 +408,41 @@ describe('PublishListingHandler', () => {
         published.push(e);
       },
     };
-    const publishListing = jest.fn(async () =>
-      Err(new NotFoundError('Listing not found: l-4')),
+    const publishListing = jest.fn(async () => Err(new NotFoundError('Listing not found: l-4')));
+    const handler = new PublishListingHandler(
+      resolver,
+      events,
+      { publishListing },
+      undefined,
+      undefined,
+      memoryPublishAttempts()
     );
-    const handler = new PublishListingHandler(resolver, events, { publishListing });
 
     // The remote listing was created but the DB was not updated: the handler must
-    // surface the failure (so Bull retries) and NOT emit a fake success event.
+    // surface the failure (so Bull retries from the checkpoint) and NOT emit a fake success event.
     await expect(
-      handler.handle({ marketplaceKey: 'olx', marketplaceId: 'm-1', listingId: 'l-4', input }),
+      handler.handle({
+        operationId: 'op-1',
+        marketplaceKey: 'olx',
+        marketplaceId: 'm-1',
+        listingId: 'l-4',
+        input,
+      })
     ).rejects.toBeInstanceOf(ListingFinalizationError);
     expect(published).toHaveLength(0);
-    // The carried externalListingId lets a retry reconcile without re-publishing.
+    // The durable checkpoint lets a retry reconcile without re-publishing.
     await handler
-      .handle({ marketplaceKey: 'olx', marketplaceId: 'm-1', listingId: 'l-4', input })
+      .handle({
+        operationId: 'op-1',
+        marketplaceKey: 'olx',
+        marketplaceId: 'm-1',
+        listingId: 'l-4',
+        input,
+      })
       .catch((err: ListingFinalizationError) => {
         expect(err.externalListingId).toBe('olx-99');
       });
+    expect(publish).toHaveBeenCalledTimes(1);
   });
 
   it('on retry with an already-published listing, finalizes WITHOUT calling adapter.publish again (CR2/CR3)', async () => {
@@ -333,6 +462,7 @@ describe('PublishListingHandler', () => {
     });
 
     const result = await handler.handle({
+      operationId: 'op-1',
       marketplaceKey: 'olx',
       marketplaceId: 'm-1',
       listingId: 'l-5',
@@ -361,6 +491,7 @@ describe('PublishListingHandler', () => {
     });
 
     const result = await handler.handle({
+      operationId: 'op-1',
       marketplaceKey: 'olx',
       marketplaceId: 'm-1',
       listingId: 'l-6',

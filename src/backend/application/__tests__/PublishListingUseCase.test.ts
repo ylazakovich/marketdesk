@@ -9,11 +9,7 @@ import {
   unwrap,
   money,
 } from '../../domain/testkit/support';
-import {
-  InMemoryActivityLogRepository,
-  RecordingJobQueue,
-  idFactory,
-} from '../testkit/support';
+import { InMemoryActivityLogRepository, RecordingJobQueue, idFactory } from '../testkit/support';
 import type { PublishListingJob } from '../ports/IJobQueue';
 import type { MarketplaceAccountRepository } from '../services/MarketplaceOAuthService';
 
@@ -57,10 +53,10 @@ function setup(connected: boolean, oauthAccount: 'connected' | 'missing' | 'lega
       condition: 'good',
       category: 'home',
       images: ['a.jpg'],
-    }),
+    })
   );
   const marketplace = unwrap(
-    Marketplace.create({ id: 'mp-1', workspaceId: 'ws-1', key: 'olx', name: 'OLX', connected }),
+    Marketplace.create({ id: 'mp-1', workspaceId: 'ws-1', key: 'olx', name: 'OLX', connected })
   );
   const listing = unwrap(
     Listing.create({
@@ -68,7 +64,7 @@ function setup(connected: boolean, oauthAccount: 'connected' | 'missing' | 'lega
       productId: 'prod-1',
       marketplaceId: 'mp-1',
       price: money(100),
-    }),
+    })
   );
   productRepo.items.set(product.id, product);
   marketplaceRepo.items.set(marketplace.id, marketplace);
@@ -81,7 +77,7 @@ function setup(connected: boolean, oauthAccount: 'connected' | 'missing' | 'lega
     publishQueue,
     activityLog,
     idFactory('rec'),
-    accountRepo,
+    accountRepo
   );
   return { useCase, publishQueue, activityLog };
 }
@@ -105,10 +101,12 @@ describe('PublishListingUseCase', () => {
     expect(result.isOk()).toBe(true);
     expect(publishQueue.jobs).toHaveLength(1);
     expect(publishQueue.jobs[0].data).toMatchObject({
+      operationId: 'rec-1',
       marketplaceKey: 'olx',
       marketplaceId: 'mp-1',
       listingId: 'lst-1',
     });
+    expect(publishQueue.jobs[0].options).toEqual({ jobId: 'publish:rec-1' });
     expect(publishQueue.jobs[0].data.input.price).toBe(100);
     expect(activityLog.entries.map((e) => e.action)).toContain('listing.publish_requested');
   });

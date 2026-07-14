@@ -49,7 +49,7 @@ const initialTokens: OlxOAuthTokens = {
   expiresAt: new Date('2026-07-14T13:00:00.000Z'),
 };
 
-function setup() {
+function setup(refreshLock?: MarketplaceOAuthServiceDeps['refreshLock']) {
   const marketplaceRepo = new InMemoryMarketplaceRepository();
   const marketplace = unwrap(
     Marketplace.create({
@@ -87,6 +87,7 @@ function setup() {
     stateStore,
     oauthClient,
     credentialVault: vault,
+    refreshLock,
     idGenerator: () => `account-${++nonce}`,
     stateGenerator: () => 'oauth-state',
     now: () => new Date('2026-07-14T12:00:00.000Z'),
@@ -182,5 +183,57 @@ describe('MarketplaceOAuthService', () => {
     const saved = accountRepo.accounts.get(marketplace.id)!;
     const savedTokens = (saved.credentials.payload as OlxOAuthTokens);
     expect(savedTokens.refreshToken).toBe('rotated-refresh-token');
+  });
+
+  it('clears stored credentials when disconnecting', async () => {
+    const { service, marketplace, accountRepo } = setup();
+    await service.start({ marketplaceId: marketplace.id, workspaceId: 'ws-1' });
+    await service.complete({ providerKey: 'olx', code: 'code', state: 'oauth-state' });
+
+    await service.disconnect({ marketplaceId: marketplace.id, workspaceId: 'ws-1' });
+
+    expect(accountRepo.accounts.get(marketplace.id)).toMatchObject({
+      status: 'disconnected',
+      credentials: {},
+    });
+    const status = await service.check({ marketplaceId: marketplace.id, workspaceId: 'ws-1' });
+    expect(status.connected).toBe(false);
+    expect(status.account?.status).toBe('disconnected');
+  });
+
+  it('re-reads credentials while holding the refresh lock', async () => {
+    let accountRepo: InMemoryAccountRepository;
+    const withLock = jest.fn(async (_marketplaceId: string, operation: () => Promise<string>) => {
+      const current = accountRepo.accounts.get('marketplace-olx')!;
+      await accountRepo.upsert({
+        ...current,
+        credentials: {
+          payload: {
+            ...initialTokens,
+            accessToken: 'already-refreshed-token',
+            expiresAt: new Date('2026-07-14T14:00:00.000Z'),
+          },
+        },
+      });
+      return operation();
+    });
+    const setupResult = setup({ withLock });
+    accountRepo = setupResult.accountRepo;
+    await accountRepo.upsert({
+      id: 'account-1',
+      marketplaceId: setupResult.marketplace.id,
+      handle: 'OLX account',
+      credentials: {
+        payload: { ...initialTokens, expiresAt: new Date('2026-07-14T11:59:00.000Z') },
+      },
+      status: 'connected',
+      scopes: ['basic'],
+    });
+
+    await expect(
+      setupResult.service.getValidAccessToken(setupResult.marketplace.id),
+    ).resolves.toBe('already-refreshed-token');
+    expect(withLock).toHaveBeenCalledWith(setupResult.marketplace.id, expect.any(Function));
+    expect(setupResult.refreshAccessToken).not.toHaveBeenCalled();
   });
 });

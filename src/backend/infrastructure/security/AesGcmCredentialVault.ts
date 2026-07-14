@@ -27,12 +27,15 @@ function isEnvelope(value: Record<string, unknown>): value is Record<string, unk
 }
 
 export class AesGcmCredentialVault implements MarketplaceCredentialVault {
-  constructor(private readonly encodedKey: string) {}
+  private readonly key: Buffer;
+
+  constructor(encodedKey: string) {
+    this.key = AesGcmCredentialVault.decodeKey(encodedKey);
+  }
 
   encrypt(tokens: OlxOAuthTokens): Record<string, unknown> {
-    const key = this.getKey();
     const iv = randomBytes(12);
-    const cipher = createCipheriv('aes-256-gcm', key, iv);
+    const cipher = createCipheriv('aes-256-gcm', this.key, iv);
     const plaintext = Buffer.from(JSON.stringify(tokens), 'utf8');
     const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
 
@@ -51,7 +54,7 @@ export class AesGcmCredentialVault implements MarketplaceCredentialVault {
     }
     const decipher = createDecipheriv(
       'aes-256-gcm',
-      this.getKey(),
+      this.key,
       Buffer.from(credentials.iv, 'base64'),
     );
     decipher.setAuthTag(Buffer.from(credentials.authTag, 'base64'));
@@ -65,9 +68,9 @@ export class AesGcmCredentialVault implements MarketplaceCredentialVault {
     return { ...decoded, expiresAt: new Date(decoded.expiresAt) };
   }
 
-  private getKey(): Buffer {
-    const key = Buffer.from(this.encodedKey, 'base64');
-    if (!this.encodedKey || key.length !== 32) {
+  private static decodeKey(encodedKey: string): Buffer {
+    const key = Buffer.from(encodedKey, 'base64');
+    if (!encodedKey || key.length !== 32) {
       throw new Error(
         'MARKETPLACE_CREDENTIALS_KEY must be a base64-encoded 32-byte key',
       );

@@ -137,7 +137,11 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
   ): Promise<void> {
     const body: Record<string, unknown> = {};
     if (changes.price !== undefined) {
-      body.price = { value: changes.price, currency: 'PLN', negotiable: false };
+      body.price = {
+        value: changes.price,
+        currency: 'PLN',
+        negotiable: this.config.priceNegotiable ?? false,
+      };
     }
     if (changes.description !== undefined) body.description = changes.description;
     if (changes.productName !== undefined) body.title = changes.productName;

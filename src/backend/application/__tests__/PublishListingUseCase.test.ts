@@ -113,6 +113,20 @@ describe('PublishListingUseCase', () => {
     expect(activityLog.entries.map((e) => e.action)).toContain('listing.publish_requested');
   });
 
+  it('enqueues with marketplaceId when the OAuth account is connected', async () => {
+    const { useCase, publishQueue } = setup(true, 'connected');
+
+    const result = await useCase.execute({ listingId: 'lst-1' });
+
+    expect(result.isOk()).toBe(true);
+    expect(publishQueue.jobs).toHaveLength(1);
+    expect(publishQueue.jobs[0].data).toMatchObject({
+      marketplaceKey: 'olx',
+      marketplaceId: 'mp-1',
+      listingId: 'lst-1',
+    });
+  });
+
   it('rejects publishing when the local flag is true but no OAuth account exists', async () => {
     const { useCase, publishQueue } = setup(true, 'missing');
 

@@ -26,6 +26,7 @@ import type { IPriceHistoryRecorder } from '../ports/IPriceHistoryRecorder';
 import type { IJobQueue, PublishListingJob } from '../ports/IJobQueue';
 import type { IdGenerator } from '../ports/IdGenerator';
 import type { ApproveEventDTO } from '../dto/ApproveEventDTO';
+import type { MarketplaceAccountRepository } from '../services/MarketplaceOAuthService';
 
 export class ApproveHermesEventUseCase {
   constructor(
@@ -38,6 +39,7 @@ export class ApproveHermesEventUseCase {
     private readonly publishQueue: IJobQueue<PublishListingJob>,
     private readonly eventPublisher: IEventPublisher,
     private readonly idGenerator: IdGenerator,
+    private readonly marketplaceAccountRepo?: MarketplaceAccountRepository,
   ) {}
 
   async execute(input: ApproveEventDTO): Promise<Result<HermesEvent>> {
@@ -169,6 +171,11 @@ export class ApproveHermesEventUseCase {
       const product = await this.productRepo.findById(listing.productId);
       const marketplace = await this.marketplaceRepo.findById(listing.marketplaceId);
       if (!product || !marketplace) continue;
+      if (!marketplace.isConnected()) continue;
+      if (this.marketplaceAccountRepo) {
+        const account = await this.marketplaceAccountRepo.findByMarketplaceId(marketplace.id);
+        if (!account || account.status !== 'connected') continue;
+      }
 
       await this.publishQueue.enqueue({
         marketplaceKey: marketplace.key,

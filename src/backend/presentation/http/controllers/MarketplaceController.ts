@@ -10,6 +10,7 @@ import type { SyncMode } from '../../../../shared/types';
 import { DomainError, InvalidStateError, NotFoundError } from '../../../domain/shared/DomainError';
 import { presentMarketplace } from '../../../application/dto/presenters';
 import { ok } from '../formatters/ResponseFormatter';
+import type { ErrorLogger } from '../middleware/ErrorHandlingMiddleware';
 
 
 function routeParam(value: string | string[] | undefined): string {
@@ -22,6 +23,7 @@ export class MarketplaceController {
     private readonly listings: ListingApplicationService,
     private readonly oauth: MarketplaceOAuthService,
     private readonly oauthReturnUrl: string,
+    private readonly logger?: ErrorLogger,
   ) {}
 
   list = async (req: Request, res: Response): Promise<void> => {
@@ -90,13 +92,18 @@ export class MarketplaceController {
       res.redirect(303, target.toString());
     } catch (error) {
       if (wantsJson) return next(error);
-      const target = new URL(this.oauthReturnUrl);
-      target.searchParams.set('oauth', 'error');
-      target.searchParams.set(
-        'code',
-        error instanceof DomainError ? error.code : 'INTERNAL_ERROR',
-      );
-      res.redirect(303, target.toString());
+      this.logger?.error({ error }, 'OLX OAuth callback failed');
+      try {
+        const target = new URL(this.oauthReturnUrl);
+        target.searchParams.set('oauth', 'error');
+        target.searchParams.set(
+          'code',
+          error instanceof DomainError ? error.code : 'INTERNAL_ERROR',
+        );
+        res.redirect(303, target.toString());
+      } catch {
+        next(error);
+      }
     }
   };
 
@@ -118,16 +125,21 @@ export class MarketplaceController {
       return next(new NotFoundError(`Marketplace not found: ${marketplaceId}`));
     }
     if (typeof req.body?.connected === 'boolean') {
-      if (req.body.connected && !marketplace.isConnected()) {
-        return next(
-          new InvalidStateError('Use POST /marketplaces/:id/connect to authorize with OAuth'),
-        );
+      if (req.body.connected) {
+        if (marketplace.key === 'olx' && !marketplace.isConnected()) {
+          return next(
+            new InvalidStateError('Use POST /marketplaces/:id/connect to authorize with OAuth'),
+          );
+        }
+        marketplace.connect();
       }
       if (!req.body.connected) {
-        await this.oauth.disconnect({
-          marketplaceId,
-          workspaceId: req.user!.workspaceId!,
-        });
+        if (marketplace.key === 'olx') {
+          await this.oauth.disconnect({
+            marketplaceId,
+            workspaceId: req.user!.workspaceId!,
+          });
+        }
         marketplace.disconnect();
       }
     }

@@ -2,6 +2,7 @@ import type {
   OlxOAuthClientPort,
   OlxOAuthTokens,
 } from '../../application/services/MarketplaceOAuthService';
+import { ConfigurationError } from '../../domain/shared/DomainError';
 
 interface OlxOAuthClientConfig {
   authorizationUrl: string;
@@ -26,7 +27,7 @@ interface OlxTokenResponse {
 
 function requiredConfig(value: string, name: string): string {
   const trimmed = value.trim();
-  if (!trimmed) throw new Error(`${name} is not configured`);
+  if (!trimmed) throw new ConfigurationError(`${name} is not configured`);
   return trimmed;
 }
 

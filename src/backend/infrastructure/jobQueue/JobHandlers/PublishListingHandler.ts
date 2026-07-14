@@ -5,7 +5,6 @@
 // application services.
 
 import type {
-  ListingPublishInput,
   PublishResult,
 } from '../../../domain/services/MarketplaceAdapter';
 import type { MarketplaceKey } from '../../../../shared/types';
@@ -15,13 +14,25 @@ import type { IEventPublisher } from '../../../domain/ports/IEventPublisher';
 import type { Result } from '../../../domain/shared/Result';
 import type { Listing } from '../../../domain/entities/Listing';
 import { InvalidStateError } from '../../../domain/shared/DomainError';
+import type { PublishListingJob } from '../../../application/ports/IJobQueue';
 
-export interface PublishListingJobData {
-  marketplaceKey: MarketplaceKey;
-  marketplaceId?: string;
-  // Internal listing id, carried for event correlation.
-  listingId: string;
-  input: ListingPublishInput;
+export type PublishListingJobData = PublishListingJob;
+
+async function retrySafePhase<T>(
+  operation: () => Promise<T>,
+  succeeded: (value: T) => boolean = () => true,
+  attempts = 3,
+): Promise<T> {
+  let lastValue: T | undefined;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      lastValue = await operation();
+      if (succeeded(lastValue) || attempt === attempts) return lastValue;
+    } catch (error) {
+      if (attempt === attempts) throw error;
+    }
+  }
+  return lastValue as T;
 }
 
 export interface PublishMarketplaceAdapterResolver {
@@ -60,10 +71,9 @@ export interface ListingFinalizer {
 }
 
 // Thrown when the adapter publish succeeded (a real, non-idempotent side effect
-// created the remote listing) but the DB finalization failed. The handler throws
-// this so the job records a failure and can retry — the retry short-circuits via
-// the idempotency probe above so it finalizes WITHOUT re-publishing. It carries
-// the externalListingId for reconciliation/alerting.
+// created the remote listing) but all safe in-process DB finalization attempts failed.
+// Bull must not retry the whole job because that could publish a duplicate; the
+// externalListingId is retained for manual reconciliation/alerting.
 export class ListingFinalizationError extends Error {
   constructor(
     readonly listingId: string,
@@ -74,7 +84,7 @@ export class ListingFinalizationError extends Error {
     super(
       `Marketplace publish succeeded for listing ${listingId} on ${marketplaceKey} ` +
         `(externalListingId=${externalListingId}) but DB finalization failed; ` +
-        `retry must finalize without re-publishing`,
+        `manual reconciliation is required without re-publishing`,
     );
     this.name = 'ListingFinalizationError';
   }
@@ -113,7 +123,9 @@ export class PublishListingHandler {
       if (!data.marketplaceId) {
         throw new InvalidStateError('Publish job is missing marketplaceId for OLX OAuth');
       }
-      const accessToken = await this.accessTokens.getValidAccessToken(data.marketplaceId);
+      const accessToken = await retrySafePhase(() =>
+        this.accessTokens!.getValidAccessToken(data.marketplaceId),
+      );
       adapter = this.adapters.create(
         data.marketplaceKey,
         this.authenticatedHttpClient(accessToken),
@@ -127,16 +139,18 @@ export class PublishListingHandler {
     // marketplaceListingId set, publishedAt recorded. ListingService.publishListing
     // persists the aggregate and emits the canonical `listing.published` event.
     if (this.listings) {
-      const finalizeResult = await this.listings.publishListing(
-        data.listingId,
-        result.externalListingId,
-        result.publishedAt,
+      const finalizeResult = await retrySafePhase(
+        () => this.listings!.publishListing(
+          data.listingId,
+          result.externalListingId,
+          result.publishedAt,
+        ),
+        (attempt) => attempt.isOk(),
       );
       if (finalizeResult.isErr()) {
         // CR3: the remote listing now EXISTS but the DB was not updated. Do not
-        // swallow this and report success — throw so the job fails and retries.
-        // The retry hits the idempotency guard above and finalizes without
-        // calling adapter.publish again (no duplicate).
+        // swallow this and report success. Safe finalization retries are exhausted;
+        // Bull itself must not rerun the non-idempotent publish job.
         throw new ListingFinalizationError(
           data.listingId,
           data.marketplaceKey,

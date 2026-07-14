@@ -174,6 +174,7 @@ describe('PublishListingHandler', () => {
 
     const result = await handler.handle({
       marketplaceKey: 'olx',
+      marketplaceId: 'm-1',
       listingId: 'l-1',
       input,
     });
@@ -219,7 +220,7 @@ describe('PublishListingHandler', () => {
     const { resolver } = resolverFor(adapter);
     const handler = new PublishListingHandler(resolver);
     await expect(
-      handler.handle({ marketplaceKey: 'olx', listingId: 'l-2', input }),
+      handler.handle({ marketplaceKey: 'olx', marketplaceId: 'm-1', listingId: 'l-2', input }),
     ).resolves.toMatchObject({ listingId: 'l-2', finalized: false });
   });
 
@@ -237,6 +238,7 @@ describe('PublishListingHandler', () => {
 
     const result = await handler.handle({
       marketplaceKey: 'olx',
+      marketplaceId: 'm-1',
       listingId: 'l-3',
       input,
     });
@@ -250,6 +252,40 @@ describe('PublishListingHandler', () => {
     expect(result.finalized).toBe(true);
     // The handler must NOT double-emit; the finalizer owns the canonical event.
     expect(published).toHaveLength(0);
+  });
+
+  it('retries transient token and finalization work without repeating publish', async () => {
+    const publish = jest.fn(async () => publishResult);
+    const adapter = fakeAdapter({ publish });
+    const { resolver } = resolverFor(adapter);
+    const getValidAccessToken = jest
+      .fn<Promise<string>, [string]>()
+      .mockRejectedValueOnce(new Error('temporary OAuth failure'))
+      .mockResolvedValue('workspace-access-token');
+    const publishListing = jest
+      .fn()
+      .mockResolvedValueOnce(Err(new NotFoundError('temporary database failure')))
+      .mockResolvedValue(Ok({} as unknown as Listing));
+    const handler = new PublishListingHandler(
+      resolver,
+      undefined,
+      { publishListing },
+      { getValidAccessToken },
+      () => ({ request: jest.fn() }),
+    );
+
+    await expect(
+      handler.handle({
+        marketplaceKey: 'olx',
+        marketplaceId: 'm-1',
+        listingId: 'l-safe-retry',
+        input,
+      }),
+    ).resolves.toMatchObject({ finalized: true });
+
+    expect(getValidAccessToken).toHaveBeenCalledTimes(2);
+    expect(publish).toHaveBeenCalledTimes(1);
+    expect(publishListing).toHaveBeenCalledTimes(2);
   });
 
   it('throws (does NOT report success) when finalization fails after a successful publish (CR3)', async () => {
@@ -269,12 +305,12 @@ describe('PublishListingHandler', () => {
     // The remote listing was created but the DB was not updated: the handler must
     // surface the failure (so Bull retries) and NOT emit a fake success event.
     await expect(
-      handler.handle({ marketplaceKey: 'olx', listingId: 'l-4', input }),
+      handler.handle({ marketplaceKey: 'olx', marketplaceId: 'm-1', listingId: 'l-4', input }),
     ).rejects.toBeInstanceOf(ListingFinalizationError);
     expect(published).toHaveLength(0);
     // The carried externalListingId lets a retry reconcile without re-publishing.
     await handler
-      .handle({ marketplaceKey: 'olx', listingId: 'l-4', input })
+      .handle({ marketplaceKey: 'olx', marketplaceId: 'm-1', listingId: 'l-4', input })
       .catch((err: ListingFinalizationError) => {
         expect(err.externalListingId).toBe('olx-99');
       });
@@ -298,6 +334,7 @@ describe('PublishListingHandler', () => {
 
     const result = await handler.handle({
       marketplaceKey: 'olx',
+      marketplaceId: 'm-1',
       listingId: 'l-5',
       input,
     });
@@ -325,6 +362,7 @@ describe('PublishListingHandler', () => {
 
     const result = await handler.handle({
       marketplaceKey: 'olx',
+      marketplaceId: 'm-1',
       listingId: 'l-6',
       input,
     });

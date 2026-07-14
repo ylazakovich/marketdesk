@@ -23,9 +23,8 @@ describe('AesGcmCredentialVault', () => {
   });
 
   it('fails closed when the configured key is missing or malformed', () => {
-    const missing = new AesGcmCredentialVault('');
-    expect(() => missing.encrypt(tokens)).toThrow('MARKETPLACE_CREDENTIALS_KEY');
-    expect(() => new AesGcmCredentialVault('not-base64').encrypt(tokens)).toThrow(
+    expect(() => new AesGcmCredentialVault('')).toThrow('MARKETPLACE_CREDENTIALS_KEY');
+    expect(() => new AesGcmCredentialVault('not-base64')).toThrow(
       'MARKETPLACE_CREDENTIALS_KEY',
     );
   });

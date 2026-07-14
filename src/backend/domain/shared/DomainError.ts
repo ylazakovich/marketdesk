@@ -2,6 +2,7 @@
 
 export type DomainErrorCode =
   | 'VALIDATION_ERROR'
+  | 'CONFIGURATION_ERROR'
   | 'INVALID_STATE'
   | 'NOT_FOUND'
   | 'CONFLICT'
@@ -23,6 +24,12 @@ export class DomainError extends Error {
 export class ValidationError extends DomainError {
   constructor(message: string) {
     super(message, 'VALIDATION_ERROR');
+  }
+}
+
+export class ConfigurationError extends DomainError {
+  constructor(message: string) {
+    super(message, 'CONFIGURATION_ERROR');
   }
 }
 

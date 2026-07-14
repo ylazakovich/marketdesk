@@ -151,6 +151,46 @@ describe('OLXAdapter', () => {
     expect(error.message).not.toContain('+48123456789');
   });
 
+  it('redacts sensitive provider field-name variants', async () => {
+    const adapter = new OLXAdapter(
+      mockClient(() => {
+        throw new HttpError(400, 'Bad Request', {
+          phone_number: '+48111111111',
+          contactPhone: '+48222222222',
+          seller_email: 'seller@example.test',
+          client_secret_id: 'secret-id',
+        });
+      }),
+      fastOptions,
+    );
+
+    const error = await adapter.publish(publishInput).catch((caught) => caught as Error);
+    expect(error.message.match(/\[REDACTED\]/g)).toHaveLength(4);
+    expect(error.message).not.toContain('+48111111111');
+    expect(error.message).not.toContain('seller@example.test');
+    expect(error.message).not.toContain('secret-id');
+  });
+
+  it('preserves configured price negotiability on updates', async () => {
+    let captured: HttpRequestConfig | undefined;
+    const adapter = new OLXAdapter(
+      mockClient((config) => {
+        captured = config;
+        return { status: 204, data: {} };
+      }),
+      fastOptions,
+      realConfig,
+    );
+
+    await adapter.updateListing('olx-1', { price: 299 });
+
+    expect((captured?.body as Record<string, unknown>).price).toEqual({
+      value: 299,
+      currency: 'PLN',
+      negotiable: true,
+    });
+  });
+
   it('retries retryable rate-limit failures then succeeds (idempotent updateListing)', async () => {
     let calls = 0;
     const http = mockClient(() => {

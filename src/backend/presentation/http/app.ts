@@ -145,6 +145,7 @@ export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
       deps.listingService,
       deps.marketplaceOAuthService,
       deps.marketplaceOAuthReturnUrl,
+      deps.logger,
     ),
     hermes: new HermesController(deps.hermesService),
     analytics: new AnalyticsController(deps.analyticsService),

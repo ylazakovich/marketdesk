@@ -41,6 +41,7 @@ import { BullJobQueue } from '../../infrastructure/jobQueue/BullJobQueue';
 import { MarketplaceAdapterFactory } from '../../infrastructure/adapters/MarketplaceAdapterFactory';
 import { FetchMarketplaceHttpClient } from '../../infrastructure/adapters/FetchMarketplaceHttpClient';
 import { RedisMarketplaceOAuthStateStore } from '../../infrastructure/cache/RedisMarketplaceOAuthStateStore';
+import { RedisMarketplaceOAuthRefreshLock } from '../../infrastructure/cache/RedisMarketplaceOAuthRefreshLock';
 import { AesGcmCredentialVault } from '../../infrastructure/security/AesGcmCredentialVault';
 import { OlxOAuthClient } from '../../infrastructure/external/OlxOAuthClient';
 import { env } from '../env';
@@ -134,6 +135,7 @@ export interface ContainerOverrides {
   aiProvider?: IAIProvider;
   idGenerator?: IdGenerator;
   logger?: ErrorLogger;
+  marketplaceCredentialsKey?: string;
   // Factory for background job queues. Overridable so tests avoid a live Bull/Redis.
   createQueue?: <T>(name: string) => ManagedQueue<T>;
 }
@@ -166,16 +168,15 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
   const idGenerator: IdGenerator = overrides.idGenerator ?? randomUUID;
   const aiProvider: IAIProvider =
     overrides.aiProvider ?? new HermesAI(new HermesCompletionClient());
+  const buildOlxHeaders = (accessToken?: string): Record<string, string> => ({
+    Accept: 'application/json',
+    Version: '2.0',
+    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+  });
   const olxHttpClient =
     env.marketplaces.olx.adapterMode === 'real'
       ? new FetchMarketplaceHttpClient({
-          defaultHeaders: {
-            Accept: 'application/json',
-            Version: '2.0',
-            ...(env.marketplaces.olx.accessToken
-              ? { Authorization: `Bearer ${env.marketplaces.olx.accessToken}` }
-              : {}),
-          },
+          defaultHeaders: buildOlxHeaders(env.marketplaces.olx.accessToken),
           timeoutMs: env.marketplaces.olx.requestTimeoutMs,
           livePublishEnabled: env.marketplaces.olx.livePublishEnabled,
         })
@@ -233,7 +234,10 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
         .filter(Boolean),
       timeoutMs: env.marketplaces.olx.requestTimeoutMs,
     }),
-    credentialVault: new AesGcmCredentialVault(env.marketplaceCredentialsKey),
+    credentialVault: new AesGcmCredentialVault(
+      overrides.marketplaceCredentialsKey ?? env.marketplaceCredentialsKey,
+    ),
+    refreshLock: new RedisMarketplaceOAuthRefreshLock(redis),
     idGenerator,
     stateGenerator: () => randomBytes(32).toString('base64url'),
   });
@@ -293,6 +297,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     publishQueue,
     eventPublisher,
     idGenerator,
+    marketplaceAccountRepo,
   );
   const dismissEventUC = new DismissHermesEventUseCase(
     eventRepo,
@@ -332,11 +337,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     env.marketplaces.olx.adapterMode === 'real'
       ? (accessToken) =>
           new FetchMarketplaceHttpClient({
-            defaultHeaders: {
-              Authorization: `Bearer ${accessToken}`,
-              Accept: 'application/json',
-              Version: '2.0',
-            },
+            defaultHeaders: buildOlxHeaders(accessToken),
             timeoutMs: env.marketplaces.olx.requestTimeoutMs,
             livePublishEnabled: env.marketplaces.olx.livePublishEnabled,
           })

@@ -23,6 +23,17 @@ describe('OlxOAuthClient', () => {
     expect(url.searchParams.get('state')).toBe('state-value');
   });
 
+  it('classifies missing configuration as a configuration error', () => {
+    const client = new OlxOAuthClient(
+      { ...config, clientId: '' },
+      jest.fn() as unknown as typeof fetch,
+    );
+
+    expect(() => client.buildAuthorizationUrl('state-value')).toThrow(
+      expect.objectContaining({ code: 'CONFIGURATION_ERROR' }),
+    );
+  });
+
   it('exchanges an authorization code using a form-encoded token request', async () => {
     const fetchMock = jest.fn(async () => ({
       ok: true,

@@ -35,7 +35,7 @@ const defaultSleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 const SENSITIVE_PROVIDER_KEYS =
-  /^(access_?token|refresh_?token|client_?secret|authorization|password|phone|email)$/i;
+  /(access[_-]?token|refresh[_-]?token|client[_-]?secret|authorization|password|phone|e[-_]?mail)/i;
 
 function sanitizeProviderBody(value: unknown, depth = 0): unknown {
   if (depth > 5) return '[TRUNCATED]';

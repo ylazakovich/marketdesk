@@ -1,6 +1,7 @@
 import type { MarketplaceAccountStatus, MarketplaceKey } from '../../../shared/types';
 import type { IMarketplaceRepository } from '../../domain/repositories/interfaces/IMarketplaceRepository';
 import {
+  ConfigurationError,
   InvalidStateError,
   NotFoundError,
   ServiceUnavailableError,
@@ -57,12 +58,17 @@ export interface MarketplaceCredentialVault {
   decrypt(credentials: Record<string, unknown>): OlxOAuthTokens;
 }
 
+export interface MarketplaceOAuthRefreshLock {
+  withLock<T>(marketplaceId: string, operation: () => Promise<T>): Promise<T>;
+}
+
 export interface MarketplaceOAuthServiceDeps {
   marketplaceRepo: IMarketplaceRepository;
   accountRepo: MarketplaceAccountRepository;
   stateStore: MarketplaceOAuthStateStore;
   oauthClient: OlxOAuthClientPort;
   credentialVault: MarketplaceCredentialVault;
+  refreshLock?: MarketplaceOAuthRefreshLock;
   idGenerator: () => string;
   stateGenerator: () => string;
   now?: () => Date;
@@ -105,6 +111,8 @@ function normalizeTokens(tokens: OlxOAuthTokens): OlxOAuthTokens {
       tokens.expiresAt instanceof Date ? tokens.expiresAt : new Date(tokens.expiresAt),
   };
 }
+
+const REFRESH_SKEW_MS = 60_000;
 
 export class MarketplaceOAuthService {
   private readonly now: () => Date;
@@ -164,7 +172,13 @@ export class MarketplaceOAuthService {
     try {
       tokens = normalizeTokens(await this.deps.oauthClient.exchangeAuthorizationCode(code));
     } catch (error) {
-      if (error instanceof ValidationError || error instanceof InvalidStateError) throw error;
+      if (
+        error instanceof ValidationError ||
+        error instanceof InvalidStateError ||
+        error instanceof ConfigurationError
+      ) {
+        throw error;
+      }
       throw new ServiceUnavailableError('OLX token exchange failed', error);
     }
 
@@ -204,6 +218,16 @@ export class MarketplaceOAuthService {
       );
     }
 
+    if (account.status !== 'connected') {
+      return this.toStatus(
+        marketplace.id,
+        marketplace.key,
+        marketplace.isConnected(),
+        account,
+        null,
+      );
+    }
+
     try {
       const tokens = normalizeTokens(this.deps.credentialVault.decrypt(account.credentials));
       return this.toStatus(
@@ -235,7 +259,7 @@ export class MarketplaceOAuthService {
         id: account.id,
         marketplaceId: account.marketplaceId,
         handle: account.handle,
-        credentials: account.credentials,
+        credentials: {},
         status: 'disconnected',
         scopes: account.scopes,
       });
@@ -250,15 +274,26 @@ export class MarketplaceOAuthService {
       throw new InvalidStateError('OLX account is not connected');
     }
 
-    let tokens: OlxOAuthTokens;
-    try {
-      tokens = normalizeTokens(this.deps.credentialVault.decrypt(account.credentials));
-    } catch {
-      throw new InvalidStateError('OLX credentials cannot be decrypted; reconnect is required');
+    const tokens = this.decryptTokens(account);
+    if (tokens.expiresAt.getTime() > this.now().getTime() + REFRESH_SKEW_MS) {
+      return tokens.accessToken;
     }
 
-    const refreshSkewMs = 60_000;
-    if (tokens.expiresAt.getTime() > this.now().getTime() + refreshSkewMs) {
+    const refresh = () => this.refreshAccessToken(marketplaceId);
+    return this.deps.refreshLock
+      ? this.deps.refreshLock.withLock(marketplaceId, refresh)
+      : refresh();
+  }
+
+  private async refreshAccessToken(marketplaceId: string): Promise<string> {
+    const account = await this.deps.accountRepo.findByMarketplaceId(marketplaceId);
+    if (!account || account.status !== 'connected') {
+      throw new InvalidStateError('OLX account is not connected');
+    }
+
+    // Another worker may have refreshed while this worker waited for the lock.
+    const tokens = this.decryptTokens(account);
+    if (tokens.expiresAt.getTime() > this.now().getTime() + REFRESH_SKEW_MS) {
       return tokens.accessToken;
     }
     if (!tokens.refreshToken) {
@@ -271,6 +306,7 @@ export class MarketplaceOAuthService {
         await this.deps.oauthClient.refreshAccessToken(tokens.refreshToken),
       );
     } catch (error) {
+      if (error instanceof ConfigurationError) throw error;
       throw new ServiceUnavailableError('OLX token refresh failed', error);
     }
     if (!refreshed.refreshToken) refreshed.refreshToken = tokens.refreshToken;
@@ -284,6 +320,15 @@ export class MarketplaceOAuthService {
       scopes: refreshed.scopes,
     });
     return refreshed.accessToken;
+  }
+
+  private decryptTokens(account: MarketplaceAccountRecord): OlxOAuthTokens {
+    try {
+      return normalizeTokens(this.deps.credentialVault.decrypt(account.credentials));
+    } catch (error) {
+      if (error instanceof ConfigurationError) throw error;
+      throw new InvalidStateError('OLX credentials cannot be decrypted; reconnect is required');
+    }
   }
 
   private async requireOwnedOlxMarketplace(marketplaceId: string, workspaceId: string) {

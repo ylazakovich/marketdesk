@@ -19,6 +19,10 @@ type AdapterConstructor = new (
   http?: MarketplaceHttpClient,
   options?: MarketplaceAdapterOptions,
 ) => IMarketplaceAdapter;
+type AdapterFactory = (
+  http?: MarketplaceHttpClient,
+  options?: MarketplaceAdapterOptions,
+) => IMarketplaceAdapter;
 
 export interface MarketplaceAdapterFactoryConfig {
   httpClients?: Partial<Record<MarketplaceKey, MarketplaceHttpClient>>;
@@ -27,10 +31,13 @@ export interface MarketplaceAdapterFactoryConfig {
 }
 
 export class MarketplaceAdapterFactory {
-  private readonly registry = new Map<MarketplaceKey, AdapterConstructor>();
+  private readonly registry = new Map<MarketplaceKey, AdapterFactory>();
 
   constructor(private readonly config: MarketplaceAdapterFactoryConfig = {}) {
-    this.register('olx', OLXAdapter);
+    this.registry.set(
+      'olx',
+      (http, options) => new OLXAdapter(http, options, this.config.olx),
+    );
     this.register('allegro', AllegroAdapter);
     this.register('vinted', VintedAdapter);
     this.register('facebook', FacebookAdapter);
@@ -39,7 +46,7 @@ export class MarketplaceAdapterFactory {
   }
 
   register(key: MarketplaceKey, ctor: AdapterConstructor): void {
-    this.registry.set(key, ctor);
+    this.registry.set(key, (http, options) => new ctor(http, options));
   }
 
   isSupported(key: MarketplaceKey): boolean {
@@ -54,20 +61,13 @@ export class MarketplaceAdapterFactory {
     http?: MarketplaceHttpClient,
     options?: MarketplaceAdapterOptions,
   ): IMarketplaceAdapter {
-    if (key === 'olx') {
-      return new OLXAdapter(
-        http ?? this.config.httpClients?.olx,
-        options ?? this.config.options?.olx,
-        this.config.olx,
-      );
-    }
-    const ctor = this.registry.get(key);
-    if (!ctor) {
+    const factory = this.registry.get(key);
+    if (!factory) {
       throw new MarketplaceNotImplementedError(
         `No marketplace adapter registered for key: ${key}`,
       );
     }
-    return new ctor(
+    return factory(
       http ?? this.config.httpClients?.[key],
       options ?? this.config.options?.[key],
     );

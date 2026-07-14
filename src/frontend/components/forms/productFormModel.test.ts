@@ -30,6 +30,15 @@ describe('productFormModel below-cost pricing', () => {
     expect(toProductSubmissionValues(validValues()).allowBelowCost).toBe(true);
   });
 
+  it('warns and marks zero-price submissions when cost is positive', () => {
+    const values = { ...validValues(), sellingPrice: 0 };
+
+    expect(validateProductValues(values)).toEqual({});
+    expect(marginWarning(values)).toContain('649');
+    expect(marginWarning(values)).toContain('zero selling price');
+    expect(toProductSubmissionValues(values).allowBelowCost).toBe(true);
+  });
+
   it('does not mark profitable submissions as below-cost', () => {
     const values = { ...validValues(), sellingPrice: 799 };
 

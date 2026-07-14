@@ -83,11 +83,14 @@ export function belowCostLoss(values: ProductFormValues): { amount: number; marg
   if (
     Number.isFinite(values.costPrice) &&
     Number.isFinite(values.sellingPrice) &&
-    values.sellingPrice > 0 &&
+    values.costPrice > 0 &&
     values.sellingPrice < values.costPrice
   ) {
     const amount = values.costPrice - values.sellingPrice;
-    const marginPercent = ((values.sellingPrice - values.costPrice) / values.sellingPrice) * 100;
+    const marginPercent =
+      values.sellingPrice === 0
+        ? -100
+        : ((values.sellingPrice - values.costPrice) / values.sellingPrice) * 100;
     return { amount, marginPercent };
   }
   return null;
@@ -97,6 +100,9 @@ export function belowCostLoss(values: ProductFormValues): { amount: number; marg
 export function marginWarning(values: ProductFormValues): string | null {
   const loss = belowCostLoss(values);
   if (!loss) return null;
+  if (values.sellingPrice === 0) {
+    return `Selling price is below cost — this listing would sell at a loss (${formatLossAmount(loss.amount)}, zero selling price).`;
+  }
   return `Selling price is below cost — this listing would sell at a loss (${formatLossAmount(loss.amount)}, ${loss.marginPercent.toFixed(1)}% margin).`;
 }
 

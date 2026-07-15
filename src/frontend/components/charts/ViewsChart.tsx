@@ -30,6 +30,16 @@ export function formatListingChartLabel(listing: ListingPerformance): string {
   return parts.length > 0 ? `${primary} (${parts.join(' · ')})` : primary;
 }
 
+export function buildViewsChartData(listings: ListingPerformance[] | undefined, topN: number) {
+  return [...(listings ?? [])]
+    .sort((a, b) => b.views - a.views)
+    .slice(0, topN)
+    .map((m) => ({
+      label: formatListingChartLabel(m),
+      views: m.views,
+    }));
+}
+
 export const ViewsChart: React.FC<ViewsChartProps> = ({
   params,
   height = 300,
@@ -38,13 +48,7 @@ export const ViewsChart: React.FC<ViewsChartProps> = ({
   const { data, isLoading, isError, error, refetch } = useAnalyticsListings(params ?? {});
   const colors = useChartColors();
 
-  const chartData = useMemo(() => {
-    const rows = [...(data ?? [])].sort((a, b) => b.views - a.views).slice(0, topN);
-    return rows.map((m) => ({
-      label: formatListingChartLabel(m),
-      views: m.views,
-    }));
-  }, [data, topN]);
+  const chartData = useMemo(() => buildViewsChartData(data, topN), [data, topN]);
 
   return (
     <ChartState

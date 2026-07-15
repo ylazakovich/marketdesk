@@ -1,4 +1,4 @@
-import { formatListingChartLabel } from './ViewsChart';
+import { buildViewsChartData, formatListingChartLabel } from './ViewsChart';
 import type { ListingPerformance } from '../../state/api/index.js';
 
 function listing(overrides: Partial<ListingPerformance> = {}): ListingPerformance {
@@ -38,5 +38,25 @@ describe('formatListingChartLabel', () => {
     expect(formatListingChartLabel(listing({ productName: null, marketplaceListingId: null }))).toBe(
       'Untitled listing (AIRPODS4-PL-001 · OLX)',
     );
+  });
+});
+
+describe('buildViewsChartData', () => {
+  it('uses readable labels in the chart data transformation and preserves top-view sorting', () => {
+    const rows = buildViewsChartData(
+      [
+        listing({ listingId: 'low', productName: 'Low views item', views: 1 }),
+        listing({ listingId: 'high', productName: 'High views item', views: 7 }),
+      ],
+      1,
+    );
+
+    expect(rows).toEqual([
+      {
+        label: 'High views item (AIRPODS4-PL-001 · OLX · 1085426829)',
+        views: 7,
+      },
+    ]);
+    expect(rows[0].label).not.toContain('fe1058c9-d577-4efb-bb0c-35fc1853b180');
   });
 });

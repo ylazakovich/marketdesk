@@ -236,7 +236,7 @@ async function build(): Promise<Ctx> {
     approveEventUC,
     dismissEventUC,
   );
-  const analyticsService = new AnalyticsApplicationService(productRepo, listingRepo);
+  const analyticsService = new AnalyticsApplicationService(productRepo, listingRepo, marketplaceRepo);
 
   const deps: AppDeps = {
     productService,

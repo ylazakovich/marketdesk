@@ -7,7 +7,7 @@ import type { ListingRow } from '../mappers/rows';
 
 // listings carry no currency column; join products -> workspaces for Money.
 const LISTING_SELECT = `
-  SELECT l.id, l.product_id, l.marketplace_id, l.marketplace_listing_id, l.price,
+  SELECT l.id, l.product_id, l.marketplace_id, l.marketplace_listing_id, l.external_url, l.price,
          l.status, l.views, l.watchers, l.messages, l.published_at, l.expires_at,
          l.sync_error, l.last_sync_at, l.created_at, l.updated_at, w.currency
   FROM listings l
@@ -117,12 +117,13 @@ export class ListingRepository implements IListingRepository {
   private async persist(listing: Listing, client: PoolClient): Promise<void> {
     await query(
       `INSERT INTO listings
-         (id, product_id, marketplace_id, marketplace_listing_id, price, status,
+         (id, product_id, marketplace_id, marketplace_listing_id, external_url, price, status,
           views, watchers, messages, published_at, expires_at, sync_error,
           last_sync_at, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
        ON CONFLICT (id) DO UPDATE SET
          marketplace_listing_id = EXCLUDED.marketplace_listing_id,
+         external_url = EXCLUDED.external_url,
          price = EXCLUDED.price,
          status = EXCLUDED.status,
          views = EXCLUDED.views,
@@ -138,6 +139,7 @@ export class ListingRepository implements IListingRepository {
         listing.productId,
         listing.marketplaceId,
         listing.marketplaceListingId,
+        listing.externalUrl,
         listing.price.amount,
         listing.status,
         listing.views,

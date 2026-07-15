@@ -28,11 +28,13 @@ export interface ProductListParams {
   offset?: number;
 }
 
-export type CreateProductInput = Omit<Product, 'id' | 'createdAt' | 'updatedAt'>;
+export type CreateProductInput = Omit<Product, 'id' | 'createdAt' | 'updatedAt'> & {
+  allowBelowCost?: boolean;
+};
 
 export type UpdateProductInput = Partial<
   Omit<Product, 'id' | 'workspaceId' | 'createdAt' | 'updatedAt'>
->;
+> & { allowBelowCost?: boolean };
 
 export interface UpdateProductArg {
   id: string;
@@ -200,6 +202,11 @@ export interface AnalyticsRevenue {
 export interface ListingPerformance {
   listingId: string;
   productId: string;
+  productName: string | null;
+  productSku: string | null;
+  marketplaceId: string;
+  marketplaceName: string | null;
+  marketplaceListingId: string | null;
   status: ListingStatus;
   price: number;
   views: number;

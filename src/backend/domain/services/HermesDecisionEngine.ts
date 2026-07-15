@@ -197,7 +197,7 @@ export class HermesDecisionEngine {
     // Check 2 + 3: AI-driven price and title suggestions (via abstracted provider)
     if (listings.length > 0) {
       const primary = listings[0];
-      const recentViews = listings.reduce((sum, l) => sum + l.views, 0);
+      const recentViews = listings.reduce((sum, l) => sum + (l.views ?? 0), 0);
 
       const priceResult = await this.aiProvider.suggestPrice({
         listing: primary,

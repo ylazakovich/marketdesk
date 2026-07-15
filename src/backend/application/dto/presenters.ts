@@ -18,6 +18,18 @@ function iso(date: Date | null | undefined): string | undefined {
   return date ? date.toISOString() : undefined;
 }
 
+function safeExternalUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') return undefined;
+    if (!/(^|\.)olx\.pl$/i.test(parsed.hostname)) return undefined;
+    return parsed.toString();
+  } catch {
+    return undefined;
+  }
+}
+
 export function presentProduct(product: Product): ProductView {
   return {
     id: product.id,
@@ -43,11 +55,17 @@ export function presentListing(listing: Listing): ListingView {
     productId: listing.productId,
     marketplaceId: listing.marketplaceId,
     marketplaceListingId: listing.marketplaceListingId ?? undefined,
+    externalUrl: safeExternalUrl(listing.externalUrl),
     price: listing.price.amount,
     status: listing.status,
     views: listing.views,
     watchers: listing.watchers,
     messages: listing.messages,
+    metricsAvailability: {
+      views: listing.views !== null,
+      watchers: listing.watchers !== null,
+      messages: listing.messages !== null,
+    },
     publishedAt: iso(listing.publishedAt),
     expiresAt: iso(listing.expiresAt),
     syncError: listing.syncError ?? undefined,

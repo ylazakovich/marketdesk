@@ -50,6 +50,28 @@ function errorMessage(err: unknown): string {
   return 'Request failed';
 }
 
+const DetailRow: React.FC<{ label: string; children: React.ReactNode; strong?: boolean }> = ({
+  label,
+  children,
+  strong = false,
+}) => (
+  <Box
+    sx={{
+      display: 'grid',
+      gridTemplateColumns: { xs: '1fr', sm: 'minmax(120px, max-content) minmax(0, 1fr)' },
+      gap: { xs: 0.25, sm: 2 },
+      alignItems: 'baseline',
+    }}
+  >
+    <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.4 }}>
+      {label}
+    </Typography>
+    <Typography variant="body2" sx={{ fontWeight: strong ? 700 : 500, minWidth: 0, overflowWrap: 'anywhere' }}>
+      {children}
+    </Typography>
+  </Box>
+);
+
 const ListingDetailsPage: React.FC = () => {
   const { productId = '' } = useParams();
   const navigate = useNavigate();
@@ -213,7 +235,7 @@ const ListingDetailsPage: React.FC = () => {
                 component="img"
                 src={images[activeImage]}
                 alt={p.name}
-                sx={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                sx={{ width: '100%', height: '100%', objectFit: 'contain' }}
               />
             ) : (
               <Typography variant="body2" color="text.secondary">
@@ -245,33 +267,13 @@ const ListingDetailsPage: React.FC = () => {
           )}
 
           <Divider sx={{ my: 2 }} />
-          <Stack spacing={1}>
-            <Stack direction="row" justifyContent="space-between">
-              <Typography variant="body2" color="text.secondary">
-                Condition
-              </Typography>
-              <Typography variant="body2">{conditionLabel(p.condition)}</Typography>
-            </Stack>
-            <Stack direction="row" justifyContent="space-between">
-              <Typography variant="body2" color="text.secondary">
-                Category
-              </Typography>
-              <Typography variant="body2">{p.category || '—'}</Typography>
-            </Stack>
-            <Stack direction="row" justifyContent="space-between">
-              <Typography variant="body2" color="text.secondary">
-                Cost
-              </Typography>
-              <Typography variant="body2">{formatCurrency(p.costPrice, currency)}</Typography>
-            </Stack>
-            <Stack direction="row" justifyContent="space-between">
-              <Typography variant="body2" color="text.secondary">
-                Selling price
-              </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                {formatCurrency(p.sellingPrice, currency)}
-              </Typography>
-            </Stack>
+          <Stack spacing={1.25}>
+            <DetailRow label="Condition">{conditionLabel(p.condition)}</DetailRow>
+            <DetailRow label="Category">{p.category || '—'}</DetailRow>
+            <DetailRow label="Cost">{formatCurrency(p.costPrice, currency)}</DetailRow>
+            <DetailRow label="Selling price" strong>
+              {formatCurrency(p.sellingPrice, currency)}
+            </DetailRow>
           </Stack>
 
           {p.tags.length > 0 && (

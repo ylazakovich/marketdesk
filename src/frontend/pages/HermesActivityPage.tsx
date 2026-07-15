@@ -86,20 +86,16 @@ const HermesActivityPage: React.FC = () => {
       <PageHeader
         title="Hermes AI"
         subtitle="Review and approve the autonomous agent's suggestions."
-        actions={
-          <Button
-            variant="contained"
-            startIcon={<AutoAwesomeIcon />}
-            onClick={handleRun}
-            disabled={running}
-          >
-            {running ? 'Running…' : 'Run Hermes'}
-          </Button>
-        }
       />
 
       <Card sx={{ mb: 2.5 }} contentSx={{ p: 2 }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          spacing={1.5}
+          alignItems={{ xs: 'stretch', md: 'center' }}
+          justifyContent="space-between"
+        >
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} flexWrap="wrap" useFlexGap>
           <Select
             size="small"
             multiple
@@ -150,6 +146,16 @@ const HermesActivityPage: React.FC = () => {
               </MenuItem>
             ))}
           </Select>
+          </Stack>
+          <Button
+            variant="contained"
+            startIcon={<AutoAwesomeIcon />}
+            onClick={handleRun}
+            disabled={running}
+            sx={{ alignSelf: { xs: 'stretch', md: 'center' } }}
+          >
+            {running ? 'Running…' : 'Run Hermes'}
+          </Button>
         </Stack>
       </Card>
 
@@ -162,11 +168,6 @@ const HermesActivityPage: React.FC = () => {
           title="No Hermes activity"
           description="Run Hermes to generate optimisation suggestions for your listings."
           icon={<AutoAwesomeIcon sx={{ fontSize: 48 }} />}
-          action={
-            <Button variant="contained" startIcon={<AutoAwesomeIcon />} onClick={handleRun}>
-              Run Hermes
-            </Button>
-          }
         />
       ) : (
         <Stack spacing={2}>

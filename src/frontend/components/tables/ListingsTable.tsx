@@ -3,6 +3,7 @@
 import React from 'react';
 import {
   IconButton,
+  Link,
   Skeleton,
   Stack,
   Table,
@@ -19,6 +20,7 @@ import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import ReplayIcon from '@mui/icons-material/Replay';
 import PublishIcon from '@mui/icons-material/Publish';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import type { Listing } from '@shared/types';
 import { formatCurrency } from '../../utils/formatters.js';
 import { ListingStatusBadge } from '../common/Badge.js';
@@ -109,6 +111,20 @@ export const ListingsTable: React.FC<ListingsTableProps> = ({
                         {listing.syncError}
                       </Typography>
                     )}
+                    {listing.externalUrl && listing.status === 'live' && (
+                      <Link
+                        href={listing.externalUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        underline="hover"
+                        variant="caption"
+                        onClick={(event) => event.stopPropagation()}
+                        sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.25 }}
+                      >
+                        View on OLX
+                        <OpenInNewIcon sx={{ fontSize: 14 }} />
+                      </Link>
+                    )}
                   </TableCell>
                   <TableCell>
                     <ListingStatusBadge status={listing.status} />
@@ -173,15 +189,15 @@ export const ListingsTable: React.FC<ListingsTableProps> = ({
           sx={{ px: 2, py: 1, color: 'text.disabled' }}
           aria-hidden
         >
-          <Stack direction="row" spacing={0.5} alignItems="center">
+          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
             <VisibilityIcon fontSize="inherit" />
             <Typography variant="caption">views</Typography>
           </Stack>
-          <Stack direction="row" spacing={0.5} alignItems="center">
+          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
             <FavoriteBorderIcon fontSize="inherit" />
             <Typography variant="caption">watchers</Typography>
           </Stack>
-          <Stack direction="row" spacing={0.5} alignItems="center">
+          <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
             <ChatBubbleOutlineIcon fontSize="inherit" />
             <Typography variant="caption">messages</Typography>
           </Stack>

@@ -9,6 +9,7 @@ export interface RunHermesDTO {
 
 export interface SyncMarketplaceDTO {
   marketplaceId: string;
+  workspaceId?: string;
   actorId?: string;
 }
 

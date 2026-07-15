@@ -44,11 +44,34 @@ export class UpdateProductUseCase {
       if (r.isErr()) return r;
     }
 
-    if (dto.sellingPrice !== undefined) {
-      const currency = dto.currency ?? product.sellingPrice.currency;
-      const price = Money.of(dto.sellingPrice, currency);
+    let nextCostPrice: Money | null = null;
+    if (dto.costPrice !== undefined) {
+      const price = Money.of(dto.costPrice, dto.currency ?? product.costPrice.currency);
       if (price.isErr()) return price;
-      const r = product.updateSellingPrice(price.value, dto.allowBelowCost ?? false);
+      nextCostPrice = price.value;
+    }
+
+    let nextSellingPrice: Money | null = null;
+    if (dto.sellingPrice !== undefined) {
+      const price = Money.of(dto.sellingPrice, dto.currency ?? product.sellingPrice.currency);
+      if (price.isErr()) return price;
+      nextSellingPrice = price.value;
+    }
+
+    const priceUpdate = product.updatePrices(
+      nextCostPrice,
+      nextSellingPrice,
+      dto.allowBelowCost ?? false,
+    );
+    if (priceUpdate.isErr()) return priceUpdate;
+
+    if (dto.condition !== undefined) {
+      const r = product.updateCondition(dto.condition);
+      if (r.isErr()) return r;
+    }
+
+    if (dto.category !== undefined) {
+      const r = product.updateCategory(dto.category);
       if (r.isErr()) return r;
     }
 

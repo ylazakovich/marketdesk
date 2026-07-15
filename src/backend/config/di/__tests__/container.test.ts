@@ -39,6 +39,8 @@ const validCredentialsKey = Buffer.alloc(32, 7).toString('base64');
 function makeQueue<T>(): ManagedQueue<T> {
   return {
     enqueue: jest.fn(async () => undefined),
+    scheduleRepeat: jest.fn(async () => undefined),
+    removeRepeat: jest.fn(async () => undefined),
     registerHandler: jest.fn(),
     close: jest.fn(async () => undefined),
   };

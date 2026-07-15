@@ -25,7 +25,9 @@ export class SyncMarketplaceUseCase {
   async execute(
     input: SyncMarketplaceDTO,
   ): Promise<Result<SyncMarketplaceEnqueueResult>> {
-    const marketplace = await this.marketplaceRepo.findById(input.marketplaceId);
+    const marketplace = input.workspaceId
+      ? await this.marketplaceRepo.findByIdForWorkspace(input.marketplaceId, input.workspaceId)
+      : await this.marketplaceRepo.findById(input.marketplaceId);
     if (!marketplace) {
       return Err(new NotFoundError(`Marketplace not found: ${input.marketplaceId}`));
     }

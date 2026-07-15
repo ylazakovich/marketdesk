@@ -5,7 +5,12 @@
 
 import type { IProductRepository } from '../../domain/repositories/interfaces/IProductRepository';
 import type { IListingRepository } from '../../domain/repositories/interfaces/IListingRepository';
+import type { IMarketplaceRepository } from '../../domain/repositories/interfaces/IMarketplaceRepository';
 import type { ProductStatus, ListingStatus } from '../../../shared/types';
+
+function counter(value: number | null): number {
+  return value ?? 0;
+}
 
 export interface DashboardMetrics {
   workspaceId: string;
@@ -23,6 +28,11 @@ export interface DashboardMetrics {
 export interface ListingPerformance {
   listingId: string;
   productId: string;
+  productName: string | null;
+  productSku: string | null;
+  marketplaceId: string;
+  marketplaceName: string | null;
+  marketplaceListingId: string | null;
   status: ListingStatus;
   price: number;
   views: number;
@@ -34,6 +44,7 @@ export class AnalyticsApplicationService {
   constructor(
     private readonly productRepo: IProductRepository,
     private readonly listingRepo: IListingRepository,
+    private readonly marketplaceRepo: IMarketplaceRepository,
   ) {}
 
   async getDashboardMetrics(workspaceId: string): Promise<DashboardMetrics> {
@@ -63,9 +74,9 @@ export class AnalyticsApplicationService {
     let totalMessages = 0;
     for (const l of listings) {
       listingsByStatus[l.status] += 1;
-      totalViews += l.views;
-      totalWatchers += l.watchers;
-      totalMessages += l.messages;
+      totalViews += counter(l.views);
+      totalWatchers += counter(l.watchers);
+      totalMessages += counter(l.messages);
     }
 
     return {
@@ -83,17 +94,32 @@ export class AnalyticsApplicationService {
   }
 
   async getListingPerformance(workspaceId: string): Promise<ListingPerformance[]> {
-    const listings = await this.listingRepo.findByWorkspace(workspaceId);
+    const [listings, products, marketplaces] = await Promise.all([
+      this.listingRepo.findByWorkspace(workspaceId),
+      this.productRepo.findByWorkspace(workspaceId),
+      this.marketplaceRepo.findByWorkspace(workspaceId),
+    ]);
+    const productById = new Map(products.map((product) => [product.id, product]));
+    const marketplaceById = new Map(marketplaces.map((marketplace) => [marketplace.id, marketplace]));
     return listings
-      .map((l) => ({
-        listingId: l.id,
-        productId: l.productId,
-        status: l.status,
-        price: l.price.amount,
-        views: l.views,
-        watchers: l.watchers,
-        messages: l.messages,
-      }))
+      .map((listing) => {
+        const product = productById.get(listing.productId);
+        const marketplace = marketplaceById.get(listing.marketplaceId);
+        return {
+          listingId: listing.id,
+          productId: listing.productId,
+          productName: product?.name ?? null,
+          productSku: product?.sku ?? null,
+          marketplaceId: listing.marketplaceId,
+          marketplaceName: marketplace?.name ?? null,
+          marketplaceListingId: listing.marketplaceListingId,
+          status: listing.status,
+          price: listing.price.amount,
+          views: counter(listing.views),
+          watchers: counter(listing.watchers),
+          messages: counter(listing.messages),
+        };
+      })
       .sort((a, b) => b.views - a.views);
   }
 }

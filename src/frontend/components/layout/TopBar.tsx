@@ -25,6 +25,8 @@ import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone';
 import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore';
 import LogoutIcon from '@mui/icons-material/Logout';
 import PersonIcon from '@mui/icons-material/Person';
+import AddIcon from '@mui/icons-material/Add';
+import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../state/hooks.js';
 import {
   toggleTheme,
@@ -34,6 +36,7 @@ import {
 import { logout } from '../../state/slices/authSlice.js';
 
 export const TopBar: React.FC = () => {
+  const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const dispatch = useAppDispatch();
@@ -69,6 +72,26 @@ export const TopBar: React.FC = () => {
         </Button>
 
         <Box sx={{ flexGrow: 1 }} />
+
+        <Button
+          color="inherit"
+          variant="outlined"
+          startIcon={<AddIcon />}
+          onClick={() => navigate('/products?newProduct=1')}
+          sx={{ display: { xs: 'none', sm: 'inline-flex' }, textTransform: 'none', fontWeight: 700 }}
+        >
+          New product
+        </Button>
+        <Tooltip title="New product">
+          <IconButton
+            color="inherit"
+            onClick={() => navigate('/products?newProduct=1')}
+            aria-label="New product"
+            sx={{ display: { xs: 'inline-flex', sm: 'none' } }}
+          >
+            <AddIcon />
+          </IconButton>
+        </Tooltip>
 
         <Tooltip title={themeMode === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}>
           <IconButton onClick={() => dispatch(toggleTheme())} aria-label="Toggle theme">

@@ -7,6 +7,7 @@ const row = {
   marketplace_key: 'olx',
   status: 'publishing',
   external_listing_id: null,
+  external_url: null,
   published_at: null,
 };
 
@@ -50,11 +51,17 @@ describe('PublishAttemptRepository', () => {
 
     await repository.markPublished('operation-1', {
       externalListingId: 'olx-123',
+      externalUrl: 'https://www.olx.pl/d/oferta/olx-123',
       publishedAt,
     });
 
     expect(String(query.mock.calls[0][0])).toContain("SET status = 'published'");
-    expect(query.mock.calls[0][1]).toEqual(['operation-1', 'olx-123', publishedAt]);
+    expect(query.mock.calls[0][1]).toEqual([
+      'operation-1',
+      'olx-123',
+      'https://www.olx.pl/d/oferta/olx-123',
+      publishedAt,
+    ]);
   });
 
   it('releases the listing-level active guard after finalization', async () => {

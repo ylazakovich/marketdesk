@@ -1,5 +1,5 @@
 // Boundary (shape/format) validation for product DTOs using zod. Business
-// invariants (price >= cost, forward-only status, description bounds) live in the
+// invariants (price/currency relationships, forward-only status, description bounds) live in the
 // Product entity — these validators only guarantee well-formed input, then return a
 // domain Result so the rest of the application stays railway-oriented.
 
@@ -51,9 +51,11 @@ const updateProductSchema = z
       .min(PRODUCT_DESCRIPTION_MIN_LENGTH)
       .max(PRODUCT_DESCRIPTION_MAX_LENGTH)
       .optional(),
+    costPrice: z.number().finite().nonnegative().optional(),
     sellingPrice: z.number().finite().nonnegative().optional(),
     currency: currencySchema.optional(),
     condition: conditionSchema.optional(),
+    category: z.string().trim().min(1, 'category is required').optional(),
     status: z.enum(PRODUCT_STATUS_LIST as unknown as [ProductStatus, ...ProductStatus[]]).optional(),
     tags: z.array(z.string().trim().min(1)).optional(),
     images: z.array(z.string().trim().min(1)).optional(),
@@ -63,9 +65,11 @@ const updateProductSchema = z
     (dto) =>
       dto.name !== undefined ||
       dto.description !== undefined ||
+      dto.costPrice !== undefined ||
       dto.sellingPrice !== undefined ||
       dto.currency !== undefined ||
       dto.condition !== undefined ||
+      dto.category !== undefined ||
       dto.status !== undefined ||
       dto.tags !== undefined ||
       dto.images !== undefined ||

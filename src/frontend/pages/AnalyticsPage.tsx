@@ -1,7 +1,7 @@
 // Analytics: date-range-scoped KPIs, revenue/views/conversion charts, and a
 // per-listing metrics table. All series come from the analytics hooks.
 import React, { useMemo, useState } from 'react';
-import { Box, Stack, TextField } from '@mui/material';
+import { Box, Stack, TextField, Typography } from '@mui/material';
 import PaidIcon from '@mui/icons-material/PaidOutlined';
 import StorefrontIcon from '@mui/icons-material/StorefrontOutlined';
 import VisibilityIcon from '@mui/icons-material/VisibilityOutlined';
@@ -15,6 +15,49 @@ import { Card } from '../components/common/Card.js';
 import { StatCard } from '../components/common/StatCard.js';
 import { RevenueChart, ViewsChart, ConversionChart } from '../components/charts/index.js';
 import { AnalyticsTable } from '../components/tables/index.js';
+
+export interface AnalyticsDateRangeControlsProps {
+  from: string;
+  to: string;
+  onFromChange: (value: string) => void;
+  onToChange: (value: string) => void;
+}
+
+export const AnalyticsDateRangeControls: React.FC<AnalyticsDateRangeControlsProps> = ({
+  from,
+  to,
+  onFromChange,
+  onToChange,
+}) => (
+  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems="stretch">
+    <Stack spacing={0.5} sx={{ minWidth: 160 }}>
+      <Typography component="label" variant="caption" color="text.secondary" htmlFor="analytics-from">
+        From
+      </Typography>
+      <TextField
+        id="analytics-from"
+        size="small"
+        type="date"
+        value={from}
+        onChange={(e) => onFromChange(e.target.value)}
+        inputProps={{ 'aria-label': 'From date' }}
+      />
+    </Stack>
+    <Stack spacing={0.5} sx={{ minWidth: 160 }}>
+      <Typography component="label" variant="caption" color="text.secondary" htmlFor="analytics-to">
+        To
+      </Typography>
+      <TextField
+        id="analytics-to"
+        size="small"
+        type="date"
+        value={to}
+        onChange={(e) => onToChange(e.target.value)}
+        inputProps={{ 'aria-label': 'To date' }}
+      />
+    </Stack>
+  </Stack>
+);
 
 const AnalyticsPage: React.FC = () => {
   const currency = useAppSelector((s) => s.workspace.currency);
@@ -43,24 +86,12 @@ const AnalyticsPage: React.FC = () => {
         title="Analytics"
         subtitle="Performance across marketplaces."
         actions={
-          <Stack direction="row" spacing={1.5}>
-            <TextField
-              size="small"
-              type="date"
-              label="From"
-              InputLabelProps={{ shrink: true }}
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
-            />
-            <TextField
-              size="small"
-              type="date"
-              label="To"
-              InputLabelProps={{ shrink: true }}
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-            />
-          </Stack>
+          <AnalyticsDateRangeControls
+            from={from}
+            to={to}
+            onFromChange={setFrom}
+            onToChange={setTo}
+          />
         }
       />
 

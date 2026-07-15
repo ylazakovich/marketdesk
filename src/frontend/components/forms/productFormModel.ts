@@ -20,6 +20,11 @@ export interface ProductFormValues {
   images: string[];
 }
 
+export type ProductSubmissionValues = ProductFormValues & {
+  // Explicit API contract marker for clients that intentionally submit a loss.
+  allowBelowCost?: boolean;
+};
+
 export type ProductFieldErrors = Partial<Record<keyof ProductFormValues, string>>;
 
 export function emptyProductValues(): ProductFormValues {
@@ -74,14 +79,38 @@ export function validateProductValues(values: ProductFormValues): ProductFieldEr
 }
 
 // Soft warning: selling below cost is allowed but flagged.
-export function marginWarning(values: ProductFormValues): string | null {
+export function belowCostLoss(values: ProductFormValues): { amount: number; marginPercent: number } | null {
   if (
     Number.isFinite(values.costPrice) &&
     Number.isFinite(values.sellingPrice) &&
-    values.sellingPrice > 0 &&
+    values.costPrice > 0 &&
     values.sellingPrice < values.costPrice
   ) {
-    return 'Selling price is below cost — this listing would sell at a loss.';
+    const amount = values.costPrice - values.sellingPrice;
+    const marginPercent =
+      values.sellingPrice === 0
+        ? -100
+        : ((values.sellingPrice - values.costPrice) / values.sellingPrice) * 100;
+    return { amount, marginPercent };
   }
   return null;
+}
+
+// Soft warning: selling below cost is allowed but flagged.
+export function marginWarning(values: ProductFormValues): string | null {
+  const loss = belowCostLoss(values);
+  if (!loss) return null;
+  if (values.sellingPrice === 0) {
+    return `Selling price is below cost — this listing would sell at a loss (${formatLossAmount(loss.amount)}, zero selling price).`;
+  }
+  return `Selling price is below cost — this listing would sell at a loss (${formatLossAmount(loss.amount)}, ${loss.marginPercent.toFixed(1)}% margin).`;
+}
+
+export function toProductSubmissionValues(values: ProductFormValues): ProductSubmissionValues {
+  const belowCost = belowCostLoss(values) !== null;
+  return belowCost ? { ...values, allowBelowCost: true } : { ...values };
+}
+
+function formatLossAmount(amount: number): string {
+  return Number.isInteger(amount) ? String(amount) : amount.toFixed(2);
 }

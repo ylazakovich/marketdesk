@@ -35,11 +35,12 @@ export interface ListingRow {
   product_id: string;
   marketplace_id: string;
   marketplace_listing_id: string | null;
+  external_url: string | null;
   price: string | number;
   status: string;
-  views: number;
-  watchers: number;
-  messages: number;
+  views: number | null;
+  watchers: number | null;
+  messages: number | null;
   published_at: Date | string | null;
   expires_at: Date | string | null;
   sync_error: string | null;

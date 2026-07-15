@@ -14,6 +14,7 @@ export const ListingMapper = {
       marketplaceId: row.marketplace_id,
       price,
       marketplaceListingId: row.marketplace_listing_id,
+      externalUrl: row.external_url,
       status: row.status as ListingStatus,
       views: row.views,
       watchers: row.watchers,

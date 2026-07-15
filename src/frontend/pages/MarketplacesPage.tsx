@@ -5,6 +5,9 @@ import { useSearchParams } from 'react-router-dom';
 import {
   Box,
   Button,
+  FormControl,
+  FormHelperText,
+  InputLabel,
   MenuItem,
   Select,
   Stack,
@@ -15,7 +18,7 @@ import SyncIcon from '@mui/icons-material/Sync';
 import LinkIcon from '@mui/icons-material/Link';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import type { Marketplace, MarketplaceAccountStatus, SyncMode } from '@shared/types';
-import { SYNC_MODE_LIST, MARKETPLACE_NAMES } from '@shared/constants';
+import { MARKETPLACE_NAMES } from '@shared/constants';
 import {
   useMarketplaces,
   useSyncMarketplace,
@@ -34,6 +37,14 @@ import { ErrorRetry } from '../components/common/ErrorRetry.js';
 import { ConnectionBadge } from '../components/common/Badge.js';
 import { LoadingSkeleton } from '../components/common/Skeleton.js';
 
+const SUPPORTED_SYNC_MODES: SyncMode[] = ['manual', 'hourly'];
+
+const SYNC_MODE_HELP: Record<SyncMode, string> = {
+  manual: 'Sync only when you start it manually.',
+  hourly: 'Run automatic synchronization once per hour.',
+  realtime: 'Real-time sync is not available for the current OLX integration yet.',
+};
+
 function connectionStatus(m: Marketplace): MarketplaceAccountStatus {
   if (m.errorCount > 0) return 'error';
   return m.connected ? 'connected' : 'disconnected';
@@ -46,6 +57,146 @@ function errorMessage(err: unknown): string {
   }
   return 'Request failed';
 }
+
+function marketplaceBrandLabel(m: Marketplace): string {
+  return MARKETPLACE_NAMES[m.key] ?? m.name ?? m.key.toUpperCase();
+}
+
+function marketplaceLogoText(m: Marketplace): string {
+  if (m.key === 'olx') return 'OLX';
+  return marketplaceBrandLabel(m).slice(0, 2).toUpperCase();
+}
+
+function syncModeOptions(current: SyncMode): SyncMode[] {
+  return SUPPORTED_SYNC_MODES.includes(current)
+    ? SUPPORTED_SYNC_MODES
+    : [...SUPPORTED_SYNC_MODES, current];
+}
+
+export interface MarketplaceCardProps {
+  marketplace: Marketplace;
+  busy: boolean;
+  onSync: (marketplace: Marketplace) => void;
+  onConnect: (marketplace: Marketplace) => void;
+  onSyncMode: (marketplace: Marketplace, event: SelectChangeEvent<SyncMode>) => void;
+}
+
+export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
+  marketplace: m,
+  busy,
+  onSync,
+  onConnect,
+  onSyncMode,
+}) => {
+  const brandLabel = marketplaceBrandLabel(m);
+  const syncLabelId = `marketplace-${m.id}-sync-mode-label`;
+  const syncSelectId = `marketplace-${m.id}-sync-mode`;
+  return (
+    <Card>
+      <Stack spacing={1.75}>
+        <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1.5}>
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
+            <Box
+              aria-label={`${brandLabel} marketplace logo`}
+              sx={{
+                width: 48,
+                height: 40,
+                borderRadius: 2,
+                display: 'grid',
+                placeItems: 'center',
+                fontWeight: 900,
+                letterSpacing: -0.5,
+                bgcolor: m.key === 'olx' ? '#002f34' : 'action.hover',
+                color: m.key === 'olx' ? '#23e5db' : 'text.primary',
+                flexShrink: 0,
+              }}
+            >
+              {marketplaceLogoText(m)}
+            </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
+                {m.name || brandLabel}
+              </Typography>
+              <ConnectionBadge status={connectionStatus(m)} />
+            </Box>
+          </Stack>
+        </Stack>
+
+        <Stack spacing={1} sx={{ color: 'text.secondary' }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={0.5}>
+            <Typography variant="body2">Last sync</Typography>
+            <Typography variant="body2" color="text.primary" sx={{ textAlign: { sm: 'right' } }}>
+              {m.lastSyncAt ? formatDateTime(m.lastSyncAt) : 'Never synced'}
+            </Typography>
+          </Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={0.5}>
+            <Typography variant="body2">Synchronization</Typography>
+            <Typography variant="body2" color="text.primary" sx={{ textAlign: { sm: 'right' } }}>
+              {SYNC_MODE_LABELS[m.syncMode]}
+            </Typography>
+          </Stack>
+          <Stack direction={{ xs: 'column', sm: 'row' }} justifyContent="space-between" spacing={0.5}>
+            <Typography variant="body2">Sync errors</Typography>
+            <Stack direction="row" spacing={0.5} alignItems="center" justifyContent={{ sm: 'flex-end' }}>
+              {m.errorCount > 0 && <ErrorOutlineIcon sx={{ fontSize: 16, color: 'error.main' }} />}
+              <Typography variant="body2" color={m.errorCount > 0 ? 'error.main' : 'success.main'}>
+                {m.errorCount > 0 ? `${m.errorCount} needs review` : 'No errors'}
+              </Typography>
+            </Stack>
+          </Stack>
+        </Stack>
+
+        {m.errorCount > 0 && (
+          <Button variant="outlined" color="error" size="small" startIcon={<ErrorOutlineIcon />}>
+            Review sync issues
+          </Button>
+        )}
+
+        <FormControl size="small" fullWidth disabled={!m.connected}>
+          <InputLabel id={syncLabelId}>Sync mode</InputLabel>
+          <Select
+            labelId={syncLabelId}
+            id={syncSelectId}
+            label="Sync mode"
+            value={m.syncMode}
+            onChange={(e) => onSyncMode(m, e)}
+          >
+            {syncModeOptions(m.syncMode).map((mode) => (
+              <MenuItem key={mode} value={mode} disabled={!SUPPORTED_SYNC_MODES.includes(mode)}>
+                {SYNC_MODE_LABELS[mode]}
+              </MenuItem>
+            ))}
+          </Select>
+          <FormHelperText>{SYNC_MODE_HELP[m.syncMode]}</FormHelperText>
+        </FormControl>
+
+        <Stack direction="row" spacing={1}>
+          {m.connected ? (
+            <Button
+              variant="contained"
+              startIcon={<SyncIcon />}
+              onClick={() => onSync(m)}
+              disabled={busy}
+              fullWidth
+            >
+              {busy ? 'Syncing…' : 'Sync now'}
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              startIcon={<LinkIcon />}
+              onClick={() => onConnect(m)}
+              disabled={busy}
+              fullWidth
+            >
+              {busy ? 'Opening OLX…' : 'Connect with OLX'}
+            </Button>
+          )}
+        </Stack>
+      </Stack>
+    </Card>
+  );
+};
 
 const MarketplacesPage: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -161,101 +312,14 @@ const MarketplacesPage: React.FC = () => {
           {data?.map((m) => {
             const busy = busyId === m.id;
             return (
-              <Card key={m.id}>
-                <Stack spacing={1.5}>
-                  <Stack direction="row" alignItems="center" justifyContent="space-between">
-                    <Stack direction="row" spacing={1.5} alignItems="center">
-                      <Box
-                        sx={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 2,
-                          display: 'grid',
-                          placeItems: 'center',
-                          fontWeight: 800,
-                          bgcolor: 'action.hover',
-                          color: 'text.primary',
-                        }}
-                      >
-                        {(MARKETPLACE_NAMES[m.key] ?? m.key).slice(0, 2).toUpperCase()}
-                      </Box>
-                      <Box>
-                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                          {m.name || MARKETPLACE_NAMES[m.key]}
-                        </Typography>
-                        <ConnectionBadge status={connectionStatus(m)} />
-                      </Box>
-                    </Stack>
-                  </Stack>
-
-                  <Stack spacing={0.75} sx={{ color: 'text.secondary' }}>
-                    <Stack direction="row" justifyContent="space-between">
-                      <Typography variant="body2">Last sync</Typography>
-                      <Typography variant="body2" color="text.primary">
-                        {m.lastSyncAt ? formatDateTime(m.lastSyncAt) : 'Never'}
-                      </Typography>
-                    </Stack>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center">
-                      <Typography variant="body2">Errors</Typography>
-                      <Stack direction="row" spacing={0.5} alignItems="center">
-                        {m.errorCount > 0 && (
-                          <ErrorOutlineIcon sx={{ fontSize: 16, color: 'error.main' }} />
-                        )}
-                        <Typography
-                          variant="body2"
-                          color={m.errorCount > 0 ? 'error.main' : 'text.primary'}
-                        >
-                          {m.errorCount}
-                        </Typography>
-                      </Stack>
-                    </Stack>
-                    <Stack direction="row" justifyContent="space-between">
-                      <Typography variant="body2">Capacity</Typography>
-                      <Typography variant="body2" color="text.primary">
-                        {m.capacity}
-                      </Typography>
-                    </Stack>
-                  </Stack>
-
-                  <Select
-                    size="small"
-                    value={m.syncMode}
-                    onChange={(e) => handleSyncMode(m, e)}
-                    disabled={!m.connected}
-                    fullWidth
-                  >
-                    {SYNC_MODE_LIST.map((mode) => (
-                      <MenuItem key={mode} value={mode}>
-                        {SYNC_MODE_LABELS[mode]}
-                      </MenuItem>
-                    ))}
-                  </Select>
-
-                  <Stack direction="row" spacing={1}>
-                    {m.connected ? (
-                      <Button
-                        variant="contained"
-                        startIcon={<SyncIcon />}
-                        onClick={() => handleSync(m)}
-                        disabled={busy}
-                        fullWidth
-                      >
-                        {busy ? 'Syncing…' : 'Sync now'}
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="contained"
-                        startIcon={<LinkIcon />}
-                        onClick={() => handleConnect(m)}
-                        disabled={busy}
-                        fullWidth
-                      >
-                        {busy ? 'Opening OLX…' : 'Connect with OLX'}
-                      </Button>
-                    )}
-                  </Stack>
-                </Stack>
-              </Card>
+              <MarketplaceCard
+                key={m.id}
+                marketplace={m}
+                busy={busy}
+                onSync={handleSync}
+                onConnect={handleConnect}
+                onSyncMode={handleSyncMode}
+              />
             );
           })}
         </Box>

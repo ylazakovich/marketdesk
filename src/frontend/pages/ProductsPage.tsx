@@ -16,7 +16,7 @@ import {
 import type { SelectChangeEvent } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type { Product, ProductStatus } from '@shared/types';
 import { PRODUCT_STATUS_LIST } from '@shared/constants';
 import { useCreateProduct, useProducts } from '../services/hooks/index.js';
@@ -43,6 +43,7 @@ function errorMessage(err: unknown): string {
 
 const ProductsPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useAppDispatch();
   const workspaceId = useAppSelector((s) => s.workspace.id);
   const currency = useAppSelector((s) => s.workspace.currency);
@@ -54,7 +55,10 @@ const ProductsPage: React.FC = () => {
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState('-updatedAt');
   const [page, setPage] = useState(0);
-  const [wizardOpen, setWizardOpen] = useState(false);
+  const wizardOpen = new URLSearchParams(location.search).get('newProduct') === '1';
+
+  const openWizard = () => navigate('/products?newProduct=1');
+  const closeWizard = () => navigate('/products', { replace: true });
 
   const params = useMemo<ProductListParams>(() => {
     const p: ProductListParams = { sort, limit: PAGE_SIZE, offset: page * PAGE_SIZE };
@@ -91,7 +95,7 @@ const ProductsPage: React.FC = () => {
     try {
       await createProduct({ ...values, workspaceId }).unwrap();
       dispatch(enqueueToast({ message: 'Product created.', severity: 'success' }));
-      setWizardOpen(false);
+      closeWizard();
     } catch (err) {
       dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
     }
@@ -102,11 +106,6 @@ const ProductsPage: React.FC = () => {
       <PageHeader
         title="Products"
         subtitle="Manage your catalogue across every marketplace."
-        actions={
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setWizardOpen(true)}>
-            New product
-          </Button>
-        }
       />
 
       <Card sx={{ mb: 2.5 }} contentSx={{ p: 2 }}>
@@ -214,7 +213,7 @@ const ProductsPage: React.FC = () => {
           onRowClick={(p) => navigate(`/products/${p.id}`)}
           onEdit={(p) => navigate(`/products/${p.id}`)}
           emptyAction={
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setWizardOpen(true)}>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={openWizard}>
               New product
             </Button>
           }
@@ -233,7 +232,7 @@ const ProductsPage: React.FC = () => {
 
       <Modal
         open={wizardOpen}
-        onClose={() => setWizardOpen(false)}
+        onClose={closeWizard}
         title="New product"
         subtitle="Add a product to your catalogue in a few steps."
         maxWidth="md"
@@ -241,7 +240,7 @@ const ProductsPage: React.FC = () => {
         <ProductWizardForm
           submitting={creating}
           onSubmit={handleCreate}
-          onCancel={() => setWizardOpen(false)}
+          onCancel={closeWizard}
         />
       </Modal>
     </Box>

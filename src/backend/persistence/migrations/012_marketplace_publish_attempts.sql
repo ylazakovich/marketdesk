@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS marketplace_publish_attempts (
   marketplace_key VARCHAR(50) NOT NULL,
   status VARCHAR(20) NOT NULL,
   external_listing_id VARCHAR(255),
+  external_url TEXT,
   published_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -24,6 +25,9 @@ CREATE TABLE IF NOT EXISTS marketplace_publish_attempts (
 -- upgrades a table created by an earlier revision of this migration.
 ALTER TABLE marketplace_publish_attempts
   ADD COLUMN IF NOT EXISTS listing_updated_at TIMESTAMPTZ;
+
+ALTER TABLE marketplace_publish_attempts
+  ADD COLUMN IF NOT EXISTS external_url TEXT;
 
 UPDATE marketplace_publish_attempts
 SET listing_updated_at = created_at

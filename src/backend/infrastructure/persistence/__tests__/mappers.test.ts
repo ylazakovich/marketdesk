@@ -77,6 +77,7 @@ describe('ListingMapper', () => {
     product_id: 'prod-1',
     marketplace_id: 'mkt-1',
     marketplace_listing_id: 'ext-123',
+    external_url: 'https://www.olx.pl/d/oferta/ext-123',
     price: '49.99',
     status: 'live',
     views: 10,
@@ -97,6 +98,7 @@ describe('ListingMapper', () => {
     expect(listing.productId).toBe('prod-1');
     expect(listing.marketplaceId).toBe('mkt-1');
     expect(listing.marketplaceListingId).toBe('ext-123');
+    expect(listing.externalUrl).toBe('https://www.olx.pl/d/oferta/ext-123');
     expect(listing.price.amount).toBe(49.99);
     expect(listing.price.currency).toBe('PLN');
     expect(listing.status).toBe('live');
@@ -114,12 +116,14 @@ describe('ListingMapper', () => {
       ...baseRow,
       status: 'draft',
       marketplace_listing_id: null,
+      external_url: null,
       published_at: null,
       expires_at: null,
       last_sync_at: null,
       sync_error: 'boom',
     });
     expect(listing.marketplaceListingId).toBeNull();
+    expect(listing.externalUrl).toBeNull();
     expect(listing.publishedAt).toBeNull();
     expect(listing.expiresAt).toBeNull();
     expect(listing.lastSyncAt).toBeNull();

@@ -12,9 +12,11 @@ export interface UpdateProductDTO {
   workspaceId: string;
   name?: string;
   description?: string;
+  costPrice?: number;
   sellingPrice?: number;
   currency?: string;
   condition?: ProductCondition;
+  category?: string;
   status?: ProductStatus;
   tags?: string[];
   images?: string[];

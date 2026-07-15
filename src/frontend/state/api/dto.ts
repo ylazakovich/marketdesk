@@ -202,6 +202,11 @@ export interface AnalyticsRevenue {
 export interface ListingPerformance {
   listingId: string;
   productId: string;
+  productName: string | null;
+  productSku: string | null;
+  marketplaceId: string;
+  marketplaceName: string | null;
+  marketplaceListingId: string | null;
   status: ListingStatus;
   price: number;
   views: number;

@@ -245,7 +245,7 @@ async function buildE2E(): Promise<E2EContext> {
     approveEventUC,
     dismissEventUC,
   );
-  const analyticsService = new AnalyticsApplicationService(productRepo, listingRepo);
+  const analyticsService = new AnalyticsApplicationService(productRepo, listingRepo, marketplaceRepo);
 
   const deps: AppDeps = {
     productService,

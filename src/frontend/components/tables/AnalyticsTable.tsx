@@ -1,6 +1,7 @@
 // Per-listing analytics breakdown table (views, watchers, messages, revenue, profit).
 import React from 'react';
 import {
+  Box,
   Skeleton,
   Table,
   TableBody,
@@ -10,6 +11,7 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
 import type { ListingPerformance } from '../../state/api/index.js';
 import { formatCurrency, formatNumber } from '../../utils/formatters.js';
 import { ListingStatusBadge } from '../common/Badge.js';
@@ -25,6 +27,19 @@ export interface AnalyticsTableProps {
 }
 
 const HEAD = ['Listing', 'Status', 'Price', 'Views', 'Watchers', 'Messages'];
+
+function listingTitle(metric: ListingPerformance): string {
+  return metric.productName?.trim() || 'Unknown product';
+}
+
+function listingSubtitle(metric: ListingPerformance): string {
+  const parts = [
+    metric.marketplaceName?.trim() || 'Unknown marketplace',
+    metric.productSku ? `SKU ${metric.productSku}` : null,
+    metric.marketplaceListingId ? `Ref ${metric.marketplaceListingId}` : null,
+  ].filter(Boolean);
+  return parts.join(' · ');
+}
 
 export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
   metrics,
@@ -71,9 +86,39 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
             : (metrics ?? []).map((m) => (
                 <TableRow key={m.listingId} hover>
                   <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
-                      {m.productId}
-                    </Typography>
+                    <Box sx={{ minWidth: 0, maxWidth: 280 }}>
+                      <Typography
+                        component={RouterLink}
+                        to={`/products/${m.productId}`}
+                        variant="body2"
+                        title={listingTitle(m)}
+                        sx={{
+                          display: 'block',
+                          fontWeight: 600,
+                          color: 'text.primary',
+                          textDecoration: 'none',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          '&:hover': { color: 'primary.main', textDecoration: 'underline' },
+                        }}
+                      >
+                        {listingTitle(m)}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        title={listingSubtitle(m)}
+                        sx={{
+                          display: 'block',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {listingSubtitle(m)}
+                      </Typography>
+                    </Box>
                   </TableCell>
                   <TableCell>
                     <ListingStatusBadge status={m.status} />

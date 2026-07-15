@@ -326,7 +326,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     approveEventUC,
     dismissEventUC
   );
-  const analyticsService = new AnalyticsApplicationService(productRepo, listingRepo);
+  const analyticsService = new AnalyticsApplicationService(productRepo, listingRepo, marketplaceRepo);
 
   // 9. Register job handlers now that their collaborators exist. The publish
   //    handler is given the domain ListingService so a successful adapter publish

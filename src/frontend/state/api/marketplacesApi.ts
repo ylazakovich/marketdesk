@@ -11,6 +11,8 @@ import type {
   UpdateMarketplaceArg,
   MarketplaceImportPreview,
   MarketplaceImportPreviewInput,
+  MarketplaceImportApplyInput,
+  MarketplaceImportApplyResult,
 } from './dto.js';
 
 export const marketplacesApi = baseApi.injectEndpoints({
@@ -90,6 +92,21 @@ export const marketplacesApi = baseApi.injectEndpoints({
       transformResponse: (res: ApiResponse<MarketplaceImportPreview>) => unwrap(res),
     }),
 
+    importMarketplaceAdverts: builder.mutation<MarketplaceImportApplyResult, MarketplaceImportApplyInput>({
+      query: ({ id, pageSize, statuses, externalListingIds }) => ({
+        url: `/marketplaces/${id}/import`,
+        method: 'POST',
+        body: { pageSize, statuses, externalListingIds },
+      }),
+      transformResponse: (res: ApiResponse<MarketplaceImportApplyResult>) => unwrap(res),
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Marketplace', id },
+        { type: 'Marketplace', id: 'LIST' },
+        { type: 'Product', id: 'LIST' },
+        { type: 'Listing', id: 'LIST' },
+      ],
+    }),
+
     updateMarketplace: builder.mutation<Marketplace, UpdateMarketplaceArg>({
       query: ({ id, patch }) => ({
         url: `/marketplaces/${id}`,
@@ -114,5 +131,6 @@ export const {
   useConnectMarketplaceMutation,
   useLazyCheckMarketplaceQuery,
   useImportMarketplacePreviewMutation,
+  useImportMarketplaceAdvertsMutation,
   useUpdateMarketplaceMutation,
 } = marketplacesApi;

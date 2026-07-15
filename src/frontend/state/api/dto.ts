@@ -159,7 +159,16 @@ export interface MarketplaceImportPreviewInput {
   statuses?: string[];
 }
 
-export type MarketplaceImportPreviewItemStatus = 'new' | 'already_imported' | 'unsupported';
+export interface MarketplaceImportApplyInput extends MarketplaceImportPreviewInput {
+  externalListingIds?: string[];
+}
+
+export type MarketplaceImportPreviewItemStatus =
+  | 'new'
+  | 'already_imported'
+  | 'changed'
+  | 'unsupported'
+  | 'failed';
 
 export interface MarketplaceImportPreviewItem {
   status: MarketplaceImportPreviewItemStatus;
@@ -190,6 +199,22 @@ export interface MarketplaceImportPreview {
   readOnly: true;
   totals: Record<MarketplaceImportPreviewItemStatus, number> & { discovered: number };
   items: MarketplaceImportPreviewItem[];
+}
+
+export interface MarketplaceImportApplyResult {
+  marketplaceId: string;
+  marketplaceKey: Marketplace['key'];
+  imported: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  results: Array<{
+    externalListingId: string;
+    status: 'imported' | 'updated' | 'skipped' | 'failed';
+    productId?: string;
+    listingId?: string;
+    reason?: string;
+  }>;
 }
 
 // ----------------------------------------------------------------------------

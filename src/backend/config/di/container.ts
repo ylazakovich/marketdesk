@@ -357,6 +357,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
   const analyticsService = new AnalyticsApplicationService(productRepo, listingRepo, marketplaceRepo);
   const marketplaceImportService = new MarketplaceImportService(
     marketplaceRepo,
+    productRepo,
     listingRepo,
     marketplaceAccountRepo,
     adapterFactory,
@@ -367,6 +368,8 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
         timeoutMs: env.marketplaces.olx.requestTimeoutMs,
         livePublishEnabled: false,
       }),
+    activityLogRepo,
+    idGenerator
   );
 
   // 9. Register job handlers now that their collaborators exist. The publish

@@ -202,7 +202,7 @@ function stubMarketplaceImportService(): MarketplaceImportService {
         marketplaceId: 'marketplace-olx',
         marketplaceKey: 'olx' as const,
         readOnly: true as const,
-        totals: { discovered: 1, new: 1, already_imported: 0, unsupported: 0 },
+        totals: { discovered: 1, new: 1, already_imported: 0, changed: 0, unsupported: 0, failed: 0 },
         items: [
           {
             status: 'new' as const,
@@ -223,6 +223,24 @@ function stubMarketplaceImportService(): MarketplaceImportService {
               category: 'electronics',
               imageUrls: ['https://img.example/1.jpg'],
             },
+          },
+        ],
+      });
+    },
+    async import() {
+      return Ok({
+        marketplaceId: 'marketplace-olx',
+        marketplaceKey: 'olx' as const,
+        imported: 1,
+        updated: 0,
+        skipped: 0,
+        failed: 0,
+        results: [
+          {
+            externalListingId: 'olx-1',
+            status: 'imported' as const,
+            productId: 'product-imported',
+            listingId: 'listing-imported',
           },
         ],
       });
@@ -549,11 +567,28 @@ describe('Presentation API', () => {
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.readOnly).toBe(true);
-      expect(res.body.data.totals).toEqual({ discovered: 1, new: 1, already_imported: 0, unsupported: 0 });
+      expect(res.body.data.totals).toEqual({ discovered: 1, new: 1, already_imported: 0, changed: 0, unsupported: 0, failed: 0 });
       expect(res.body.data.items[0]).toMatchObject({
         status: 'new',
         externalListingId: 'olx-1',
         remoteStatus: 'active',
+      });
+    });
+
+    it('imports selected OLX adverts only after an explicit import request', async () => {
+      const { app } = await buildTestApp();
+      const res = await auth(request(app).post('/api/marketplaces/marketplace-olx/import')).send({
+        externalListingIds: ['olx-1'],
+      });
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toMatchObject({ imported: 1, updated: 0, skipped: 0, failed: 0 });
+      expect(res.body.data.results[0]).toMatchObject({
+        externalListingId: 'olx-1',
+        status: 'imported',
+        productId: 'product-imported',
+        listingId: 'listing-imported',
       });
     });
   });

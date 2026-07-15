@@ -32,6 +32,7 @@ import {
   useConnectMarketplace,
   useCheckMarketplace,
   useImportMarketplacePreview,
+  useImportMarketplaceAdverts,
   useUpdateMarketplace,
 } from '../services/hooks/index.js';
 import { useAppDispatch } from '../state/hooks.js';
@@ -295,6 +296,7 @@ const MarketplacesPage: React.FC = () => {
   const [connectMarketplace] = useConnectMarketplace();
   const [checkMarketplace] = useCheckMarketplace();
   const [importMarketplacePreview] = useImportMarketplacePreview();
+  const [importMarketplaceAdverts] = useImportMarketplaceAdverts();
   const [updateMarketplace] = useUpdateMarketplace();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [importPreview, setImportPreview] = useState<MarketplaceImportPreview | null>(null);
@@ -369,6 +371,36 @@ const MarketplacesPage: React.FC = () => {
     }
   };
 
+  const handleImportAllEligible = async () => {
+    if (!importPreview) return;
+    const eligibleIds = importPreview.items
+      .filter((item) => item.status === 'new' || item.status === 'changed')
+      .map((item) => item.externalListingId);
+    if (eligibleIds.length === 0) {
+      dispatch(enqueueToast({ message: 'No eligible OLX adverts to import.', severity: 'info' }));
+      return;
+    }
+    setBusyId(importPreview.marketplaceId);
+    try {
+      const result = await importMarketplaceAdverts({
+        id: importPreview.marketplaceId,
+        externalListingIds: eligibleIds,
+      }).unwrap();
+      dispatch(
+        enqueueToast({
+          message: `Imported ${result.imported}, updated ${result.updated}, skipped ${result.skipped}.`,
+          severity: result.failed > 0 ? 'warning' : 'success',
+        }),
+      );
+      void refetch();
+      setImportPreview(null);
+    } catch (err) {
+      dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const handleConnect = async (m: Marketplace) => {
     setBusyId(m.id);
     try {
@@ -421,8 +453,23 @@ const MarketplacesPage: React.FC = () => {
                 <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                   <Chip size="small" label={`Discovered: ${importPreview.totals.discovered}`} />
                   <Chip size="small" color="success" label={`New: ${importPreview.totals.new}`} />
+                  <Chip size="small" color="info" label={`Changed: ${importPreview.totals.changed}`} />
                   <Chip size="small" label={`Already imported: ${importPreview.totals.already_imported}`} />
                   <Chip size="small" color="warning" label={`Unsupported: ${importPreview.totals.unsupported}`} />
+                  <Chip size="small" color="error" label={`Failed: ${importPreview.totals.failed}`} />
+                </Stack>
+                <Stack direction="row" spacing={1}>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    disabled={busyId === importPreview.marketplaceId || (importPreview.totals.new + importPreview.totals.changed) === 0}
+                    onClick={handleImportAllEligible}
+                  >
+                    Import eligible OLX adverts
+                  </Button>
+                  <Button size="small" variant="text" onClick={() => setImportPreview(null)}>
+                    Dismiss preview
+                  </Button>
                 </Stack>
                 {importPreview.items.slice(0, 5).map((item) => (
                   <Typography key={item.externalListingId} variant="body2">

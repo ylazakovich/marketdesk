@@ -157,6 +157,21 @@ export class MarketplaceController {
     ok(res, result.value);
   };
 
+  importApply = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const result = await this.imports.import({
+      marketplaceId: routeParam(req.params.id),
+      workspaceId: req.user!.workspaceId!,
+      pageSize: req.body?.pageSize,
+      statuses: req.body?.statuses,
+      externalListingIds: Array.isArray(req.body?.externalListingIds)
+        ? req.body.externalListingIds
+        : undefined,
+      actorId: req.user?.userId,
+    });
+    if (result.isErr()) return next(result.error);
+    ok(res, result.value, 201);
+  };
+
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const marketplaceId = routeParam(req.params.id);
     const marketplace = await this.marketplaceRepo.findByIdForWorkspace(

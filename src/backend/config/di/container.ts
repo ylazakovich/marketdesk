@@ -42,7 +42,11 @@ async function withPoolTransaction<T>(
     await client.query('COMMIT');
     return result;
   } catch (error) {
-    await client.query('ROLLBACK');
+    try {
+      await client.query('ROLLBACK');
+    } catch {
+      // Preserve the original transaction failure; rollback failure is secondary.
+    }
     throw error;
   } finally {
     client.release();

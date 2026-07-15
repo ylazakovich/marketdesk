@@ -271,7 +271,14 @@ function stubOlxPublicationQuotaService(): OlxPublicationQuotaService {
   };
   return {
     async list() { return [quota]; },
-    async set() { return quota; },
+    async set(input) {
+      return {
+        ...quota,
+        workspaceId: input.workspaceId,
+        marketplaceId: input.marketplaceId,
+        actorId: input.actorId,
+      };
+    },
     async preview() {
       return {
         applicable: true,
@@ -680,6 +687,9 @@ describe('Presentation API', () => {
       const { app } = await buildTestApp();
       const read = await auth(request(app).get('/api/marketplaces/marketplace-olx/quotas'));
       const update = await auth(request(app).put('/api/marketplaces/marketplace-olx/quotas')).send({
+        workspaceId: 'ws-attacker',
+        marketplaceId: 'marketplace-attacker',
+        actorId: 'user-attacker',
         subcategoryId: '2000',
         cycleStartedAt: '2026-07-01T00:00:00.000Z',
         cycleEndsAt: '2026-08-01T00:00:00.000Z',
@@ -699,6 +709,9 @@ describe('Presentation API', () => {
         consumed: 1,
         source: 'operator',
         confidence: 'verified',
+        workspaceId: 'ws-1',
+        marketplaceId: 'marketplace-olx',
+        actorId: 'u-1',
       });
     });
   });

@@ -19,6 +19,8 @@ import {
   idFactory,
 } from '../testkit/support';
 import type { PublishListingJob } from '../ports/IJobQueue';
+import type { OlxPublicationQuotaService } from '../services/OlxPublicationQuotaService';
+import { GuardrailViolationError } from '../../domain/shared/DomainError';
 
 function makeProduct() {
   return unwrap(
@@ -47,7 +49,10 @@ function makeListing() {
   );
 }
 
-function setup(accountStatus: 'connected' | 'missing' = 'connected') {
+function setup(
+  accountStatus: 'connected' | 'missing' = 'connected',
+  olxQuota?: OlxPublicationQuotaService,
+) {
   const productRepo = new InMemoryProductRepository();
   const listingRepo = new InMemoryListingRepository();
   const marketplaceRepo = new InMemoryMarketplaceRepository();
@@ -103,7 +108,8 @@ function setup(accountStatus: 'connected' | 'missing' = 'connected') {
     publishQueue,
     publisher,
     idFactory('rec'),
-    accountRepo
+    accountRepo,
+    olxQuota,
   );
 
   return {
@@ -403,6 +409,59 @@ describe('ApproveHermesEventUseCase', () => {
     expect(result.isErr()).toBe(true);
     if (result.isErr()) expect(result.error.code).toBe('INVALID_STATE');
     expect(publishQueue.jobs).toHaveLength(0);
+  });
+
+  it('returns a structured guard error when the OLX quota guard is unavailable', async () => {
+    const { useCase, eventRepo, publishQueue } = setup();
+    const event = unwrap(HermesEvent.create({
+      id: 'evt-relist-no-guard', workspaceId: 'ws-1', productId: 'prod-1',
+      type: 'needs_relisting', severity: 'warning', title: 'Relist product',
+      proposedChange: { kind: 'relist', listingIds: ['lst-1'] },
+    }));
+    await eventRepo.save(event);
+
+    const result = await useCase.execute({ eventId: event.id, workspaceId: 'ws-1' });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error).toBeInstanceOf(GuardrailViolationError);
+      expect(result.error.details).toEqual({
+        quotaDecision: {
+          applicable: true, marketplaceKey: 'olx', status: 'unknown', decision: 'block',
+          reason: 'quota_guard_unavailable', requiresOverride: true,
+        },
+      });
+    }
+    expect(publishQueue.jobs).toHaveLength(0);
+  });
+
+  it('does not retry already-authorized relists when a later quota decision blocks', async () => {
+    const authorize = jest.fn()
+      .mockResolvedValueOnce({ decision: 'allow' })
+      .mockResolvedValueOnce({ decision: 'block' });
+    const quotaService = {
+      authorize,
+      guardError: () => new GuardrailViolationError('quota blocked'),
+    } as unknown as OlxPublicationQuotaService;
+    const { useCase, eventRepo, listingRepo, publishQueue } = setup('connected', quotaService);
+    const secondListing = unwrap(Listing.create({
+      id: 'lst-2', productId: 'prod-1', marketplaceId: 'mp-1', price: money(100),
+    }));
+    listingRepo.items.set(secondListing.id, secondListing);
+    const event = unwrap(HermesEvent.create({
+      id: 'evt-relist-preflight', workspaceId: 'ws-1', productId: 'prod-1',
+      type: 'needs_relisting', severity: 'warning', title: 'Relist product',
+      proposedChange: { kind: 'relist', listingIds: ['lst-1', 'lst-2'] },
+    }));
+    await eventRepo.save(event);
+
+    const result = await useCase.execute({ eventId: event.id, workspaceId: 'ws-1' });
+
+    expect(result.isOk()).toBe(true);
+    expect(authorize).toHaveBeenCalledTimes(2);
+    expect(publishQueue.jobs).toHaveLength(1);
+    expect(publishQueue.jobs[0].data.listingId).toBe('lst-1');
+    expect((await eventRepo.findById(event.id))?.status).toBe('applied');
   });
 
   it('returns NOT_FOUND when approving an event from another workspace (IDOR, S2)', async () => {

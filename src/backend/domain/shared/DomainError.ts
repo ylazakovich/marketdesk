@@ -11,6 +11,7 @@ export type DomainErrorCode =
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;
+  /** Client-visible in every DomainError response; must never contain secrets or PII. */
   readonly details?: Record<string, unknown>;
 
   constructor(message: string, code: DomainErrorCode, details?: Record<string, unknown>) {

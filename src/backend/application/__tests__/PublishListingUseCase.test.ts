@@ -13,8 +13,13 @@ import { InMemoryActivityLogRepository, RecordingJobQueue, idFactory } from '../
 import type { PublishListingJob } from '../ports/IJobQueue';
 import type { MarketplaceAccountRepository } from '../services/MarketplaceOAuthService';
 import type { OlxPublicationQuotaService } from '../services/OlxPublicationQuotaService';
+import { GuardrailViolationError } from '../../domain/shared/DomainError';
 
-function setup(connected: boolean, oauthAccount: 'connected' | 'missing' | 'legacy' = 'legacy') {
+function setup(
+  connected: boolean,
+  oauthAccount: 'connected' | 'missing' | 'legacy' = 'legacy',
+  withQuotaService = true,
+) {
   const productRepo = new InMemoryProductRepository();
   const listingRepo = new InMemoryListingRepository();
   const marketplaceRepo = new InMemoryMarketplaceRepository();
@@ -58,6 +63,9 @@ function setup(connected: boolean, oauthAccount: 'connected' | 'missing' | 'lega
         consumedUnit: true,
       };
     },
+    guardError(decision: unknown) {
+      return new GuardrailViolationError('OLX quota blocks publication', { quotaDecision: decision });
+    },
   } as unknown as OlxPublicationQuotaService;
 
   const product = unwrap(
@@ -97,9 +105,9 @@ function setup(connected: boolean, oauthAccount: 'connected' | 'missing' | 'lega
     activityLog,
     idFactory('rec'),
     accountRepo,
-    quotaService,
+    withQuotaService ? quotaService : undefined,
   );
-  return { useCase, publishQueue, activityLog };
+  return { useCase, publishQueue, activityLog, quotaService };
 }
 
 describe('PublishListingUseCase', () => {
@@ -143,6 +151,30 @@ describe('PublishListingUseCase', () => {
       marketplaceId: 'mp-1',
       listingId: 'lst-1',
     });
+  });
+
+  it('does not enqueue when the OLX quota decision blocks publication', async () => {
+    const { useCase, publishQueue, quotaService } = setup(true);
+    jest.spyOn(quotaService, 'authorize').mockResolvedValueOnce({
+      applicable: true, marketplaceKey: 'olx', status: 'exhausted', decision: 'block',
+      reason: 'quota_exhausted', requiresOverride: true,
+    });
+
+    const result = await useCase.execute({ listingId: 'lst-1' });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) expect(result.error).toBeInstanceOf(GuardrailViolationError);
+    expect(publishQueue.jobs).toHaveLength(0);
+  });
+
+  it('fails closed without enqueueing when the OLX quota service is unavailable', async () => {
+    const { useCase, publishQueue } = setup(true, 'legacy', false);
+
+    const result = await useCase.execute({ listingId: 'lst-1' });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) expect(result.error).toBeInstanceOf(GuardrailViolationError);
+    expect(publishQueue.jobs).toHaveLength(0);
   });
 
   it('rejects publishing when the local flag is true but no OAuth account exists', async () => {

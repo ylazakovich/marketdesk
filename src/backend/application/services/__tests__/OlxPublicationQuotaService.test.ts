@@ -1,5 +1,5 @@
 import { OlxPublicationQuotaService } from '../OlxPublicationQuotaService';
-import { OlxPublicationQuota } from '../../../domain/entities/OlxPublicationQuota';
+import { decideOlxPublication, OlxPublicationQuota } from '../../../domain/entities/OlxPublicationQuota';
 import type {
   AuthorizeOlxPublicationInput,
   IOlxPublicationQuotaRepository,
@@ -39,6 +39,7 @@ class AtomicInMemoryQuotaRepository implements IOlxPublicationQuotaRepository {
     workspaceId: string;
     marketplaceId: string;
     marketplaceAccountId: string;
+    limit: number;
   }): Promise<OlxPublicationQuota[]> {
     return this.quotas.filter((quota) =>
       quota.workspaceId === input.workspaceId &&
@@ -72,12 +73,11 @@ class AtomicInMemoryQuotaRepository implements IOlxPublicationQuotaRepository {
       if (replay) return { ...replay, replayed: true };
       let quota = await this.findCurrent(input);
       const evaluation = quota?.evaluate(input.at);
-      const decision = evaluation?.canPublishForFree
-        ? 'allow'
-        : input.overrideConfirmed
-          ? 'override'
-          : 'block';
-      const consumedUnit = decision !== 'block' && quota !== null;
+      const { decision, consumedUnit } = decideOlxPublication(
+        evaluation,
+        input.overrideConfirmed,
+        quota !== null,
+      );
       if (consumedUnit && quota) {
         quota = this.copy(quota, quota.consumed + 1);
         const index = this.quotas.findIndex((candidate) => candidate.id === quota!.id);
@@ -217,8 +217,31 @@ describe('OlxPublicationQuotaService', () => {
       operationId: 'operation-1', mode: 'publish', marketplace, product, listing, actorId: 'user-1',
     });
 
-    expect(preview).toMatchObject({ status: 'unknown', decision: 'block', reason: 'quota_unknown' });
-    expect(decision).toMatchObject({ status: 'unknown', decision: 'block', reason: 'quota_unknown' });
+    expect(preview).toMatchObject({
+      status: 'unknown', decision: 'block', reason: 'quota_unknown', requiresOverride: true,
+    });
+    expect(decision).toMatchObject({
+      status: 'unknown', decision: 'block', reason: 'quota_unknown', requiresOverride: true,
+    });
+  });
+
+  it('does not advertise overrides for unknown accounts or OLX subcategories', async () => {
+    const { service, marketplace, product, listing } = setup();
+    const missingAccountMarketplace = unwrap(Marketplace.create({
+      id: 'mp-missing', workspaceId: 'ws-1', key: 'olx', name: 'OLX', connected: true,
+    }));
+    const unknownCategoryProduct = unwrap(Product.create({
+      id: 'product-unknown-category', workspaceId: 'ws-1', sku: 'SKU-2', name: 'Table',
+      description: 'A table with enough detail for a safe OLX publication.',
+      costPrice: money(100), sellingPrice: money(200), condition: 'good', category: 'furniture',
+    }));
+
+    await expect(service.preview({
+      marketplace: missingAccountMarketplace, product, listing,
+    })).resolves.toMatchObject({ reason: 'marketplace_account_unknown', requiresOverride: false });
+    await expect(service.preview({
+      marketplace, product: unknownCategoryProduct, listing,
+    })).resolves.toMatchObject({ reason: 'olx_subcategory_unknown', requiresOverride: false });
   });
 
   it('serializes concurrent attempts so only one consumes the final free unit', async () => {
@@ -281,6 +304,50 @@ describe('OlxPublicationQuotaService', () => {
         mode: 'relist',
         overrideReason: 'Operator accepts possible OLX publication fee',
       }),
+    });
+  });
+
+  it.each(['', '   '])('rejects a blank override reason (%p)', async (reason) => {
+    const { service, marketplace, product, listing } = setup();
+
+    await expect(service.authorize({
+      operationId: 'operation-blank-reason', mode: 'publish', marketplace, product, listing,
+      actorId: 'operator-1', override: { confirmed: true, reason },
+    })).rejects.toThrow('Quota override requires a non-empty reason');
+  });
+
+  it('records an override without consumption when no quota row exists', async () => {
+    const { service, marketplace, product, listing } = setup();
+
+    const decision = await service.authorize({
+      operationId: 'operation-no-quota-override', mode: 'publish', marketplace, product, listing,
+      actorId: 'operator-1', override: { confirmed: true, reason: 'Operator accepts paid publication' },
+    });
+
+    expect(decision).toMatchObject({ status: 'unknown', decision: 'override', consumedUnit: false });
+    expect(decision.quota).toBeUndefined();
+  });
+
+  it.each(['cycleStartedAt', 'cycleEndsAt', 'verifiedAt', 'staleAt'] as const)(
+    'rejects an invalid %s date',
+    (field) => {
+      const props = {
+        id: 'quota-invalid-date', workspaceId: 'ws-1', marketplaceId: 'mp-1',
+        marketplaceAccountId: 'account-1', subcategoryId: '2000',
+        cycleStartedAt: new Date('2026-07-01T00:00:00.000Z'),
+        cycleEndsAt: new Date('2026-08-01T00:00:00.000Z'), publicationLimit: 1, consumed: 0,
+        source: 'operator' as const, confidence: 'verified' as const,
+        verifiedAt: new Date('2026-07-14T00:00:00.000Z'),
+        staleAt: new Date('2026-07-20T00:00:00.000Z'),
+      };
+      const result = OlxPublicationQuota.create({ ...props, [field]: new Date('invalid') });
+      expect(result.isErr()).toBe(true);
+    },
+  );
+
+  it('fails closed when quota evaluation receives an invalid current date', () => {
+    expect(quota(0).evaluate(new Date('invalid'))).toEqual({
+      status: 'stale', canPublishForFree: false, reason: 'outside_cycle',
     });
   });
 

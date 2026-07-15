@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS olx_publication_operations (
   marketplace_id UUID NOT NULL REFERENCES marketplaces(id) ON DELETE CASCADE,
   marketplace_account_id UUID NOT NULL REFERENCES marketplace_accounts(id) ON DELETE CASCADE,
   quota_id UUID REFERENCES olx_publication_quotas(id) ON DELETE SET NULL,
-  listing_id UUID NOT NULL,
+  listing_id UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,
   subcategory_id VARCHAR(100) NOT NULL,
   mode VARCHAR(20) NOT NULL,
   decision VARCHAR(20) NOT NULL,

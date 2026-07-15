@@ -37,6 +37,7 @@ export interface IOlxPublicationQuotaRepository {
     workspaceId: string;
     marketplaceId: string;
     marketplaceAccountId: string;
+    limit: number;
   }): Promise<OlxPublicationQuota[]>;
   save(quota: OlxPublicationQuota): Promise<void>;
   authorize(input: AuthorizeOlxPublicationInput): Promise<OlxPublicationAuthorization>;

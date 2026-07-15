@@ -95,6 +95,7 @@ export class OlxPublicationQuotaService {
       workspaceId: marketplace.workspaceId,
       marketplaceId: marketplace.id,
       marketplaceAccountId: account.id,
+      limit: 100,
     });
     return quotas.map((quota) => this.presentQuota(quota));
   }
@@ -163,11 +164,11 @@ export class OlxPublicationQuotaService {
     if (input.marketplace.key !== 'olx') return this.notApplicable();
     const account = await this.accountRepo.findByMarketplaceId(input.marketplace.id);
     if (!account || account.status !== 'connected') {
-      return this.unknown('marketplace_account_unknown');
+      return this.unknown('marketplace_account_unknown', undefined, undefined, false);
     }
     const subcategoryId = this.subcategories.resolve(input.product.category);
     if (!subcategoryId) {
-      return this.unknown('olx_subcategory_unknown', account.id);
+      return this.unknown('olx_subcategory_unknown', account.id, undefined, false);
     }
     const at = this.now();
     const quota = await this.quotaRepo.findCurrent({
@@ -211,12 +212,16 @@ export class OlxPublicationQuotaService {
           : 'olx_subcategory_unknown',
         account?.id,
         subcategoryId ?? undefined,
+        false,
       );
       await this.auditDecision(input, decision);
       return decision;
     }
     if (input.override && !input.actorId?.trim()) {
       throw new ValidationError('Quota override requires an authenticated operator');
+    }
+    if (input.override && !input.override.reason.trim()) {
+      throw new ValidationError('Quota override requires a non-empty reason');
     }
 
     const authorization = await this.quotaRepo.authorize({
@@ -304,6 +309,7 @@ export class OlxPublicationQuotaService {
     reason: string,
     accountId?: string,
     subcategoryId?: string,
+    requiresOverride = true,
   ): OlxQuotaDecisionView {
     return {
       applicable: true,
@@ -313,7 +319,7 @@ export class OlxPublicationQuotaService {
       status: 'unknown',
       decision: 'block',
       reason,
-      requiresOverride: true,
+      requiresOverride,
     };
   }
 

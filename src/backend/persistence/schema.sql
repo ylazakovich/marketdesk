@@ -200,6 +200,17 @@ CREATE INDEX IF NOT EXISTS idx_listings_status ON listings(status);
 CREATE INDEX IF NOT EXISTS idx_listings_expires ON listings(expires_at);
 CREATE INDEX IF NOT EXISTS idx_listings_marketplace_status ON listings(marketplace_id, status);
 
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_olx_publication_operations_listing'
+  ) THEN
+    ALTER TABLE olx_publication_operations
+      ADD CONSTRAINT fk_olx_publication_operations_listing
+      FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS marketplace_publish_attempts (
   operation_id UUID PRIMARY KEY,
   listing_id UUID NOT NULL REFERENCES listings(id) ON DELETE CASCADE,

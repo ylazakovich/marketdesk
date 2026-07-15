@@ -44,10 +44,10 @@ export class MarketplaceController {
   setQuota = async (req: Request, res: Response): Promise<void> => {
     if (!this.olxQuotas) throw new InvalidStateError('OLX publication quota service is unavailable');
     const result = await this.olxQuotas.set({
+      ...req.body,
       marketplaceId: routeParam(req.params.id),
       workspaceId: req.user!.workspaceId!,
       actorId: req.user!.userId,
-      ...req.body,
     });
     ok(res, result);
   };

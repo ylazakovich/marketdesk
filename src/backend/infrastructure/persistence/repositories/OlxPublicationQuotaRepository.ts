@@ -1,5 +1,5 @@
 import type { Pool, PoolClient } from 'pg';
-import { OlxPublicationQuota } from '../../../domain/entities/OlxPublicationQuota';
+import { decideOlxPublication, OlxPublicationQuota } from '../../../domain/entities/OlxPublicationQuota';
 import type {
   AuthorizeOlxPublicationInput,
   IOlxPublicationQuotaRepository,
@@ -90,13 +90,15 @@ export class OlxPublicationQuotaRepository implements IOlxPublicationQuotaReposi
     workspaceId: string;
     marketplaceId: string;
     marketplaceAccountId: string;
+    limit: number;
   }): Promise<OlxPublicationQuota[]> {
     const result = await this.pool.query<OlxQuotaRow>(
       `SELECT ${QUOTA_COLUMNS}
        FROM olx_publication_quotas
        WHERE workspace_id = $1 AND marketplace_id = $2 AND marketplace_account_id = $3
-       ORDER BY cycle_started_at DESC, subcategory_id ASC`,
-      [input.workspaceId, input.marketplaceId, input.marketplaceAccountId],
+       ORDER BY cycle_started_at DESC, subcategory_id ASC
+       LIMIT $4`,
+      [input.workspaceId, input.marketplaceId, input.marketplaceAccountId, input.limit],
     );
     return result.rows.map(toQuota);
   }
@@ -193,12 +195,11 @@ export class OlxPublicationQuotaRepository implements IOlxPublicationQuotaReposi
       const evaluation = quota?.evaluate(input.at);
       const status = evaluation?.status ?? 'unknown';
       const reason = evaluation?.reason ?? 'quota_unknown';
-      const decision = evaluation?.canPublishForFree
-        ? 'allow'
-        : input.overrideConfirmed
-          ? 'override'
-          : 'block';
-      const consumedUnit = decision !== 'block' && quota !== null;
+      const { decision, consumedUnit } = decideOlxPublication(
+        evaluation,
+        input.overrideConfirmed,
+        quota !== null,
+      );
 
       if (consumedUnit && quota) {
         const updated = await client.query<OlxQuotaRow>(

@@ -41,6 +41,19 @@ export interface OlxQuotaEvaluation {
     | 'outside_cycle';
 }
 
+export function decideOlxPublication(
+  evaluation: OlxQuotaEvaluation | undefined,
+  overrideConfirmed: boolean,
+  hasQuota: boolean,
+): { decision: Exclude<OlxQuotaDecisionKind, 'not_applicable'>; consumedUnit: boolean } {
+  const decision = evaluation?.canPublishForFree
+    ? 'allow'
+    : overrideConfirmed
+      ? 'override'
+      : 'block';
+  return { decision, consumedUnit: decision !== 'block' && hasQuota };
+}
+
 export class OlxPublicationQuota {
   private constructor(private readonly props: CreateOlxPublicationQuotaProps) {}
 
@@ -59,6 +72,16 @@ export class OlxPublicationQuota {
     }
     if (!Number.isInteger(props.consumed) || props.consumed < 0) {
       return Err(new ValidationError('consumed must be a non-negative integer'));
+    }
+    for (const [name, date] of [
+      ['cycleStartedAt', props.cycleStartedAt],
+      ['cycleEndsAt', props.cycleEndsAt],
+      ['verifiedAt', props.verifiedAt],
+      ['staleAt', props.staleAt],
+    ] as const) {
+      if (!Number.isFinite(date.getTime())) {
+        return Err(new ValidationError(`${name} must be a valid date`));
+      }
     }
     if (props.cycleStartedAt.getTime() >= props.cycleEndsAt.getTime()) {
       return Err(new ValidationError('cycleStartedAt must be before cycleEndsAt'));
@@ -92,6 +115,10 @@ export class OlxPublicationQuota {
   get remaining(): number { return Math.max(0, this.publicationLimit - this.consumed); }
 
   evaluate(now: Date): OlxQuotaEvaluation {
+    if (![now, this.cycleStartedAt, this.cycleEndsAt, this.verifiedAt, this.staleAt]
+      .every((date) => Number.isFinite(date.getTime()))) {
+      return { status: 'stale', canPublishForFree: false, reason: 'outside_cycle' };
+    }
     if (now.getTime() < this.cycleStartedAt.getTime() || now.getTime() >= this.cycleEndsAt.getTime()) {
       return { status: 'stale', canPublishForFree: false, reason: 'outside_cycle' };
     }

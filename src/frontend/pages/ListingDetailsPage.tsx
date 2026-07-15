@@ -39,10 +39,12 @@ import { HermesEventCard } from '../components/hermes/index.js';
 
 export const mainPreviewImageSx = {
   display: 'block',
-  width: '100%',
-  height: '100%',
+  width: 'auto',
+  height: 'auto',
+  maxWidth: '100%',
+  maxHeight: '100%',
   objectFit: 'contain',
-  objectPosition: 'center',
+  margin: 'auto',
 } as const;
 
 export function remoteMarketplaceChipColor(
@@ -305,8 +307,9 @@ const ListingDetailsPage: React.FC = () => {
               borderRadius: 2,
               overflow: 'hidden',
               bgcolor: 'action.hover',
-              display: 'grid',
-              placeItems: 'center',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
             {images.length > 0 ? (

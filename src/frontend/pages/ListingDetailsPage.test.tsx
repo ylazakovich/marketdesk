@@ -46,13 +46,15 @@ function event(
 }
 
 describe('ListingDetailsPage presentation', () => {
-  it('keeps the full-size preview intrinsically sized and centered', () => {
+  it('centers the full-size preview without stretching it across both axes', () => {
     expect(mainPreviewImageSx).toMatchObject({
       display: 'block',
-      width: '100%',
-      height: '100%',
+      width: 'auto',
+      height: 'auto',
+      maxWidth: '100%',
+      maxHeight: '100%',
       objectFit: 'contain',
-      objectPosition: 'center',
+      margin: 'auto',
     });
   });
 

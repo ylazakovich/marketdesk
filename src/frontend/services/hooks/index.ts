@@ -23,6 +23,7 @@ import {
   useSyncMarketplaceMutation,
   useConnectMarketplaceMutation,
   useLazyCheckMarketplaceQuery,
+  useImportMarketplacePreviewMutation,
   useUpdateMarketplaceMutation,
   useGetHermesEventsQuery,
   useGetHermesEventQuery,
@@ -87,6 +88,7 @@ export const useMarketplace = useGetMarketplaceQuery;
 export const useSyncMarketplace = useSyncMarketplaceMutation;
 export const useConnectMarketplace = useConnectMarketplaceMutation;
 export const useCheckMarketplace = useLazyCheckMarketplaceQuery;
+export const useImportMarketplacePreview = useImportMarketplacePreviewMutation;
 export const useUpdateMarketplace = useUpdateMarketplaceMutation;
 
 // ---- Hermes ----

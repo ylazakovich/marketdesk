@@ -3,8 +3,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
+  Alert,
   Box,
   Button,
+  Chip,
   FormControl,
   FormHelperText,
   InputLabel,
@@ -18,12 +20,14 @@ import SyncIcon from '@mui/icons-material/Sync';
 import LinkIcon from '@mui/icons-material/Link';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import type { Marketplace, MarketplaceAccountStatus, SyncMode } from '@shared/types';
+import type { MarketplaceImportPreview } from '../state/api/index.js';
 import { MARKETPLACE_NAMES } from '@shared/constants';
 import {
   useMarketplaces,
   useSyncMarketplace,
   useConnectMarketplace,
   useCheckMarketplace,
+  useImportMarketplacePreview,
   useUpdateMarketplace,
 } from '../services/hooks/index.js';
 import { useAppDispatch } from '../state/hooks.js';
@@ -78,6 +82,7 @@ export interface MarketplaceCardProps {
   busy: boolean;
   onSync: (marketplace: Marketplace) => void;
   onConnect: (marketplace: Marketplace) => void;
+  onImportPreview: (marketplace: Marketplace) => void;
   onSyncMode: (marketplace: Marketplace, event: SelectChangeEvent<SyncMode>) => void;
 }
 
@@ -86,6 +91,7 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
   busy,
   onSync,
   onConnect,
+  onImportPreview,
   onSyncMode,
 }) => {
   const brandLabel = marketplaceBrandLabel(m);
@@ -172,15 +178,27 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
 
         <Stack direction="row" spacing={1}>
           {m.connected ? (
-            <Button
-              variant="contained"
-              startIcon={<SyncIcon />}
-              onClick={() => onSync(m)}
-              disabled={busy}
-              fullWidth
-            >
-              {busy ? 'Syncing…' : 'Sync now'}
-            </Button>
+            <>
+              <Button
+                variant="contained"
+                startIcon={<SyncIcon />}
+                onClick={() => onSync(m)}
+                disabled={busy}
+                fullWidth
+              >
+                {busy ? 'Syncing…' : 'Sync now'}
+              </Button>
+              {m.key === 'olx' && (
+                <Button
+                  variant="outlined"
+                  onClick={() => onImportPreview(m)}
+                  disabled={busy}
+                  fullWidth
+                >
+                  Preview import
+                </Button>
+              )}
+            </>
           ) : (
             <Button
               variant="contained"
@@ -206,8 +224,10 @@ const MarketplacesPage: React.FC = () => {
   const [syncMarketplace] = useSyncMarketplace();
   const [connectMarketplace] = useConnectMarketplace();
   const [checkMarketplace] = useCheckMarketplace();
+  const [importMarketplacePreview] = useImportMarketplacePreview();
   const [updateMarketplace] = useUpdateMarketplace();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [importPreview, setImportPreview] = useState<MarketplaceImportPreview | null>(null);
 
   useEffect(() => {
     const oauthResult = searchParams.get('oauth');
@@ -251,6 +271,27 @@ const MarketplacesPage: React.FC = () => {
     try {
       await syncMarketplace(m.id).unwrap();
       dispatch(enqueueToast({ message: `${m.name} sync started.`, severity: 'success' }));
+    } catch (err) {
+      dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleImportPreview = async (m: Marketplace) => {
+    setBusyId(m.id);
+    try {
+      const preview = await importMarketplacePreview({
+        id: m.id,
+        statuses: ['active', 'new', 'moderation', 'limited', 'expired', 'removed', 'rejected'],
+      }).unwrap();
+      setImportPreview(preview);
+      dispatch(
+        enqueueToast({
+          message: `OLX preview found ${preview.totals.discovered} advert(s).`,
+          severity: 'success',
+        }),
+      );
     } catch (err) {
       dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
     } finally {
@@ -302,13 +343,39 @@ const MarketplacesPage: React.FC = () => {
           description="Marketplace channels will appear here once your workspace is provisioned."
         />
       ) : (
-        <Box
-          sx={{
-            display: 'grid',
-            gap: 2.5,
-            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(3, 1fr)' },
-          }}
-        >
+        <>
+          {importPreview && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Stack spacing={1}>
+                <Typography variant="subtitle2">Read-only OLX import preview</Typography>
+                <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                  <Chip size="small" label={`Discovered: ${importPreview.totals.discovered}`} />
+                  <Chip size="small" color="success" label={`New: ${importPreview.totals.new}`} />
+                  <Chip size="small" label={`Already imported: ${importPreview.totals.already_imported}`} />
+                  <Chip size="small" color="warning" label={`Unsupported: ${importPreview.totals.unsupported}`} />
+                </Stack>
+                {importPreview.items.slice(0, 5).map((item) => (
+                  <Typography key={item.externalListingId} variant="body2">
+                    {item.title} — {item.status}
+                    {item.remoteStatus ? ` (${item.remoteStatus})` : ''}
+                    {item.warnings.length > 0 ? ` · ${item.warnings.join(', ')}` : ''}
+                  </Typography>
+                ))}
+                {importPreview.items.length > 5 && (
+                  <Typography variant="body2" color="text.secondary">
+                    Showing first 5 of {importPreview.items.length} adverts.
+                  </Typography>
+                )}
+              </Stack>
+            </Alert>
+          )}
+          <Box
+            sx={{
+              display: 'grid',
+              gap: 2.5,
+              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(3, 1fr)' },
+            }}
+          >
           {data?.map((m) => {
             const busy = busyId === m.id;
             return (
@@ -318,11 +385,13 @@ const MarketplacesPage: React.FC = () => {
                 busy={busy}
                 onSync={handleSync}
                 onConnect={handleConnect}
+                onImportPreview={handleImportPreview}
                 onSyncMode={handleSyncMode}
               />
             );
           })}
-        </Box>
+          </Box>
+        </>
       )}
     </Box>
   );

@@ -80,6 +80,7 @@ import { HermesApplicationService } from '../../application/services/HermesAppli
 import { AnalyticsApplicationService } from '../../application/services/AnalyticsApplicationService';
 import { MarketplaceOAuthService } from '../../application/services/MarketplaceOAuthService';
 import { MarketplaceSyncScheduler } from '../../application/services/MarketplaceSyncScheduler';
+import { MarketplaceImportService } from '../../application/services/MarketplaceImportService';
 import type { IdGenerator } from '../../application/ports/IdGenerator';
 import type {
   IJobQueue,
@@ -351,6 +352,19 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     dismissEventUC
   );
   const analyticsService = new AnalyticsApplicationService(productRepo, listingRepo, marketplaceRepo);
+  const marketplaceImportService = new MarketplaceImportService(
+    marketplaceRepo,
+    listingRepo,
+    marketplaceAccountRepo,
+    adapterFactory,
+    marketplaceOAuthService,
+    (accessToken) =>
+      new FetchMarketplaceHttpClient({
+        defaultHeaders: buildOlxHeaders(accessToken),
+        timeoutMs: env.marketplaces.olx.requestTimeoutMs,
+        livePublishEnabled: false,
+      }),
+  );
 
   // 9. Register job handlers now that their collaborators exist. The publish
   //    handler is given the domain ListingService so a successful adapter publish
@@ -424,6 +438,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     marketplaceRepo,
     marketplaceOAuthService,
     marketplaceSyncScheduler,
+    marketplaceImportService,
     marketplaceOAuthReturnUrl: env.marketplaces.olx.oauthSuccessUrl,
     workspaceRepo,
     authUserStore,

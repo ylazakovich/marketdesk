@@ -7,6 +7,7 @@ import type { IMarketplaceRepository } from '../../../domain/repositories/interf
 import type { ListingApplicationService } from '../../../application/services/ListingApplicationService';
 import type { MarketplaceOAuthService } from '../../../application/services/MarketplaceOAuthService';
 import type { MarketplaceSyncScheduler } from '../../../application/services/MarketplaceSyncScheduler';
+import type { MarketplaceImportService } from '../../../application/services/MarketplaceImportService';
 import type { SyncMode } from '../../../../shared/types';
 import { DomainError, InvalidStateError, NotFoundError } from '../../../domain/shared/DomainError';
 import { presentMarketplace } from '../../../application/dto/presenters';
@@ -24,6 +25,7 @@ export class MarketplaceController {
     private readonly listings: ListingApplicationService,
     private readonly oauth: MarketplaceOAuthService,
     private readonly syncScheduler: MarketplaceSyncScheduler,
+    private readonly imports: MarketplaceImportService,
     private readonly oauthReturnUrl: string,
     private readonly logger?: ErrorLogger,
   ) {}
@@ -116,6 +118,17 @@ export class MarketplaceController {
       workspaceId: req.user!.workspaceId!,
     });
     ok(res, result);
+  };
+
+  importPreview = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const result = await this.imports.preview({
+      marketplaceId: routeParam(req.params.id),
+      workspaceId: req.user!.workspaceId!,
+      pageSize: req.body?.pageSize,
+      statuses: req.body?.statuses,
+    });
+    if (result.isErr()) return next(result.error);
+    ok(res, result.value);
   };
 
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {

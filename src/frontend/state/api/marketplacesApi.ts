@@ -7,6 +7,8 @@ import type {
   MarketplaceOAuthStart,
   MarketplaceOAuthStatus,
   UpdateMarketplaceArg,
+  MarketplaceImportPreview,
+  MarketplaceImportPreviewInput,
 } from './dto.js';
 
 export const marketplacesApi = baseApi.injectEndpoints({
@@ -58,6 +60,15 @@ export const marketplacesApi = baseApi.injectEndpoints({
       providesTags: (_result, _error, id) => [{ type: 'Marketplace', id }],
     }),
 
+    importMarketplacePreview: builder.mutation<MarketplaceImportPreview, MarketplaceImportPreviewInput>({
+      query: ({ id, pageSize, statuses }) => ({
+        url: `/marketplaces/${id}/import-preview`,
+        method: 'POST',
+        body: { pageSize, statuses },
+      }),
+      transformResponse: (res: ApiResponse<MarketplaceImportPreview>) => unwrap(res),
+    }),
+
     updateMarketplace: builder.mutation<Marketplace, UpdateMarketplaceArg>({
       query: ({ id, patch }) => ({
         url: `/marketplaces/${id}`,
@@ -79,5 +90,6 @@ export const {
   useSyncMarketplaceMutation,
   useConnectMarketplaceMutation,
   useLazyCheckMarketplaceQuery,
+  useImportMarketplacePreviewMutation,
   useUpdateMarketplaceMutation,
 } = marketplacesApi;

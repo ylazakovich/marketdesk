@@ -135,6 +135,45 @@ export interface UpdateMarketplaceArg {
   patch: UpdateMarketplaceInput;
 }
 
+export interface MarketplaceImportPreviewInput {
+  id: string;
+  pageSize?: number;
+  statuses?: string[];
+}
+
+export type MarketplaceImportPreviewItemStatus = 'new' | 'already_imported' | 'unsupported';
+
+export interface MarketplaceImportPreviewItem {
+  status: MarketplaceImportPreviewItemStatus;
+  externalListingId: string;
+  externalUrl?: string | null;
+  title: string;
+  remoteStatus: string | null;
+  warnings: string[];
+  proposed: {
+    externalListingId: string;
+    externalUrl?: string | null;
+    title: string;
+    description?: string | null;
+    price?: number | null;
+    currency?: string | null;
+    status: ListingStatus;
+    remoteStatus?: string | null;
+    category?: string | null;
+    imageUrls: string[];
+    remoteUpdatedAt?: string | null;
+    metrics?: { views?: number; watchers?: number; messages?: number };
+  };
+}
+
+export interface MarketplaceImportPreview {
+  marketplaceId: string;
+  marketplaceKey: Marketplace['key'];
+  readOnly: true;
+  totals: Record<MarketplaceImportPreviewItemStatus, number> & { discovered: number };
+  items: MarketplaceImportPreviewItem[];
+}
+
 // ----------------------------------------------------------------------------
 // Hermes
 // ----------------------------------------------------------------------------

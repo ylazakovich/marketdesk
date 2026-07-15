@@ -25,6 +25,7 @@ import type { ListingApplicationService } from '../../application/services/Listi
 import type { HermesApplicationService } from '../../application/services/HermesApplicationService';
 import type { AnalyticsApplicationService } from '../../application/services/AnalyticsApplicationService';
 import type { MarketplaceOAuthService } from '../../application/services/MarketplaceOAuthService';
+import type { MarketplaceImportService } from '../../application/services/MarketplaceImportService';
 import type { IProductRepository } from '../../domain/repositories/interfaces/IProductRepository';
 import type { IListingRepository } from '../../domain/repositories/interfaces/IListingRepository';
 import type { IMarketplaceRepository } from '../../domain/repositories/interfaces/IMarketplaceRepository';
@@ -194,6 +195,41 @@ function stubMarketplaceOAuthService(): MarketplaceOAuthService {
   } as unknown as MarketplaceOAuthService;
 }
 
+function stubMarketplaceImportService(): MarketplaceImportService {
+  return {
+    async preview() {
+      return Ok({
+        marketplaceId: 'marketplace-olx',
+        marketplaceKey: 'olx' as const,
+        readOnly: true as const,
+        totals: { discovered: 1, new: 1, already_imported: 0, unsupported: 0 },
+        items: [
+          {
+            status: 'new' as const,
+            externalListingId: 'olx-1',
+            externalUrl: 'https://www.olx.pl/d/oferta/olx-1',
+            title: 'Remote camera',
+            remoteStatus: 'active',
+            warnings: [],
+            proposed: {
+              externalListingId: 'olx-1',
+              externalUrl: 'https://www.olx.pl/d/oferta/olx-1',
+              title: 'Remote camera',
+              description: 'Existing OLX advert',
+              price: 100,
+              currency: 'PLN',
+              status: 'live' as const,
+              remoteStatus: 'active',
+              category: 'electronics',
+              imageUrls: ['https://img.example/1.jpg'],
+            },
+          },
+        ],
+      });
+    },
+  } as unknown as MarketplaceImportService;
+}
+
 async function buildTestApp() {
   const authUserStore = new InMemoryAuthStore();
   const productRepo = new InMemoryProductRepository();
@@ -218,6 +254,8 @@ async function buildTestApp() {
     listingRepo: listingRepo as IListingRepository,
     marketplaceRepo: marketplaceRepo as IMarketplaceRepository,
     marketplaceOAuthService: stubMarketplaceOAuthService(),
+    marketplaceSyncScheduler: { reconcile: async () => ({ mode: 'manual', scheduled: false }) },
+    marketplaceImportService: stubMarketplaceImportService(),
     marketplaceOAuthReturnUrl: 'http://localhost:5173/marketplaces',
     workspaceRepo: workspaceRepo as IWorkspaceRepository,
     authUserStore,
@@ -493,15 +531,30 @@ describe('Presentation API', () => {
 
     it('returns app-authoritative OLX account status from the protected check endpoint', async () => {
       const { app } = await buildTestApp();
-      const res = await auth(
-        request(app).get('/api/marketplaces/marketplace-olx/check'),
-      );
+      const res = await auth(request(app).get('/api/marketplaces/marketplace-olx/check'));
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.connected).toBe(true);
       expect(JSON.stringify(res.body)).not.toContain('access-token');
       expect(JSON.stringify(res.body)).not.toContain('refresh-token');
+    });
+
+    it('previews existing OLX adverts through a read-only import endpoint', async () => {
+      const { app } = await buildTestApp();
+      const res = await auth(request(app).post('/api/marketplaces/marketplace-olx/import-preview')).send({
+        statuses: ['active'],
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.readOnly).toBe(true);
+      expect(res.body.data.totals).toEqual({ discovered: 1, new: 1, already_imported: 0, unsupported: 0 });
+      expect(res.body.data.items[0]).toMatchObject({
+        status: 'new',
+        externalListingId: 'olx-1',
+        remoteStatus: 'active',
+      });
     });
   });
 

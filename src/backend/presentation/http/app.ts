@@ -33,6 +33,7 @@ import { WorkspaceController } from './controllers/WorkspaceController';
 import { AuthController } from './controllers/AuthController';
 import type { MarketplaceOAuthService } from '../../application/services/MarketplaceOAuthService';
 import type { MarketplaceSyncScheduler } from '../../application/services/MarketplaceSyncScheduler';
+import type { MarketplaceImportService } from '../../application/services/MarketplaceImportService';
 import { createApiRouter } from './routes';
 import { createErrorHandler, type ErrorLogger } from './middleware/ErrorHandlingMiddleware';
 
@@ -47,6 +48,7 @@ export interface AppDeps {
   marketplaceRepo: IMarketplaceRepository;
   marketplaceOAuthService: MarketplaceOAuthService;
   marketplaceSyncScheduler: MarketplaceSyncScheduler;
+  marketplaceImportService: MarketplaceImportService;
   marketplaceOAuthReturnUrl: string;
   workspaceRepo: IWorkspaceRepository;
   authUserStore: IAuthUserStore;
@@ -147,6 +149,7 @@ export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
       deps.listingService,
       deps.marketplaceOAuthService,
       deps.marketplaceSyncScheduler,
+      deps.marketplaceImportService,
       deps.marketplaceOAuthReturnUrl,
       deps.logger,
     ),

@@ -6,7 +6,7 @@ import EditIcon from '@mui/icons-material/EditOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { HermesEvent, Listing } from '@shared/types';
+import type { HermesEvent, Listing, Marketplace } from '@shared/types';
 import type { PublishListingPreview } from '../state/api/dto.js';
 import {
   useProduct,
@@ -39,13 +39,37 @@ import { HermesEventCard } from '../components/hermes/index.js';
 
 export const mainPreviewImageSx = {
   display: 'block',
-  width: 'auto',
-  height: 'auto',
-  maxWidth: '100%',
-  maxHeight: '100%',
+  width: '100%',
+  height: '100%',
   objectFit: 'contain',
   objectPosition: 'center',
 } as const;
+
+export function remoteMarketplaceChipColor(
+  listing: Listing | undefined,
+): 'default' | 'success' | 'warning' | 'error' {
+  if (!listing) return 'default';
+  const status = listing.remoteStatus?.toLowerCase();
+  if (
+    listing.isRemotePending ||
+    ['new', 'moderation', 'pending', 'limited', 'unpaid'].includes(status ?? '')
+  ) {
+    return 'warning';
+  }
+  if (['active', 'activated', 'live', 'published'].includes(status ?? '')) return 'success';
+  if (['error', 'rejected', 'blocked'].includes(status ?? '')) return 'error';
+  return 'default';
+}
+
+export function selectPrimaryListing(
+  listings: Listing[],
+  marketplaces: Marketplace[] | undefined,
+): Listing | undefined {
+  const olxMarketplaceIds = new Set(
+    marketplaces?.filter((marketplace) => marketplace.key === 'olx').map(({ id }) => id) ?? [],
+  );
+  return listings.find((listing) => olxMarketplaceIds.has(listing.marketplaceId)) ?? listings[0];
+}
 
 export function remoteMarketplacePresentation(listing: Listing | undefined, marketplaceName: string) {
   const label = listing?.remoteStatusLabel;
@@ -144,7 +168,7 @@ const ListingDetailsPage: React.FC = () => {
           (marketplace) => marketplace.connected && !listingMarketplaceIds.has(marketplace.id)
         )
       : undefined;
-  const primaryListing = listingItems[0];
+  const primaryListing = selectPrimaryListing(listingItems, marketplaces);
   const priceHistory = usePriceHistory(primaryListing?.id ?? '', { skip: !primaryListing });
   const primaryMarketplaceName = primaryListing
     ? resolveMarketplaceName(primaryListing.marketplaceId)
@@ -372,7 +396,7 @@ const ListingDetailsPage: React.FC = () => {
             <Chip
               size="small"
               label={remoteMarketplace.status}
-              color={primaryListing?.isRemotePending ? 'warning' : primaryListing?.remoteStatusLabel ? 'success' : 'default'}
+              color={remoteMarketplaceChipColor(primaryListing)}
               variant="outlined"
             />
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
@@ -446,13 +470,13 @@ const ListingDetailsPage: React.FC = () => {
                     approveLabel="Apply"
                     successMessage={
                       primaryListing?.status === 'live' && primaryListing.marketplaceListingId
-                        ? `Suggestion applied. ${primaryMarketplaceName} update started.`
+                        ? 'Suggestion applied. Connected live listings update in the background.'
                         : 'Suggestion applied to the product.'
                     }
                   />
                 ))}
                 <Typography variant="caption" color="text.secondary">
-                  Approving applies the change locally and immediately starts the update on {primaryMarketplaceName} for live listings.
+                  Applying updates the product immediately. Connected live listings are then updated through the marketplace job queue.
                 </Typography>
               </Stack>
             )}

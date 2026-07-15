@@ -1,7 +1,9 @@
-import type { HermesEvent, Listing } from '@shared/types';
+import type { HermesEvent, Listing, Marketplace } from '@shared/types';
 import {
   mainPreviewImageSx,
+  remoteMarketplaceChipColor,
   remoteMarketplacePresentation,
+  selectPrimaryListing,
   selectProductRecommendations,
 } from './ListingDetailsPage';
 
@@ -47,13 +49,28 @@ describe('ListingDetailsPage presentation', () => {
   it('keeps the full-size preview intrinsically sized and centered', () => {
     expect(mainPreviewImageSx).toMatchObject({
       display: 'block',
-      width: 'auto',
-      height: 'auto',
-      maxWidth: '100%',
-      maxHeight: '100%',
+      width: '100%',
+      height: '100%',
       objectFit: 'contain',
       objectPosition: 'center',
     });
+  });
+
+  it('uses non-success colors for failed and ended remote states', () => {
+    expect(remoteMarketplaceChipColor({ ...listing, remoteStatus: 'active' })).toBe('success');
+    expect(remoteMarketplaceChipColor({ ...listing, remoteStatus: 'rejected' })).toBe('error');
+    expect(remoteMarketplaceChipColor({ ...listing, remoteStatus: 'expired' })).toBe('default');
+    expect(remoteMarketplaceChipColor({ ...listing, remoteStatus: 'moderation' })).toBe('warning');
+  });
+
+  it('prefers the OLX listing when a product is listed on several marketplaces', () => {
+    const otherListing = { ...listing, id: 'listing-other', marketplaceId: 'marketplace-other' };
+    const marketplaces = [
+      { id: 'marketplace-other', key: 'ebay' },
+      { id: 'marketplace-1', key: 'olx' },
+    ] as Marketplace[];
+
+    expect(selectPrimaryListing([otherListing, listing], marketplaces)?.id).toBe('listing-1');
   });
 
   it('explains the provider status without repeating an unlabeled Active value', () => {

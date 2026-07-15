@@ -332,16 +332,6 @@ const token = signToken({ userId: 'u-1', workspaceId: 'ws-1' });
 const auth = (req: request.Test) => req.set('Authorization', `Bearer ${token}`);
 
 describe('Presentation API', () => {
-  it('allows OLX CDN images in the Content-Security-Policy', async () => {
-    const { app } = await buildTestApp();
-
-    const res = await request(app).get('/api/products');
-
-    expect(res.headers['content-security-policy']).toContain(
-      'img-src \'self\' data: https://*.olxcdn.com https://*.apollo.olxcdn.com https://ireland.apollo.olxcdn.com'
-    );
-  });
-
   describe('auth', () => {
     it('logs in with valid credentials and returns a token', async () => {
       const { app } = await buildTestApp();
@@ -471,6 +461,50 @@ describe('Presentation API', () => {
       expect(res.status).toBe(201);
       expect(res.body.success).toBe(true);
       expect(res.body.data.id).toBeDefined();
+    });
+
+    it('generates a review-only AI product draft from a title', async () => {
+      const { app } = await buildTestApp();
+      const res = await auth(request(app).post('/api/products/ai-draft')).send({
+        mode: 'title',
+        title: 'Vintage Canon camera',
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.mode).toBe('title');
+      expect(res.body.data.fields.name).toBe('Vintage Canon camera');
+      expect(res.body.data.fields.status).toBe('draft');
+      expect(res.body.data.uncertainFields).toContain('sellingPrice');
+      expect(res.body.data.notes.join(' ')).toContain('normal confirmation flow');
+    });
+
+    it('validates empty photo-first AI product draft requests', async () => {
+      const { app } = await buildTestApp();
+      const res = await auth(request(app).post('/api/products/ai-draft')).send({
+        mode: 'photos',
+        imageUrls: [],
+      });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('falls back to existing product images for photo-first AI draft requests', async () => {
+      const { app } = await buildTestApp();
+      const res = await auth(request(app).post('/api/products/ai-draft')).send({
+        mode: 'photos',
+        imageUrls: [],
+        existingFields: {
+          name: 'Vintage camera',
+          images: ['https://example.test/camera.jpg'],
+        },
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.fields.images).toEqual(['https://example.test/camera.jpg']);
     });
 
     it('creates a draft OLX listing for a product', async () => {

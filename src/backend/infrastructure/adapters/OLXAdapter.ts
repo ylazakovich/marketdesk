@@ -179,6 +179,8 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
       externalListingId: String(advert.id),
       externalUrl: this.extractPublicUrl(advert),
       publishedAt: new Date(),
+      remoteStatus: advert.status ?? null,
+      remoteImageUrls: this.extractImageUrls(advert),
     };
   }
 

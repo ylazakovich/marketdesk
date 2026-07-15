@@ -55,6 +55,40 @@ export const updateProductSchema = z
     message: 'At least one field must be provided',
   });
 
+export const productAIDraftSchema = z
+  .object({
+    mode: z.enum(['photos', 'title']),
+    title: z.string().trim().min(1).optional(),
+    imageUrls: z.array(z.string().trim().min(1)).optional(),
+    existingFields: z
+      .object({
+        sku: z.string().optional(),
+        name: z.string().optional(),
+        description: z.string().optional(),
+        costPrice: z.number().nonnegative().nullable().optional(),
+        sellingPrice: z.number().nonnegative().optional(),
+        condition: conditionEnum.optional(),
+        category: z.string().optional(),
+        status: z.enum(PRODUCT_STATUS_LIST as [string, ...string[]]).optional(),
+        tags: z.array(z.string()).optional(),
+        images: z.array(z.string()).optional(),
+      })
+      .optional(),
+  })
+  .superRefine((body, ctx) => {
+    if (body.mode === 'title' && !body.title && !body.existingFields?.name) {
+      ctx.addIssue({ code: 'custom', path: ['title'], message: 'Title is required' });
+    }
+    if (body.mode === 'photos') {
+      const imageCount = body.imageUrls && body.imageUrls.length > 0
+        ? body.imageUrls.length
+        : body.existingFields?.images?.length ?? 0;
+      if (imageCount === 0) {
+        ctx.addIssue({ code: 'custom', path: ['imageUrls'], message: 'At least one photo URL is required' });
+      }
+    }
+  });
+
 export const createListingSchema = z.object({
   marketplaceKey: z.enum(MARKETPLACE_KEY_LIST as [string, ...string[]]).default('olx'),
   price: z.number().nonnegative().optional(),

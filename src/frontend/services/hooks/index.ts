@@ -8,6 +8,7 @@ import {
   useGetProductsQuery,
   useGetProductQuery,
   useCreateProductMutation,
+  useGenerateProductAIDraftMutation,
   useUpdateProductMutation,
   useDeleteProductMutation,
   useCreateProductListingMutation,
@@ -69,6 +70,7 @@ export function useProducts(params: ProductListParams = {}, options?: ProductsOp
 export const useProduct = useGetProductQuery;
 export const useProductListings = useGetProductListingsQuery;
 export const useCreateProduct = useCreateProductMutation;
+export const useGenerateProductAIDraft = useGenerateProductAIDraftMutation;
 export const useUpdateProduct = useUpdateProductMutation;
 export const useDeleteProduct = useDeleteProductMutation;
 export const useCreateProductListing = useCreateProductListingMutation;

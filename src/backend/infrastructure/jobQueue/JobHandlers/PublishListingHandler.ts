@@ -65,6 +65,8 @@ export interface PublishAttemptCheckpoint {
   externalListingId: string | null;
   externalUrl: string | null;
   publishedAt: Date | null;
+  remoteStatus: string | null;
+  remoteImageUrls: string[];
 }
 
 export interface PublishAttemptStore {
@@ -104,7 +106,9 @@ export interface ListingFinalizer {
     externalListingId: string,
     externalUrl?: string | null,
     publishedAt?: Date,
-    expiresAt?: Date | null
+    expiresAt?: Date | null,
+    remoteStatus?: string | null,
+    remoteImageUrls?: string[]
   ): Promise<Result<Listing>>;
   // Optional idempotency probe: reports whether the listing was already published
   // (live + marketplaceListingId set) by a prior attempt. Lets the handler skip the
@@ -231,6 +235,8 @@ export class PublishListingHandler {
               externalListingId: state.externalListingId,
               externalUrl: checkpoint?.externalUrl ?? state.externalUrl ?? null,
               publishedAt: state.publishedAt ?? new Date(),
+              remoteStatus: checkpoint?.remoteStatus ?? null,
+              remoteImageUrls: checkpoint?.remoteImageUrls ?? [],
             },
             finalized: true,
           };
@@ -247,6 +253,8 @@ export class PublishListingHandler {
         externalListingId: checkpoint.externalListingId,
         externalUrl: checkpoint.externalUrl,
         publishedAt: checkpoint.publishedAt ?? new Date(),
+        remoteStatus: checkpoint.remoteStatus ?? null,
+        remoteImageUrls: checkpoint.remoteImageUrls ?? [],
       };
     } else if (checkpoint?.status === 'publishing') {
       throw new InvalidStateError(
@@ -290,6 +298,8 @@ export class PublishListingHandler {
               externalListingId: started.checkpoint.externalListingId,
               externalUrl: started.checkpoint.externalUrl,
               publishedAt: started.checkpoint.publishedAt ?? new Date(),
+              remoteStatus: started.checkpoint.remoteStatus ?? null,
+              remoteImageUrls: started.checkpoint.remoteImageUrls ?? [],
             };
           } else {
             throw new InvalidStateError(
@@ -328,7 +338,10 @@ export class PublishListingHandler {
             data.listingId,
             result.externalListingId,
             result.externalUrl ?? null,
-            result.publishedAt
+            result.publishedAt,
+            null,
+            result.remoteStatus ?? null,
+            result.remoteImageUrls ?? []
           ),
         (attempt) => attempt.isOk(),
         (attempt) => (attempt.isErr() ? attempt.error : undefined)

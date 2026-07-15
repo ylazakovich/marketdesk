@@ -12,10 +12,10 @@
 // container unit test). Absent overrides, the real config-backed clients are used.
 
 import { randomBytes, randomUUID } from 'node:crypto';
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import type { Redis } from 'ioredis';
 
-import { createPool, withTransaction } from '../database';
+import { createPool } from '../database';
 import { createRedisClient } from '../redis';
 
 // --- Infrastructure: persistence ---
@@ -30,6 +30,30 @@ import { WorkspaceRepository } from '../../infrastructure/persistence/repositori
 import { ActivityLogRepository } from '../../infrastructure/persistence/repositories/ActivityLogRepository';
 import { AuthUserRepository } from '../../infrastructure/persistence/repositories/AuthUserRepository';
 import { PriceHistoryRepository } from '../../infrastructure/persistence/repositories/PriceHistoryRepository';
+
+async function withPoolTransaction<T>(
+  pool: Pool,
+  callback: (client: PoolClient) => Promise<T>,
+): Promise<T> {
+  const client = await pool.connect();
+  let releaseError: Error | undefined;
+  try {
+    await client.query('BEGIN');
+    const result = await callback(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (error) {
+    try {
+      await client.query('ROLLBACK');
+    } catch (rollbackError) {
+      // Preserve the original transaction failure; rollback failure is secondary.
+      releaseError = rollbackError instanceof Error ? rollbackError : new Error('Transaction rollback failed');
+    }
+    throw error;
+  } finally {
+    client.release(releaseError);
+  }
+}
 
 // --- Infrastructure: events, cache, jobs, adapters, external ---
 import {
@@ -76,6 +100,7 @@ import { RunHermesUseCase } from '../../application/usecases/RunHermesUseCase';
 import { ApproveHermesEventUseCase } from '../../application/usecases/ApproveHermesEventUseCase';
 import { DismissHermesEventUseCase } from '../../application/usecases/DismissHermesEventUseCase';
 import { ProductApplicationService } from '../../application/services/ProductApplicationService';
+import { ProductAIDraftService } from '../../application/services/ProductAIDraftService';
 import { ListingApplicationService } from '../../application/services/ListingApplicationService';
 import { HermesApplicationService } from '../../application/services/HermesApplicationService';
 import { AnalyticsApplicationService } from '../../application/services/AnalyticsApplicationService';
@@ -286,7 +311,14 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     listingRepo,
     productRepo,
     marketplaceRepo,
-    eventPublisher
+    eventPublisher,
+    (work) =>
+      withPoolTransaction(pool, (client) =>
+        work({
+          listingRepo: new ListingRepository(pool, client),
+          productRepo: new ProductRepository(pool, client),
+        })
+      )
   );
   const hermesEngine = new HermesDecisionEngine(
     productRepo,
@@ -340,6 +372,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     createProductUC,
     updateProductUC
   );
+  const productAIDraftService = new ProductAIDraftService(aiProvider);
   const listingService = new ListingApplicationService(
     listingRepo,
     publishListingUC,
@@ -373,11 +406,11 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     activityLogRepo,
     idGenerator,
     (work) =>
-      withTransaction((client) =>
+      withPoolTransaction(pool, (client) =>
         work({
-          productRepo: new ProductRepository(undefined, client),
-          listingRepo: new ListingRepository(undefined, client),
-          activityLog: new ActivityLogRepository(undefined, client),
+          productRepo: new ProductRepository(pool, client),
+          listingRepo: new ListingRepository(pool, client),
+          activityLog: new ActivityLogRepository(pool, client),
         })
       )
   );
@@ -446,6 +479,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
   // 10. Assemble AppDeps.
   const deps: AppDeps = {
     productService,
+    productAIDraftService,
     listingService,
     hermesService,
     analyticsService,

@@ -18,6 +18,8 @@ export interface PublishResult {
   externalListingId: string;
   externalUrl?: string | null;
   publishedAt: Date;
+  remoteStatus?: string | null;
+  remoteImageUrls?: string[];
 }
 export interface SyncedListing {
   externalListingId: string;

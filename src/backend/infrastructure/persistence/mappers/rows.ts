@@ -38,6 +38,7 @@ export interface ListingRow {
   external_url: string | null;
   price: string | number;
   status: string;
+  remote_status: string | null;
   views: number | null;
   watchers: number | null;
   messages: number | null;

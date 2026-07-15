@@ -1,7 +1,7 @@
 // Product / listing detail: gallery, attributes, per-marketplace listings,
 // price editing (PricingForm), publish + relist actions, and price history.
 import React, { useState } from 'react';
-import { Box, Button, Chip, Divider, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Chip, Divider, Stack, Typography } from '@mui/material';
 import EditIcon from '@mui/icons-material/EditOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -34,6 +34,13 @@ import { ListingsTable } from '../components/tables/index.js';
 import { ProductForm } from '../components/forms/index.js';
 import type { ProductFormValues } from '../components/forms/index.js';
 import { PricingForm } from '../components/forms/index.js';
+
+
+function remoteStatusCopy(listing: Listing): string {
+  if (listing.isRemotePending) return 'Remote marketplace is still pending moderation/activation; metrics can be unavailable until active.';
+  if (listing.remoteStatusLabel) return listing.remoteStatusLabel;
+  return 'No remote lifecycle status has been synced yet.';
+}
 
 function errorMessage(err: unknown): string {
   if (err && typeof err === 'object') {
@@ -197,6 +204,7 @@ const ListingDetailsPage: React.FC = () => {
 
   const p = product.data;
   const images = p.images ?? [];
+  const selectedImageIndex = images.length > 0 ? Math.min(activeImage, images.length - 1) : 0;
 
   return (
     <Box>
@@ -239,9 +247,9 @@ const ListingDetailsPage: React.FC = () => {
             {images.length > 0 ? (
               <Box
                 component="img"
-                src={images[activeImage]}
+                src={images[selectedImageIndex]}
                 alt={p.name}
-                sx={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                sx={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center center' }}
               />
             ) : (
               <Typography variant="body2" color="text.secondary">
@@ -265,7 +273,7 @@ const ListingDetailsPage: React.FC = () => {
                     objectFit: 'cover',
                     cursor: 'pointer',
                     border: (t) =>
-                      `2px solid ${i === activeImage ? t.palette.primary.main : 'transparent'}`,
+                      `2px solid ${i === selectedImageIndex ? t.palette.primary.main : 'transparent'}`,
                   }}
                 />
               ))}
@@ -296,6 +304,43 @@ const ListingDetailsPage: React.FC = () => {
         </Card>
 
         <Stack spacing={2.5}>
+          <Card title="Pricing / status summary">
+            <Typography variant="h4" sx={{ fontWeight: 800 }}>{formatCurrency(p.sellingPrice, currency)}</Typography>
+            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+              <ProductStatusBadge status={p.status} />
+              {primaryListing?.remoteStatusLabel && <Chip size="small" label={primaryListing.remoteStatusLabel} color={primaryListing.isRemotePending ? 'warning' : 'default'} />}
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Cost {formatCurrency(p.costPrice, currency)} · Profit {formatCurrency(p.sellingPrice - (p.costPrice ?? 0), currency)}
+            </Typography>
+          </Card>
+
+          <Card title="Statistics">
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+              {[
+                ['Views', primaryListing?.views ?? '—'],
+                ['Watchers', primaryListing?.watchers ?? '—'],
+                ['Messages', primaryListing?.messages ?? '—'],
+                ['Conversion', primaryListing?.views ? `${Math.round(((primaryListing.messages ?? 0) / primaryListing.views) * 100)}%` : '—'],
+              ].map(([label, value]) => (
+                <Box key={label} sx={{ minWidth: 96, p: 1.25, borderRadius: 2, bgcolor: 'action.hover' }}>
+                  <Typography variant="caption" color="text.secondary">{label}</Typography>
+                  <Typography variant="h6" sx={{ fontWeight: 800 }}>{value}</Typography>
+                </Box>
+              ))}
+            </Stack>
+          </Card>
+
+          <Card title="Remote marketplace status">
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>{primaryListing?.remoteStatusLabel ?? 'Not synced'}</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              {primaryListing ? remoteStatusCopy(primaryListing) : 'Create or publish a marketplace listing to start tracking remote status.'}
+            </Typography>
+            {primaryListing?.lastSyncAt && (
+              <Typography variant="caption" color="text.secondary">Last sync: {formatDateTime(primaryListing.lastSyncAt)}</Typography>
+            )}
+          </Card>
+
           <Card
             title="Marketplace listings"
             action={
@@ -324,6 +369,23 @@ const ListingDetailsPage: React.FC = () => {
               onRelist={handleRelist}
               onPublish={handlePublish}
             />
+          </Card>
+
+          <Card title="Hermes recommendations">
+            <Stack spacing={1}>
+              <Alert severity="info">Add more marketplace-ready photos before publishing if the gallery has fewer than 4 images.</Alert>
+              <Alert severity={primaryListing?.isRemotePending ? 'warning' : 'success'}>
+                {primaryListing?.isRemotePending ? 'Wait for remote activation before treating metrics as final.' : 'Listing is ready for optimization suggestions.'}
+              </Alert>
+            </Stack>
+          </Card>
+
+          <Card title="Activity log">
+            <Stack spacing={1}>
+              <Typography variant="body2">Product updated · {formatDateTime(p.updatedAt)}</Typography>
+              {primaryListing?.publishedAt && <Typography variant="body2">Published to marketplace · {formatDateTime(primaryListing.publishedAt)}</Typography>}
+              {primaryListing?.lastSyncAt && <Typography variant="body2">Marketplace synced · {formatDateTime(primaryListing.lastSyncAt)}</Typography>}
+            </Stack>
           </Card>
 
           <Card title="Price history">

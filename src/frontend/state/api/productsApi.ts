@@ -1,5 +1,5 @@
 // Products endpoints, injected into the shared baseApi (Group 8).
-import type { Product, Listing, PaginatedResponse, ApiResponse } from '@shared/types';
+import type { Product, Listing, PaginatedResponse, ApiResponse, ProductAIDraft, ProductAIDraftRequest } from '@shared/types';
 import { baseApi } from './baseApi.js';
 import { buildQueryString } from './queryString.js';
 import { unwrap, unwrapPaginated } from './envelope.js';
@@ -35,6 +35,11 @@ export const productsApi = baseApi.injectEndpoints({
       query: (body) => ({ url: '/products', method: 'POST', body }),
       transformResponse: (res: ApiResponse<Product>) => unwrap(res),
       invalidatesTags: [{ type: 'Product', id: 'LIST' }],
+    }),
+
+    generateProductAIDraft: builder.mutation<ProductAIDraft, ProductAIDraftRequest>({
+      query: (body) => ({ url: '/products/ai-draft', method: 'POST', body }),
+      transformResponse: (res: ApiResponse<ProductAIDraft>) => unwrap(res),
     }),
 
     updateProduct: builder.mutation<Product, UpdateProductArg>({
@@ -88,6 +93,7 @@ export const {
   useGetProductsQuery,
   useGetProductQuery,
   useCreateProductMutation,
+  useGenerateProductAIDraftMutation,
   useUpdateProductMutation,
   useDeleteProductMutation,
   useCreateProductListingMutation,

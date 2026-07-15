@@ -11,12 +11,17 @@ import type { IProductRepository } from '../repositories/interfaces/IProductRepo
 import type { IMarketplaceRepository } from '../repositories/interfaces/IMarketplaceRepository';
 import type { IEventPublisher, DomainEvent } from '../ports/IEventPublisher';
 
+export type ListingPersistenceTransaction = <T>(
+  work: (repos: { listingRepo: IListingRepository; productRepo: IProductRepository }) => Promise<T>,
+) => Promise<T>;
+
 export class ListingService {
   constructor(
     private readonly listingRepo: IListingRepository,
     private readonly productRepo: IProductRepository,
     private readonly marketplaceRepo: IMarketplaceRepository,
     private readonly eventPublisher: IEventPublisher,
+    private readonly transaction?: ListingPersistenceTransaction,
   ) {}
 
   async publishListing(
@@ -25,6 +30,8 @@ export class ListingService {
     externalUrl: string | null = null,
     publishedAt: Date = new Date(),
     expiresAt: Date | null = null,
+    remoteStatus: string | null = null,
+    remoteImageUrls: string[] = [],
   ): Promise<Result<Listing>> {
     const listing = await this.listingRepo.findById(listingId);
     if (!listing) return Err(new NotFoundError(`Listing not found: ${listingId}`));
@@ -46,16 +53,35 @@ export class ListingService {
       externalUrl,
       publishedAt,
       expiresAt,
+      remoteStatus,
     );
     if (published.isErr()) return published;
 
-    await this.listingRepo.save(listing);
+    const persist = async (repos: { listingRepo: IListingRepository; productRepo: IProductRepository }) => {
+      if (remoteImageUrls.length > 0) {
+        product.clearImages();
+        for (const imageUrl of remoteImageUrls) {
+          const added = product.addImage(imageUrl);
+          if (added.isErr()) return added;
+        }
+        await repos.productRepo.save(product);
+      }
+      await repos.listingRepo.save(listing);
+      return Ok(undefined);
+    };
+
+    const persisted = this.transaction
+      ? await this.transaction(persist)
+      : await persist({ listingRepo: this.listingRepo, productRepo: this.productRepo });
+    if (persisted.isErr()) return persisted;
     await this.publish('listing.published', listing.id, {
       listingId: listing.id,
       productId: listing.productId,
       marketplaceId: listing.marketplaceId,
       externalListingId,
       externalUrl,
+      remoteStatus: listing.remoteStatus,
+      remoteImageCount: remoteImageUrls.length,
     });
 
     return Ok(listing);

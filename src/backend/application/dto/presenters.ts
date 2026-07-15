@@ -18,6 +18,36 @@ function iso(date: Date | null | undefined): string | undefined {
   return date ? date.toISOString() : undefined;
 }
 
+function remoteStatusLabel(remoteStatus: string | null | undefined): string | undefined {
+  if (!remoteStatus) return undefined;
+  const normalized = remoteStatus.toLowerCase();
+  const labels: Record<string, string> = {
+    active: 'Active',
+    activated: 'Active',
+    live: 'Active',
+    published: 'Active',
+    moderation: 'Pending moderation',
+    pending: 'Pending moderation',
+    new: 'Pending moderation',
+    limited: 'Limited / pending',
+    unpaid: 'Unpaid',
+    expired: 'Ended',
+    removed: 'Ended',
+    deactivated: 'Ended',
+    deleted: 'Ended',
+    closed: 'Ended',
+    missing: 'Unavailable',
+    error: 'Error',
+    rejected: 'Rejected',
+    blocked: 'Blocked',
+  };
+  return labels[normalized] ?? `Unknown remote status: ${remoteStatus}`;
+}
+
+function isPendingRemoteStatus(remoteStatus: string | null | undefined): boolean {
+  return ['new', 'moderation', 'pending', 'limited', 'unpaid'].includes((remoteStatus ?? '').toLowerCase());
+}
+
 function safeExternalUrl(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
   try {
@@ -65,6 +95,9 @@ export function presentListing(listing: Listing, identity: ListingIdentity = {})
     externalUrl: listing.isLive() ? safeExternalUrl(listing.externalUrl) : undefined,
     price: listing.price.amount,
     status: listing.status,
+    remoteStatus: listing.remoteStatus ?? undefined,
+    remoteStatusLabel: remoteStatusLabel(listing.remoteStatus),
+    isRemotePending: isPendingRemoteStatus(listing.remoteStatus),
     views: listing.views,
     watchers: listing.watchers,
     messages: listing.messages,

@@ -1,0 +1,2 @@
+ALTER TABLE listings
+  ADD COLUMN IF NOT EXISTS remote_status VARCHAR(100);

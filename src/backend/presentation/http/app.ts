@@ -10,6 +10,7 @@ import compression from 'compression';
 import crypto from 'crypto';
 
 import type { ProductApplicationService } from '../../application/services/ProductApplicationService';
+import { ProductAIDraftService } from '../../application/services/ProductAIDraftService';
 import type { ListingApplicationService } from '../../application/services/ListingApplicationService';
 import type { HermesApplicationService } from '../../application/services/HermesApplicationService';
 import type { AnalyticsApplicationService } from '../../application/services/AnalyticsApplicationService';
@@ -40,6 +41,7 @@ import { createErrorHandler, type ErrorLogger } from './middleware/ErrorHandling
 // Shape Group 6 must fulfil to build the HTTP surface.
 export interface AppDeps {
   productService: ProductApplicationService;
+  productAIDraftService?: ProductAIDraftService;
   listingService: ListingApplicationService;
   hermesService: HermesApplicationService;
   analyticsService: AnalyticsApplicationService;
@@ -72,9 +74,6 @@ export const HELMET_OPTIONS = {
       imgSrc: [
         "'self'",
         'data:',
-        // OLX Partner API returns remote CDN URLs when importing owned adverts.
-        // Keep this allowlist narrow so the SPA can render imported product
-        // photos without weakening script/style policy.
         'https://*.olxcdn.com',
         'https://*.apollo.olxcdn.com',
         'https://ireland.apollo.olxcdn.com',
@@ -149,6 +148,7 @@ export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
     products: new ProductController(
       deps.productService,
       deps.listingService,
+      deps.productAIDraftService ?? new ProductAIDraftService(),
       deps.productRepo,
       deps.listingRepo,
       deps.marketplaceRepo,

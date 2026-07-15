@@ -73,6 +73,7 @@ MarketDesk is an integrated product and listing management system designed to si
 │       ├── constants/           # Constants used across app
 │       └── utils/               # Shared utility functions
 ├── docs/
+│   ├── spec/                    # SDD source of truth and delivery workflow
 │   └── design/                  # Static PRD/design prototype and screenshots
 ├── docker-compose.yml           # Docker Compose configuration
 ├── Dockerfile                   # Docker build configuration

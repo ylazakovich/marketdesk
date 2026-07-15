@@ -5,6 +5,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import type { ProductApplicationService } from '../../../application/services/ProductApplicationService';
 import type { ListingApplicationService } from '../../../application/services/ListingApplicationService';
+import type { ProductAIDraftService } from '../../../application/services/ProductAIDraftService';
 import type { IProductRepository } from '../../../domain/repositories/interfaces/IProductRepository';
 import type { IListingRepository } from '../../../domain/repositories/interfaces/IListingRepository';
 import type { IMarketplaceRepository } from '../../../domain/repositories/interfaces/IMarketplaceRepository';
@@ -60,6 +61,7 @@ export class ProductController {
   constructor(
     private readonly products: ProductApplicationService,
     private readonly listings: ListingApplicationService,
+    private readonly productAIDrafts: ProductAIDraftService,
     private readonly productRepo: IProductRepository,
     private readonly listingRepo: IListingRepository,
     private readonly marketplaceRepo: IMarketplaceRepository,
@@ -104,6 +106,15 @@ export class ProductController {
     const result = await this.products.createProduct(dto);
     if (result.isErr()) return next(result.error);
     created(res, result.value);
+  };
+
+  generateAIDraft = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const result = await this.productAIDrafts.generateDraft({
+      ...req.body,
+      workspaceId: req.user!.workspaceId!,
+    });
+    if (result.isErr()) return next(result.error);
+    ok(res, result.value);
   };
 
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {

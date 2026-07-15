@@ -145,6 +145,40 @@ export interface Product {
   updatedAt: string;
 }
 
+export type ProductAIDraftMode = 'photos' | 'title';
+
+export type ProductAIDraftFields = Partial<
+  Pick<
+    Product,
+    | 'sku'
+    | 'name'
+    | 'description'
+    | 'costPrice'
+    | 'sellingPrice'
+    | 'condition'
+    | 'category'
+    | 'status'
+    | 'tags'
+    | 'images'
+  >
+>;
+
+export interface ProductAIDraftRequest {
+  mode: ProductAIDraftMode;
+  title?: string;
+  imageUrls?: string[];
+  existingFields?: ProductAIDraftFields;
+}
+
+export interface ProductAIDraft {
+  mode: ProductAIDraftMode;
+  fields: ProductAIDraftFields;
+  confidence: number;
+  uncertainFields: Array<keyof ProductAIDraftFields>;
+  missingInfoQuestions: string[];
+  notes: string[];
+}
+
 export interface Marketplace {
   id: string;
   workspaceId: string;
@@ -178,6 +212,9 @@ export interface Listing {
   externalUrl?: string;
   price: number;
   status: ListingStatus;
+  remoteStatus?: string;
+  remoteStatusLabel?: string;
+  isRemotePending?: boolean;
   views: number | null;
   watchers: number | null;
   messages: number | null;

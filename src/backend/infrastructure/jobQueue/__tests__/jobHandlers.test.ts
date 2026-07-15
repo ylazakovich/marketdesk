@@ -76,6 +76,8 @@ function memoryPublishAttempts(): PublishAttemptStore {
         externalListingId: null,
         externalUrl: null,
         publishedAt: null,
+        remoteStatus: null,
+        remoteImageUrls: [],
       };
       attempts.set(operationId, checkpoint);
       listingGenerations.set(`${listingId}:${listingUpdatedAt.toISOString()}`, operationId);
@@ -89,6 +91,8 @@ function memoryPublishAttempts(): PublishAttemptStore {
         externalListingId: result.externalListingId,
         externalUrl: result.externalUrl ?? null,
         publishedAt: result.publishedAt,
+        remoteStatus: result.remoteStatus ?? null,
+        remoteImageUrls: result.remoteImageUrls ?? [],
       });
     },
     markFinalized: async (operationId) => {
@@ -688,11 +692,46 @@ describe('PublishListingHandler', () => {
       'l-3',
       'olx-99',
       publishResult.externalUrl,
-      publishResult.publishedAt
+      publishResult.publishedAt,
+      null,
+      null,
+      []
     );
     expect(result.finalized).toBe(true);
     // The handler must NOT double-emit; the finalizer owns the canonical event.
     expect(published).toHaveLength(0);
+  });
+
+  it('passes remote status and hosted images from publish results to the finalizer', async () => {
+    const remotePublishResult: PublishResult = {
+      ...publishResult,
+      remoteStatus: 'moderation',
+      remoteImageUrls: ['https://ireland.apollo.olxcdn.com/v1/files/photo.jpg'],
+    };
+    const adapter = fakeAdapter({ publish: jest.fn(async () => remotePublishResult) });
+    const { resolver } = resolverFor(adapter);
+    const publishListing = jest.fn(async () => Ok({} as unknown as Listing));
+    const handler = new PublishListingHandler(resolver, undefined, { publishListing });
+
+    await expect(
+      handler.handle({
+        operationId: 'op-remote',
+        marketplaceKey: 'olx',
+        marketplaceId: 'm-1',
+        listingId: 'l-remote',
+        input,
+      })
+    ).resolves.toMatchObject({ finalized: true });
+
+    expect(publishListing).toHaveBeenCalledWith(
+      'l-remote',
+      remotePublishResult.externalListingId,
+      remotePublishResult.externalUrl,
+      remotePublishResult.publishedAt,
+      null,
+      'moderation',
+      remotePublishResult.remoteImageUrls
+    );
   });
 
   it('retries transient token and finalization work without repeating publish', async () => {
@@ -749,7 +788,12 @@ describe('PublishListingHandler', () => {
   });
 
   it('resumes finalization from a durable checkpoint without re-publishing', async () => {
-    const publish = jest.fn(async () => publishResult);
+    const remotePublishResult: PublishResult = {
+      ...publishResult,
+      remoteStatus: 'moderation',
+      remoteImageUrls: ['https://ireland.apollo.olxcdn.com/v1/files/checkpoint.jpg'],
+    };
+    const publish = jest.fn(async () => remotePublishResult);
     const adapter = fakeAdapter({ publish });
     const { resolver } = resolverFor(adapter);
     const attempts = memoryPublishAttempts();
@@ -797,9 +841,12 @@ describe('PublishListingHandler', () => {
     expect(publish).toHaveBeenCalledTimes(1);
     expect(secondFinalizer).toHaveBeenCalledWith(
       'l-checkpoint',
-      publishResult.externalListingId,
-      publishResult.externalUrl,
-      publishResult.publishedAt
+      remotePublishResult.externalListingId,
+      remotePublishResult.externalUrl,
+      remotePublishResult.publishedAt,
+      null,
+      'moderation',
+      remotePublishResult.remoteImageUrls
     );
   });
 
@@ -927,7 +974,10 @@ describe('PublishListingHandler', () => {
       'l-live',
       publishResult.externalListingId,
       publishResult.externalUrl,
-      publishResult.publishedAt
+      publishResult.publishedAt,
+      null,
+      null,
+      []
     );
   });
 
@@ -1050,7 +1100,10 @@ describe('PublishListingHandler', () => {
       'l-6',
       'olx-99',
       publishResult.externalUrl,
-      publishResult.publishedAt
+      publishResult.publishedAt,
+      null,
+      null,
+      []
     );
     expect(result.finalized).toBe(true);
   });

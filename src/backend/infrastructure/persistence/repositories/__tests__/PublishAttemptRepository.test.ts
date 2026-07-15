@@ -53,6 +53,8 @@ describe('PublishAttemptRepository', () => {
       externalListingId: 'olx-123',
       externalUrl: 'https://www.olx.pl/d/oferta/olx-123',
       publishedAt,
+      remoteStatus: 'moderation',
+      remoteImageUrls: ['https://ireland.apollo.olxcdn.com/v1/files/photo.jpg'],
     });
 
     expect(String(query.mock.calls[0][0])).toContain("SET status = 'published'");
@@ -61,6 +63,8 @@ describe('PublishAttemptRepository', () => {
       'olx-123',
       'https://www.olx.pl/d/oferta/olx-123',
       publishedAt,
+      'moderation',
+      ['https://ireland.apollo.olxcdn.com/v1/files/photo.jpg'],
     ]);
   });
 

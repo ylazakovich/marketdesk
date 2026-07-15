@@ -19,6 +19,7 @@ export interface CreateListingProps {
   marketplaceListingId?: string | null;
   externalUrl?: string | null;
   status?: ListingStatus;
+  remoteStatus?: string | null;
   views?: number | null;
   watchers?: number | null;
   messages?: number | null;
@@ -39,6 +40,7 @@ export class Listing {
     private _marketplaceListingId: string | null,
     private _externalUrl: string | null,
     private _status: ListingStatus,
+    private _remoteStatus: string | null,
     private _views: number | null,
     private _watchers: number | null,
     private _messages: number | null,
@@ -74,6 +76,7 @@ export class Listing {
         props.marketplaceListingId ?? null,
         props.externalUrl ?? null,
         props.status ?? 'draft',
+        props.remoteStatus ?? null,
         props.views ?? null,
         props.watchers ?? null,
         props.messages ?? null,
@@ -96,6 +99,7 @@ export class Listing {
       props.marketplaceListingId,
       props.externalUrl,
       props.status,
+      props.remoteStatus,
       props.views,
       props.watchers,
       props.messages,
@@ -114,6 +118,9 @@ export class Listing {
   }
   get status(): ListingStatus {
     return this._status;
+  }
+  get remoteStatus(): string | null {
+    return this._remoteStatus;
   }
   get marketplaceListingId(): string | null {
     return this._marketplaceListingId;
@@ -172,7 +179,8 @@ export class Listing {
     externalListingId: string,
     externalUrl: string | null = null,
     publishedAt: Date = new Date(),
-    expiresAt: Date | null = null
+    expiresAt: Date | null = null,
+    remoteStatus: string | null = null
   ): Result<void> {
     if (this._price.isZero() && this._status === 'draft') {
       // price must be set before publish (treat zero as "not set" for publish)
@@ -196,6 +204,7 @@ export class Listing {
     this._externalUrl = externalUrl;
     this._publishedAt = publishedAt;
     this._expiresAt = expiresAt;
+    this._remoteStatus = remoteStatus;
     this._syncError = null;
     this.touch();
     return Ok(undefined);
@@ -233,12 +242,13 @@ export class Listing {
   }
 
   recordSyncStats(
-    stats: { views?: number | null; watchers?: number | null; messages?: number | null },
+    stats: { views?: number | null; watchers?: number | null; messages?: number | null; remoteStatus?: string | null },
     at: Date = new Date()
   ): void {
     if (stats.views !== undefined && stats.views !== null) this._views = stats.views;
     if (stats.watchers !== undefined && stats.watchers !== null) this._watchers = stats.watchers;
     if (stats.messages !== undefined && stats.messages !== null) this._messages = stats.messages;
+    if (stats.remoteStatus !== undefined) this._remoteStatus = stats.remoteStatus;
     this._lastSyncAt = at;
     this.touch();
   }

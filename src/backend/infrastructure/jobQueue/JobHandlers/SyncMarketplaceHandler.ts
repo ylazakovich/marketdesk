@@ -141,6 +141,7 @@ export class SyncMarketplaceHandler {
         views: s.views,
         watchers: s.watchers,
         messages: s.messages,
+        remoteStatus: s.remoteStatus ?? null,
       });
       if (s.externalUrl !== undefined) {
         listing.recordExternalUrl(s.externalUrl);

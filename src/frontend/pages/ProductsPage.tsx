@@ -19,7 +19,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { useLocation, useNavigate } from 'react-router-dom';
 import type { Product, ProductStatus } from '@shared/types';
 import { PRODUCT_STATUS_LIST } from '@shared/constants';
-import { useCreateProduct, useProducts } from '../services/hooks/index.js';
+import { useCreateProduct, useGenerateProductAIDraft, useProducts } from '../services/hooks/index.js';
 import type { ProductListParams } from '../state/api/index.js';
 import { useAppDispatch, useAppSelector } from '../state/hooks.js';
 import { enqueueToast } from '../state/slices/uiSlice.js';
@@ -29,7 +29,7 @@ import { Modal } from '../components/common/Modal.js';
 import { ProductStatusBadge } from '../components/common/Badge.js';
 import { ProductsTable } from '../components/tables/index.js';
 import { ProductWizardForm } from '../components/forms/index.js';
-import type { ProductFormValues } from '../components/forms/index.js';
+import type { ProductSubmissionValues } from '../components/forms/index.js';
 
 const PAGE_SIZE = 20;
 
@@ -52,11 +52,11 @@ const ProductsPage: React.FC = () => {
   const [tags, setTags] = useState<string[]>([]);
   const [priceMin, setPriceMin] = useState<string>('');
   const [priceMax, setPriceMax] = useState<string>('');
-  const queryParams = new URLSearchParams(location.search);
-  const [search, setSearch] = useState(queryParams.get('search') ?? '');
-  const [sort, setSort] = useState('-updatedAt');
-  const [page, setPage] = useState(0);
-  const wizardOpen = queryParams.get('newProduct') === '1';
+  const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const [search, setSearch] = useState(() => query.get('search') ?? '');
+  const [sort, setSort] = useState(() => query.get('sort') ?? '-updatedAt');
+  const [page, setPage] = useState(() => Math.max(0, Number.parseInt(query.get('page') ?? '1', 10) - 1 || 0));
+  const wizardOpen = query.get('newProduct') === '1';
 
   const openWizard = () => navigate('/products?newProduct=1');
   const closeWizard = () => navigate('/products', { replace: true });
@@ -72,6 +72,7 @@ const ProductsPage: React.FC = () => {
 
   const { data, isLoading, isFetching, isError, error, refetch } = useProducts(params);
   const [createProduct, { isLoading: creating }] = useCreateProduct();
+  const [generateProductAIDraft] = useGenerateProductAIDraft();
 
   const items = data?.items ?? [];
   const filtered = useMemo(() => {
@@ -88,13 +89,14 @@ const ProductsPage: React.FC = () => {
     setPage(0);
   };
 
-  const handleCreate = async (values: ProductFormValues) => {
+  const handleCreate = async (values: ProductSubmissionValues) => {
     if (!workspaceId) {
       dispatch(enqueueToast({ message: 'No active workspace selected.', severity: 'error' }));
       return;
     }
     try {
-      await createProduct({ ...values, workspaceId }).unwrap();
+      const { targetMarketplace: _targetMarketplace, ...productValues } = values;
+      await createProduct({ ...productValues, workspaceId }).unwrap();
       dispatch(enqueueToast({ message: 'Product created.', severity: 'success' }));
       closeWizard();
     } catch (err) {
@@ -241,6 +243,7 @@ const ProductsPage: React.FC = () => {
         <ProductWizardForm
           submitting={creating}
           onSubmit={handleCreate}
+          onGenerateAIDraft={(request) => generateProductAIDraft(request).unwrap()}
           onCancel={closeWizard}
         />
       </Modal>

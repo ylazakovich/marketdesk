@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS listings (
   external_url TEXT,
   price DECIMAL(10, 2) NOT NULL,
   status VARCHAR(50) DEFAULT 'draft',
+  remote_status VARCHAR(100),
   views INT DEFAULT 0,
   watchers INT DEFAULT 0,
   messages INT DEFAULT 0,
@@ -149,6 +150,8 @@ CREATE TABLE IF NOT EXISTS marketplace_publish_attempts (
   external_listing_id VARCHAR(255),
   external_url TEXT,
   published_at TIMESTAMPTZ,
+  remote_status VARCHAR(100),
+  remote_image_urls TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT marketplace_publish_attempts_status_valid

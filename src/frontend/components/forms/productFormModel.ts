@@ -18,6 +18,8 @@ export interface ProductFormValues {
 }
 
 export type ProductSubmissionValues = ProductFormValues & {
+  // Review-only marketplace preference captured by the wizard; product creation strips it.
+  targetMarketplace?: string;
   // Explicit API contract marker for clients that intentionally submit a loss.
   allowBelowCost?: boolean;
 };

@@ -1,7 +1,8 @@
 // Hermes activity feed: filter by status/severity, review event cards with
 // approval actions, and trigger a fresh analysis run.
 import React, { useMemo, useState } from 'react';
-import { Box, Button, MenuItem, Select, Stack } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import { Alert, Box, Button, Chip, MenuItem, Select, Stack, Tab, Tabs, Typography } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import type { HermesEvent, HermesEventStatus, HermesSeverity } from '@shared/types';
@@ -41,9 +42,11 @@ function errorMessage(err: unknown): string {
 
 const HermesActivityPage: React.FC = () => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
 
   const [statusFilter, setStatusFilter] = useState<HermesEventStatus[]>([]);
   const [severityFilter, setSeverityFilter] = useState<HermesSeverity[]>([]);
+  const [activityTab, setActivityTab] = useState<'all' | 'suggestions' | 'alerts' | 'completed'>('all');
 
   const params = useMemo<HermesEventListParams>(() => {
     const p: HermesEventListParams = { sort: '-createdAt', limit: 50 };
@@ -55,7 +58,18 @@ const HermesActivityPage: React.FC = () => {
   const { data, isLoading, isFetching, isError, error, refetch } = useHermesEvents(params);
   const [runHermes, { isLoading: running }] = useRunHermes();
 
-  const events = data?.items ?? [];
+  const events: HermesEvent[] = data?.items ?? [];
+  const isCompletedEvent = (event: HermesEvent): boolean => event.status === 'applied' || event.status === 'dismissed';
+  const visibleEvents = useMemo(() => {
+    if (activityTab === 'completed') return events.filter(isCompletedEvent);
+    if (activityTab === 'alerts') return events.filter((event) => event.severity === 'critical' || event.severity === 'warning');
+    if (activityTab === 'suggestions') return events.filter((event) => event.status === 'pending_review');
+    return events;
+  }, [activityTab, events]);
+  const pendingCount = events.filter((event) => event.status === 'pending_review').length;
+  const completedCount = events.filter(isCompletedEvent).length;
+  const listingSuggestionCount = events.filter((event) => event.type === 'create_listing').length;
+  const estimatedReviewMinutes = events.length === 0 ? 0 : events.length * 6;
 
   const handleStatus = (e: SelectChangeEvent<HermesEventStatus[]>) => {
     const value = e.target.value;
@@ -85,8 +99,48 @@ const HermesActivityPage: React.FC = () => {
     <Box>
       <PageHeader
         title="Hermes AI"
-        subtitle="Review and approve the autonomous agent's suggestions."
+        subtitle="Everything your AI agent did across monitored listings."
       />
+
+      <Card
+        sx={{ mb: 2.5, background: (t) => `linear-gradient(135deg, ${t.palette.primary.dark}, ${t.palette.primary.main})`, color: 'primary.contrastText' }}
+        contentSx={{ p: 3 }}
+      >
+        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ md: 'center' }}>
+          <Stack spacing={1}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <AutoAwesomeIcon />
+              <Typography variant="h5" sx={{ fontWeight: 800 }}>Hermes AI agent</Typography>
+              <Chip size="small" label="Active" sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'inherit' }} />
+            </Stack>
+            <Typography variant="body2" sx={{ opacity: 0.9 }}>
+              Monitoring listings and surfacing suggestions that need review before marketplace side effects.
+            </Typography>
+          </Stack>
+          <Stack direction="row" spacing={1}>
+            <Button variant="contained" color="secondary" onClick={() => navigate('/settings')}>
+              Configure
+            </Button>
+            <Button variant="outlined" color="inherit" startIcon={<AutoAwesomeIcon />} onClick={handleRun} disabled={running}>
+              {running ? 'Running…' : 'Run Hermes'}
+            </Button>
+          </Stack>
+        </Stack>
+      </Card>
+
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 2.5 }}>
+        {[
+          ['Loaded feed actions', String(events.length)],
+          ['Awaiting review', String(pendingCount)],
+          ['Loaded listing suggestions', String(listingSuggestionCount)],
+          ['Estimated review effort', `${estimatedReviewMinutes} min`],
+        ].map(([label, value]) => (
+          <Card key={label} sx={{ flex: 1 }} contentSx={{ p: 2 }}>
+            <Typography variant="caption" color="text.secondary">{label}</Typography>
+            <Typography variant="h5" sx={{ fontWeight: 800 }}>{value}</Typography>
+          </Card>
+        ))}
+      </Stack>
 
       <Card sx={{ mb: 2.5 }} contentSx={{ p: 2 }}>
         <Stack
@@ -95,6 +149,12 @@ const HermesActivityPage: React.FC = () => {
           alignItems={{ xs: 'stretch', md: 'center' }}
           justifyContent="space-between"
         >
+          <Tabs value={activityTab} onChange={(_e, value) => setActivityTab(value)} variant="scrollable" allowScrollButtonsMobile>
+            <Tab value="all" label="All activity" />
+            <Tab value="suggestions" label="Suggestions" />
+            <Tab value="alerts" label="Alerts" />
+            <Tab value="completed" label={`Completed (${completedCount})`} />
+          </Tabs>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} flexWrap="wrap" useFlexGap>
           <Select
             size="small"
@@ -147,15 +207,6 @@ const HermesActivityPage: React.FC = () => {
             ))}
           </Select>
           </Stack>
-          <Button
-            variant="contained"
-            startIcon={<AutoAwesomeIcon />}
-            onClick={handleRun}
-            disabled={running}
-            sx={{ alignSelf: { xs: 'stretch', md: 'center' } }}
-          >
-            {running ? 'Running…' : 'Run Hermes'}
-          </Button>
         </Stack>
       </Card>
 
@@ -163,15 +214,15 @@ const HermesActivityPage: React.FC = () => {
         <ErrorRetry error={error} onRetry={refetch} />
       ) : isLoading || isFetching ? (
         <LoadingSkeleton lines={4} height={120} />
-      ) : events.length === 0 ? (
+      ) : visibleEvents.length === 0 ? (
         <EmptyState
           title="No Hermes activity"
-          description="Run Hermes to generate optimisation suggestions for your listings."
+          description="Run Hermes or change filters to see suggestions, alerts, and completed actions."
           icon={<AutoAwesomeIcon sx={{ fontSize: 48 }} />}
         />
       ) : (
         <Stack spacing={2}>
-          {events.map((event: HermesEvent) => (
+          {visibleEvents.map((event: HermesEvent) => (
             <HermesEventCard key={event.id} event={event} onResolved={refetch} />
           ))}
         </Stack>

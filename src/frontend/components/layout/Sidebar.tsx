@@ -154,7 +154,7 @@ export const Sidebar: React.FC = () => {
               </Avatar>
               <Box sx={{ minWidth: 0 }}>
                 <Typography variant="body2" sx={{ fontWeight: 800 }} noWrap>
-                  {workspaceName || 'Workspace'}
+                  {workspaceName || 'Workspace loading'}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" noWrap>
                   {userLabel}

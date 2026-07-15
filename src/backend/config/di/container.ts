@@ -79,6 +79,7 @@ import { ListingApplicationService } from '../../application/services/ListingApp
 import { HermesApplicationService } from '../../application/services/HermesApplicationService';
 import { AnalyticsApplicationService } from '../../application/services/AnalyticsApplicationService';
 import { MarketplaceOAuthService } from '../../application/services/MarketplaceOAuthService';
+import { MarketplaceSyncScheduler } from '../../application/services/MarketplaceSyncScheduler';
 import type { IdGenerator } from '../../application/ports/IdGenerator';
 import type {
   IJobQueue,
@@ -96,6 +97,8 @@ import type { ErrorLogger } from '../../presentation/http/middleware/ErrorHandli
 // A queue the container owns end-to-end: enqueue (the application IJobQueue port),
 // handler registration (wiring the concrete JobHandler) and lifecycle (close).
 export interface ManagedQueue<T> extends IJobQueue<T> {
+  scheduleRepeat(data: T, options: { jobId: string; everyMs: number }): Promise<void>;
+  removeRepeat(jobId: string): Promise<void>;
   registerHandler(handler: (data: T) => Promise<unknown>): void;
   close(): Promise<void>;
 }
@@ -124,6 +127,25 @@ class BullManagedQueue<T> implements ManagedQueue<T> {
 
   async enqueue(data: T, options?: JobEnqueueOptions): Promise<void> {
     await this.queue.add(data, buildBullAddOptions(this.name, options));
+  }
+
+  async scheduleRepeat(
+    data: T,
+    options: { jobId: string; everyMs: number },
+  ): Promise<void> {
+    await this.queue.add(data, {
+      ...buildBullAddOptions(this.name, { jobId: options.jobId }),
+      repeat: { every: options.everyMs },
+    });
+  }
+
+  async removeRepeat(jobId: string): Promise<void> {
+    const jobs = await this.queue.raw.getRepeatableJobs();
+    await Promise.all(
+      jobs
+        .filter((job) => job.id === jobId)
+        .map((job) => this.queue.raw.removeRepeatableByKey(job.key)),
+    );
   }
 
   registerHandler(handler: (data: T) => Promise<unknown>): void {
@@ -254,6 +276,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
   const publishQueue = createQueue<PublishListingJob>('publish-listing');
   const syncQueue = createQueue<SyncMarketplaceJob>('sync-marketplace');
   const hermesQueue = createQueue<HermesRunJob>('hermes-run');
+  const marketplaceSyncScheduler = new MarketplaceSyncScheduler(syncQueue);
 
   // 6. Domain services.
   const productDomainService = new ProductService(productRepo, eventPublisher);
@@ -399,6 +422,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     listingRepo,
     marketplaceRepo,
     marketplaceOAuthService,
+    marketplaceSyncScheduler,
     marketplaceOAuthReturnUrl: env.marketplaces.olx.oauthSuccessUrl,
     workspaceRepo,
     authUserStore,

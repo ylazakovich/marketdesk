@@ -436,6 +436,35 @@ describe('SyncMarketplaceHandler', () => {
     expect(publish).not.toHaveBeenCalled();
   });
 
+  it('resolves current marketplace listing ids when a scheduled sync job has an empty payload', async () => {
+    const synced: SyncedListing[] = [
+      { externalListingId: 'ext-1', status: 'live', views: 7, watchers: 1, messages: 0 },
+    ];
+    const adapter = fakeAdapter({ sync: jest.fn(async () => synced) });
+    const { resolver } = resolverFor(adapter);
+    const listing = unwrap(
+      Listing.create({
+        id: 'l-1',
+        productId: 'p-1',
+        marketplaceId: 'm-1',
+        price: money(50),
+        status: 'live',
+        marketplaceListingId: 'ext-1',
+        publishedAt: new Date(),
+      })
+    );
+    const handler = new SyncMarketplaceHandler(resolver, {
+      listingStore: {
+        findByMarketplace: jest.fn(async () => [listing]),
+        saveAll: jest.fn(async () => undefined),
+      },
+    });
+
+    await handler.handle({ marketplaceKey: 'olx', marketplaceId: 'm-1', externalListingIds: [] });
+
+    expect(adapter.sync).toHaveBeenCalledWith(['ext-1']);
+  });
+
   it('records a marketplace sync error and rethrows when the adapter fails (C5)', async () => {
     const adapter = fakeAdapter({
       sync: jest.fn(async () => {

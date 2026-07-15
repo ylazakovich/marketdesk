@@ -6,6 +6,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { IMarketplaceRepository } from '../../../domain/repositories/interfaces/IMarketplaceRepository';
 import type { ListingApplicationService } from '../../../application/services/ListingApplicationService';
 import type { MarketplaceOAuthService } from '../../../application/services/MarketplaceOAuthService';
+import type { MarketplaceSyncScheduler } from '../../../application/services/MarketplaceSyncScheduler';
 import type { SyncMode } from '../../../../shared/types';
 import { DomainError, InvalidStateError, NotFoundError } from '../../../domain/shared/DomainError';
 import { presentMarketplace } from '../../../application/dto/presenters';
@@ -22,6 +23,7 @@ export class MarketplaceController {
     private readonly marketplaceRepo: IMarketplaceRepository,
     private readonly listings: ListingApplicationService,
     private readonly oauth: MarketplaceOAuthService,
+    private readonly syncScheduler: MarketplaceSyncScheduler,
     private readonly oauthReturnUrl: string,
     private readonly logger?: ErrorLogger,
   ) {}
@@ -147,6 +149,11 @@ export class MarketplaceController {
     if (typeof req.body?.syncMode === 'string') {
       const result = marketplace.setSyncMode(req.body.syncMode as SyncMode);
       if (result.isErr()) return next(result.error);
+    }
+    try {
+      await this.syncScheduler.reconcile(marketplace);
+    } catch (error) {
+      return next(error);
     }
     await this.marketplaceRepo.save(marketplace);
     ok(res, presentMarketplace(marketplace));

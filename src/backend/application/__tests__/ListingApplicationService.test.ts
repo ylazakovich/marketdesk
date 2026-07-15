@@ -23,6 +23,57 @@ function setup() {
 }
 
 describe('ListingApplicationService', () => {
+  it('enriches product-detail listing rows with product title and SKU', async () => {
+    const { service, productRepo, listingRepo } = setup();
+    const product = unwrap(
+      Product.create({
+        id: 'product-1',
+        workspaceId: 'ws-1',
+        sku: 'AIRPODS4-PL-001',
+        name: 'Apple AirPods 4 MXP63ZM/A bez ANC — bardzo dobry stan',
+        description: 'AirPods in good condition with all required details.',
+        costPrice: money(250),
+        sellingPrice: money(399),
+        condition: 'good',
+        category: 'audio',
+      }),
+    );
+    productRepo.items.set(product.id, product);
+    for (const status of ['draft', 'live'] as const) {
+      const listing = unwrap(
+        Listing.create({
+          id: `listing-${status}`,
+          productId: product.id,
+          marketplaceId: `marketplace-${status}`,
+          marketplaceListingId: status === 'live' ? '1085426829' : undefined,
+          price: money(399),
+          status,
+        }),
+      );
+      listingRepo.items.set(listing.id, listing);
+      listingRepo.listingWorkspaces.set(listing.id, 'ws-1');
+    }
+
+    const rows = await service.listByProduct('product-1', 'ws-1');
+
+    expect(rows).toHaveLength(2);
+    expect(rows).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'listing-draft',
+          status: 'draft',
+          productName: 'Apple AirPods 4 MXP63ZM/A bez ANC — bardzo dobry stan',
+          productSku: 'AIRPODS4-PL-001',
+        }),
+        expect.objectContaining({
+          id: 'listing-live',
+          status: 'live',
+          productName: 'Apple AirPods 4 MXP63ZM/A bez ANC — bardzo dobry stan',
+          productSku: 'AIRPODS4-PL-001',
+        }),
+      ]),
+    );
+  });
   it('enriches workspace listing rows with product title and SKU', async () => {
     const { service, productRepo, listingRepo } = setup();
     const product = unwrap(

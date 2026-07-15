@@ -171,14 +171,15 @@ export class ProductController {
 
   getListings = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const productId = routeParam(req.params.id);
+    const workspaceId = req.user!.workspaceId!;
     // Confirm the product belongs to the caller's workspace before exposing its
     // listings, otherwise a cross-tenant product id would leak listings (S2).
     const product = await this.products.getProduct(
       productId,
-      req.user!.workspaceId!,
+      workspaceId,
     );
     if (!product) return next(new NotFoundError(`Product not found: ${productId}`));
-    const listings = await this.listings.listByProduct(productId);
+    const listings = await this.listings.listByProduct(productId, workspaceId);
     ok(res, listings);
   };
 }

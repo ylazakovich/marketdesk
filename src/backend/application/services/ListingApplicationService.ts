@@ -48,9 +48,18 @@ export class ListingApplicationService {
     return listing ? presentListing(listing) : null;
   }
 
-  async listByProduct(productId: string): Promise<ListingView[]> {
+  async listByProduct(productId: string, workspaceId?: string): Promise<ListingView[]> {
     const listings = await this.listingRepo.findByProduct(productId);
-    return listings.map((listing) => presentListing(listing));
+    const product =
+      this.productRepo && workspaceId
+        ? await this.productRepo.findByIdForWorkspace(productId, workspaceId)
+        : null;
+    return listings.map((listing) =>
+      presentListing(listing, {
+        productName: product?.name,
+        productSku: product?.sku,
+      }),
+    );
   }
 
   async listByWorkspace(

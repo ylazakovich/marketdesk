@@ -272,7 +272,6 @@ export class Listing {
       return Err(new InvalidStateError('Cannot mark listing live for a sold product'));
     }
     this._status = status;
-    this._remoteStatus = this._remoteStatus ?? status;
     this._publishedAt = status === 'live' ? (this._publishedAt ?? at) : this._publishedAt;
     this.touch();
     return Ok(undefined);

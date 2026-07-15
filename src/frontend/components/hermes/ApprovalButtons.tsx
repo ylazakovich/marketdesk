@@ -19,6 +19,8 @@ export interface ApprovalButtonsProps {
   event: HermesEvent;
   size?: 'small' | 'medium';
   onResolved?: () => void;
+  approveLabel?: string;
+  successMessage?: string;
 }
 
 function errorMessage(err: unknown): string {
@@ -33,6 +35,8 @@ export const ApprovalButtons: React.FC<ApprovalButtonsProps> = ({
   event,
   size = 'small',
   onResolved,
+  approveLabel = 'Approve',
+  successMessage = 'Suggestion approved and applied.',
 }) => {
   const dispatch = useAppDispatch();
   const [approve, { isLoading: approving }] = useApproveHermesEvent();
@@ -46,7 +50,7 @@ export const ApprovalButtons: React.FC<ApprovalButtonsProps> = ({
     setConfirmOpen(false);
     try {
       await approve(event.id).unwrap();
-      dispatch(enqueueToast({ message: 'Suggestion approved and applied.', severity: 'success' }));
+      dispatch(enqueueToast({ message: successMessage, severity: 'success' }));
       onResolved?.();
     } catch (err) {
       dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
@@ -82,7 +86,7 @@ export const ApprovalButtons: React.FC<ApprovalButtonsProps> = ({
           disabled={!pending || busy}
           onClick={handleApproveClick}
         >
-          Approve
+          {approveLabel}
         </Button>
         <Button
           size={size}

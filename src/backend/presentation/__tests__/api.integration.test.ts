@@ -108,8 +108,9 @@ function stubProductService(): ProductApplicationService {
 
 function stubHermesService(): HermesApplicationService {
   return {
-    async listEvents() {
-      return { items: [], total: 0, page: 1, limit: 20, totalPages: 0 };
+    async listEvents(query: { productId?: string }) {
+      const items = query.productId === 'p1' ? [{ ...appliedEvent, productId: 'p1' }] : [];
+      return { items, total: items.length, page: 1, limit: 20, totalPages: items.length ? 1 : 0 };
     },
     async getEvent(id: string) {
       return id === 'e1' ? appliedEvent : null;
@@ -692,6 +693,15 @@ describe('Presentation API', () => {
   });
 
   describe('hermes', () => {
+    it('passes the product filter to the Hermes event query', async () => {
+      const { app } = await buildTestApp();
+      const res = await auth(request(app).get('/api/hermes/events?productId=p1'));
+
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0]).toMatchObject({ productId: 'p1' });
+    });
+
     it('approves a pending event (happy path)', async () => {
       const { app } = await buildTestApp();
       const res = await auth(

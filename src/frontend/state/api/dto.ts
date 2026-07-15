@@ -223,6 +223,7 @@ export interface MarketplaceImportApplyResult {
 
 export interface HermesEventListParams {
   workspaceId?: string;
+  productId?: string;
   status?: HermesEventStatus[];
   severity?: HermesSeverity[];
   sort?: string;

@@ -32,6 +32,7 @@ export class HermesController {
     // ?status=pending_review,applied and ?severity=warning,critical).
     const query: ListEventsQueryDTO = {
       workspaceId: req.user!.workspaceId!,
+      productId: typeof req.query.productId === 'string' ? req.query.productId : undefined,
       status: csv<HermesEventStatus>(req.query.status),
       severity: csv<HermesSeverity>(req.query.severity),
       limit: req.query.limit ? Number(req.query.limit) : undefined,

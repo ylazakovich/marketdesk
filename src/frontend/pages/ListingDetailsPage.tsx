@@ -6,7 +6,7 @@ import EditIcon from '@mui/icons-material/EditOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useNavigate, useParams } from 'react-router-dom';
-import type { Listing } from '@shared/types';
+import type { HermesEvent, Listing, Marketplace } from '@shared/types';
 import type { PublishListingPreview } from '../state/api/dto.js';
 import {
   useProduct,
@@ -18,6 +18,7 @@ import {
   usePublishListing,
   useCreateProductListing,
   usePriceHistory,
+  useHermesEvents,
 } from '../services/hooks/index.js';
 import { useMarketplaceLookup } from '../hooks/useMarketplaceLookup.js';
 import { useAppDispatch, useAppSelector } from '../state/hooks.js';
@@ -34,12 +35,63 @@ import { ListingsTable } from '../components/tables/index.js';
 import { ProductForm } from '../components/forms/index.js';
 import type { ProductFormValues } from '../components/forms/index.js';
 import { PricingForm } from '../components/forms/index.js';
+import { HermesEventCard } from '../components/hermes/index.js';
 
+export const mainPreviewImageSx = {
+  display: 'block',
+  width: '100%',
+  height: '100%',
+  objectFit: 'contain',
+  objectPosition: 'center',
+} as const;
 
-function remoteStatusCopy(listing: Listing): string {
-  if (listing.isRemotePending) return 'Remote marketplace is still pending moderation/activation; metrics can be unavailable until active.';
-  if (listing.remoteStatusLabel) return listing.remoteStatusLabel;
-  return 'No remote lifecycle status has been synced yet.';
+export function remoteMarketplaceChipColor(
+  listing: Listing | undefined,
+): 'default' | 'success' | 'warning' | 'error' {
+  if (!listing) return 'default';
+  const status = listing.remoteStatus?.toLowerCase();
+  if (
+    listing.isRemotePending ||
+    ['new', 'moderation', 'pending', 'limited', 'unpaid'].includes(status ?? '')
+  ) {
+    return 'warning';
+  }
+  if (['active', 'activated', 'live', 'published'].includes(status ?? '')) return 'success';
+  if (['error', 'rejected', 'blocked'].includes(status ?? '')) return 'error';
+  return 'default';
+}
+
+export function selectPrimaryListing(
+  listings: Listing[],
+  marketplaces: Marketplace[] | undefined,
+): Listing | undefined {
+  const olxMarketplaceIds = new Set(
+    marketplaces?.filter((marketplace) => marketplace.key === 'olx').map(({ id }) => id) ?? [],
+  );
+  return listings.find((listing) => olxMarketplaceIds.has(listing.marketplaceId)) ?? listings[0];
+}
+
+export function remoteMarketplacePresentation(listing: Listing | undefined, marketplaceName: string) {
+  const label = listing?.remoteStatusLabel;
+  const isPending = listing?.isRemotePending === true;
+  return {
+    title: `${marketplaceName} listing`,
+    status: label
+      ? `${label} on ${marketplaceName}`
+      : isPending
+        ? `Pending on ${marketplaceName}`
+        : `Not synced with ${marketplaceName}`,
+    explanation: isPending
+      ? `${marketplaceName} is still moderating or activating this listing. Metrics may be unavailable until it becomes active.`
+      : label
+        ? `Current listing status reported by ${marketplaceName}. This is separate from the product status in MarketDesk.`
+        : `${marketplaceName} has not reported a listing status yet.`,
+    externalUrl: listing?.externalUrl,
+  };
+}
+
+export function selectProductRecommendations(events: HermesEvent[], productId: string): HermesEvent[] {
+  return events.filter((event) => event.productId === productId && event.status === 'pending_review');
 }
 
 function errorMessage(err: unknown): string {
@@ -87,6 +139,10 @@ const ListingDetailsPage: React.FC = () => {
 
   const product = useProduct(productId, { skip: !productId });
   const listings = useProductListings(productId, { skip: !productId });
+  const hermesEvents = useHermesEvents(
+    { productId, status: ['pending_review'], sort: '-createdAt', limit: 20 },
+    { skip: !productId },
+  );
   const { marketplaces, resolveMarketplaceName } = useMarketplaceLookup();
 
   const [updateProduct, { isLoading: updating }] = useUpdateProduct();
@@ -112,8 +168,17 @@ const ListingDetailsPage: React.FC = () => {
           (marketplace) => marketplace.connected && !listingMarketplaceIds.has(marketplace.id)
         )
       : undefined;
-  const primaryListing = listingItems[0];
+  const primaryListing = selectPrimaryListing(listingItems, marketplaces);
   const priceHistory = usePriceHistory(primaryListing?.id ?? '', { skip: !primaryListing });
+  const primaryMarketplaceName = primaryListing
+    ? resolveMarketplaceName(primaryListing.marketplaceId)
+    : 'Marketplace';
+  const remoteMarketplace = remoteMarketplacePresentation(primaryListing, primaryMarketplaceName);
+  const recommendations = selectProductRecommendations(hermesEvents.data?.items ?? [], productId);
+
+  const refreshAfterRecommendation = async () => {
+    await Promise.all([hermesEvents.refetch(), product.refetch(), listings.refetch()]);
+  };
 
   const handleEdit = async (values: ProductFormValues) => {
     try {
@@ -249,7 +314,7 @@ const ListingDetailsPage: React.FC = () => {
                 component="img"
                 src={images[selectedImageIndex]}
                 alt={p.name}
-                sx={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center center' }}
+                sx={mainPreviewImageSx}
               />
             ) : (
               <Typography variant="body2" color="text.secondary">
@@ -306,10 +371,6 @@ const ListingDetailsPage: React.FC = () => {
         <Stack spacing={2.5}>
           <Card title="Pricing / status summary">
             <Typography variant="h4" sx={{ fontWeight: 800 }}>{formatCurrency(p.sellingPrice, currency)}</Typography>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
-              <ProductStatusBadge status={p.status} />
-              {primaryListing?.remoteStatusLabel && <Chip size="small" label={primaryListing.remoteStatusLabel} color={primaryListing.isRemotePending ? 'warning' : 'default'} />}
-            </Stack>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               Cost {formatCurrency(p.costPrice, currency)} · Profit {formatCurrency(p.sellingPrice - (p.costPrice ?? 0), currency)}
             </Typography>
@@ -331,13 +392,34 @@ const ListingDetailsPage: React.FC = () => {
             </Stack>
           </Card>
 
-          <Card title="Remote marketplace status">
-            <Typography variant="body2" sx={{ fontWeight: 700 }}>{primaryListing?.remoteStatusLabel ?? 'Not synced'}</Typography>
+          <Card title={remoteMarketplace.title}>
+            <Chip
+              size="small"
+              label={remoteMarketplace.status}
+              color={remoteMarketplaceChipColor(primaryListing)}
+              variant="outlined"
+            />
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {primaryListing ? remoteStatusCopy(primaryListing) : 'Create or publish a marketplace listing to start tracking remote status.'}
+              {primaryListing
+                ? remoteMarketplace.explanation
+                : 'Create or publish a marketplace listing to start tracking its provider status.'}
             </Typography>
             {primaryListing?.lastSyncAt && (
-              <Typography variant="caption" color="text.secondary">Last sync: {formatDateTime(primaryListing.lastSyncAt)}</Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                Last checked: {formatDateTime(primaryListing.lastSyncAt)}
+              </Typography>
+            )}
+            {remoteMarketplace.externalUrl && (
+              <Button
+                component="a"
+                href={remoteMarketplace.externalUrl}
+                target="_blank"
+                rel="noreferrer"
+                size="small"
+                sx={{ mt: 1, px: 0 }}
+              >
+                Open on {primaryMarketplaceName}
+              </Button>
             )}
           </Card>
 
@@ -372,12 +454,32 @@ const ListingDetailsPage: React.FC = () => {
           </Card>
 
           <Card title="Hermes recommendations">
-            <Stack spacing={1}>
-              <Alert severity="info">Add more marketplace-ready photos before publishing if the gallery has fewer than 4 images.</Alert>
-              <Alert severity={primaryListing?.isRemotePending ? 'warning' : 'success'}>
-                {primaryListing?.isRemotePending ? 'Wait for remote activation before treating metrics as final.' : 'Listing is ready for optimization suggestions.'}
-              </Alert>
-            </Stack>
+            {hermesEvents.isLoading || hermesEvents.isFetching ? (
+              <LoadingSkeleton lines={2} height={96} />
+            ) : hermesEvents.isError ? (
+              <ErrorRetry error={hermesEvents.error} onRetry={hermesEvents.refetch} />
+            ) : recommendations.length === 0 ? (
+              <Alert severity="info">No pending recommendations for this product.</Alert>
+            ) : (
+              <Stack spacing={1.5}>
+                {recommendations.map((event) => (
+                  <HermesEventCard
+                    key={event.id}
+                    event={event}
+                    onResolved={refreshAfterRecommendation}
+                    approveLabel="Apply"
+                    successMessage={
+                      primaryListing?.status === 'live' && primaryListing.marketplaceListingId
+                        ? 'Suggestion applied. Connected live listings update in the background.'
+                        : 'Suggestion applied to the product.'
+                    }
+                  />
+                ))}
+                <Typography variant="caption" color="text.secondary">
+                  Applying updates the product immediately. Connected live listings are then updated through the marketplace job queue.
+                </Typography>
+              </Stack>
+            )}
           </Card>
 
           <Card title="Activity log">

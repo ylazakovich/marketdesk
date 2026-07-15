@@ -54,6 +54,9 @@ export class HermesApplicationService {
     if (severities && severities.length > 0) {
       events = events.filter((e) => severities.includes(e.severity));
     }
+    if (query.productId) {
+      events = events.filter((e) => e.productId === query.productId);
+    }
 
     const sorted = [...events].sort(
       (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),

@@ -15,6 +15,7 @@ export interface SyncMarketplaceDTO {
 
 export interface ListEventsQueryDTO {
   workspaceId: string;
+  productId?: string;
   // Multi-value filters: the HTTP layer parses comma-separated query params
   // (e.g. ?status=pending_review,applied&severity=warning,critical).
   status?: HermesEventStatus[];

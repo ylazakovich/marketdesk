@@ -16,6 +16,8 @@ export interface HermesEventCardProps {
   event: HermesEvent;
   showActions?: boolean;
   onResolved?: () => void;
+  approveLabel?: string;
+  successMessage?: string;
 }
 
 function truncate(value: string, max = 60): string {
@@ -108,6 +110,8 @@ export const HermesEventCard: React.FC<HermesEventCardProps> = ({
   event,
   showActions = true,
   onResolved,
+  approveLabel,
+  successMessage,
 }) => {
   const currency = useAppSelector((s) => s.workspace.currency);
 
@@ -165,7 +169,14 @@ export const HermesEventCard: React.FC<HermesEventCardProps> = ({
             <Typography variant="caption" color="text.secondary">
               {formatRelativeTime(event.createdAt)}
             </Typography>
-            {showActions && <ApprovalButtons event={event} onResolved={onResolved} />}
+            {showActions && (
+              <ApprovalButtons
+                event={event}
+                onResolved={onResolved}
+                approveLabel={approveLabel}
+                successMessage={successMessage}
+              />
+            )}
           </Stack>
         </Box>
       </Stack>

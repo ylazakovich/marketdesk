@@ -31,6 +31,7 @@ export interface ListingsTableProps {
   onRowClick?: (listing: Listing) => void;
   onRelist?: (listing: Listing) => void;
   onPublish?: (listing: Listing) => void;
+  productHref?: (listing: Listing) => string;
   resolveMarketplaceName?: (marketplaceId: string) => string;
   currency?: string;
   emptyAction?: React.ReactNode;
@@ -46,6 +47,7 @@ export const ListingsTable: React.FC<ListingsTableProps> = ({
   onRowClick,
   onRelist,
   onPublish,
+  productHref,
   resolveMarketplaceName,
   currency,
   emptyAction,
@@ -97,9 +99,21 @@ export const ListingsTable: React.FC<ListingsTableProps> = ({
                   sx={{ cursor: onRowClick ? 'pointer' : 'default' }}
                 >
                   <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {listing.productName?.trim() || 'Untitled product'}
-                    </Typography>
+                    {productHref ? (
+                      <Link
+                        href={productHref(listing)}
+                        underline="hover"
+                        variant="body2"
+                        onClick={(event) => event.stopPropagation()}
+                        sx={{ fontWeight: 600 }}
+                      >
+                        {listing.productName?.trim() || 'Untitled product'}
+                      </Link>
+                    ) : (
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {listing.productName?.trim() || 'Untitled product'}
+                      </Typography>
+                    )}
                     {listing.productSku && (
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
                         SKU {listing.productSku}

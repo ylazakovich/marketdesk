@@ -25,7 +25,11 @@ function listing(overrides: Partial<Listing> = {}): Listing {
 describe('ListingsTable layout', () => {
   it('does not render a detached metrics legend below populated rows', () => {
     const html = renderToStaticMarkup(
-      <ListingsTable listings={[listing()]} resolveMarketplaceName={() => 'OLX'} />,
+      <ListingsTable
+        listings={[listing()]}
+        productHref={(row) => `/products/${row.productId}`}
+        resolveMarketplaceName={() => 'OLX'}
+      />,
     );
 
     expect(html).toContain('Views');

@@ -11,6 +11,8 @@ import {
   type HttpResponse,
 } from './MarketplaceHttpClient';
 import type {
+  ImportDiscoveryOptions,
+  ImportedMarketplaceListing,
   ListingPublishInput,
   PublishResult,
   SyncedListing,
@@ -78,10 +80,22 @@ export interface OlxAdapterConfig {
 interface OlxAdvertResponse {
   id: string | number;
   status: string;
+  title?: string;
+  description?: string | null;
+  category?: { id?: string | number; name?: string } | string | null;
   url?: string | null;
   public_url?: string | null;
   external_url?: string | null;
+  price?: { value?: number | string; currency?: string } | number | string | null;
+  photos?: Array<{ url?: string | null }>;
+  updated_at?: string | null;
   metrics?: { views?: unknown; favorites?: unknown; messages?: unknown };
+}
+
+interface OlxAdvertListResponse {
+  data: OlxAdvertResponse[];
+  links?: { next?: string | null };
+  meta?: { last_page?: number };
 }
 
 interface OlxResponseEnvelope<T> {
@@ -238,6 +252,27 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
     };
   }
 
+  protected async doListOwnedListings(
+    options: ImportDiscoveryOptions = {},
+  ): Promise<ImportedMarketplaceListing[]> {
+    const imported: ImportedMarketplaceListing[] = [];
+    const pageSize = options.pageSize ?? 100;
+    const status = options.statuses?.join(',');
+    let page = 1;
+    for (;;) {
+      const res = await this.http.request<OlxAdvertListResponse>({
+        method: 'GET',
+        url: `${this.baseUrl}/adverts`,
+        query: { page, limit: pageSize, status },
+      });
+      imported.push(...res.data.data.map((advert) => this.toImportedListing(advert)));
+      const lastPage = res.data.meta?.last_page;
+      if (lastPage !== undefined ? page >= lastPage : !res.data.links?.next) break;
+      page += 1;
+    }
+    return imported;
+  }
+
   private unwrapAdvert(
     response: OlxAdvertResponse | OlxResponseEnvelope<OlxAdvertResponse>,
   ): OlxAdvertResponse {
@@ -257,6 +292,31 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
     };
   }
 
+  private toImportedListing(data: OlxAdvertResponse): ImportedMarketplaceListing {
+    const price = this.extractPrice(data.price);
+    const views = this.parseCounter(data.metrics?.views);
+    const watchers = this.parseCounter(data.metrics?.favorites);
+    const messages = this.parseCounter(data.metrics?.messages);
+    return {
+      externalListingId: String(data.id),
+      externalUrl: this.extractPublicUrl(data),
+      title: data.title?.trim() || `OLX advert ${data.id}`,
+      description: data.description ?? null,
+      price: price.value,
+      currency: price.currency,
+      status: OLX_STATUS_TO_LOCAL[String(data.status ?? 'unknown').toLowerCase()] ?? 'draft',
+      remoteStatus: data.status,
+      category: typeof data.category === 'string' ? data.category : data.category?.name ?? null,
+      imageUrls: (data.photos ?? []).flatMap((photo) => (photo.url ? [photo.url] : [])),
+      remoteUpdatedAt: data.updated_at ? new Date(data.updated_at) : null,
+      metrics: {
+        views: views ?? undefined,
+        watchers: watchers ?? undefined,
+        messages: messages ?? undefined,
+      },
+    };
+  }
+
   private extractPublicUrl(data: OlxAdvertResponse): string | null {
     for (const candidate of [data.url, data.public_url, data.external_url]) {
       if (!candidate) continue;
@@ -270,6 +330,25 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
       }
     }
     return null;
+  }
+
+  private extractPrice(price: OlxAdvertResponse['price']): { value: number | null; currency: string | null } {
+    if (typeof price === 'number') return { value: price, currency: null };
+    if (typeof price === 'string') {
+      const parsed = price.trim() === '' ? Number.NaN : Number(price);
+      return { value: Number.isFinite(parsed) ? parsed : null, currency: null };
+    }
+    if (!price) return { value: null, currency: null };
+    const parsed =
+      typeof price.value === 'string'
+        ? price.value.trim() === ''
+          ? Number.NaN
+          : Number(price.value)
+        : price.value;
+    return {
+      value: Number.isFinite(parsed) ? parsed ?? null : null,
+      currency: price.currency ?? null,
+    };
   }
 
   private parseCounter(value: unknown): number | null {
@@ -309,6 +388,22 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
     }
     if (config.method === 'PUT' || config.method === 'DELETE') {
       return { status: 204, data: {} };
+    }
+    if (config.method === 'GET' && config.url.endsWith('/adverts')) {
+      return {
+        status: 200,
+        data: {
+          data: [
+            {
+              id: 'olx-demo',
+              status: 'active',
+              title: 'Demo OLX advert',
+              metrics: { views: 0, favorites: 0, messages: 0 },
+            },
+          ],
+          meta: { last_page: 1 },
+        },
+      };
     }
     return {
       status: 200,

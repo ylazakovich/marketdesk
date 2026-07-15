@@ -6,6 +6,8 @@
 
 import type {
   IMarketplaceAdapter,
+  ImportDiscoveryOptions,
+  ImportedMarketplaceListing,
   ListingPublishInput,
   PublishResult,
   SyncedListing,
@@ -119,6 +121,10 @@ export abstract class BaseMarketplaceAdapter implements IMarketplaceAdapter {
     return this.execute('fetchListing', () => this.doFetchListing(externalListingId));
   }
 
+  listOwnedListings(options?: ImportDiscoveryOptions): Promise<ImportedMarketplaceListing[]> {
+    return this.execute('listOwnedListings', () => this.doListOwnedListings(options));
+  }
+
   // --- Marketplace-specific hooks (implemented by concrete adapters) ---
 
   protected abstract doPublish(input: ListingPublishInput): Promise<PublishResult>;
@@ -131,6 +137,11 @@ export abstract class BaseMarketplaceAdapter implements IMarketplaceAdapter {
   protected abstract doFetchListing(
     externalListingId: string,
   ): Promise<SyncedListing | null>;
+  protected async doListOwnedListings(
+    _options?: ImportDiscoveryOptions,
+  ): Promise<ImportedMarketplaceListing[]> {
+    return [];
+  }
 
   // Translate a marketplace-specific status string to the domain ListingStatus.
   // Overridable; the default is a conservative best-effort mapping.

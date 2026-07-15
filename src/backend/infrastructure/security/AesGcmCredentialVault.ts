@@ -5,6 +5,7 @@ import {
 } from 'node:crypto';
 import type {
   MarketplaceCredentialVault,
+  OlxOAuthAppCredentials,
   OlxOAuthTokens,
 } from '../../application/services/MarketplaceOAuthService';
 
@@ -34,9 +35,32 @@ export class AesGcmCredentialVault implements MarketplaceCredentialVault {
   }
 
   encrypt(tokens: OlxOAuthTokens): Record<string, unknown> {
+    return this.encryptPayload(tokens);
+  }
+
+  decrypt(credentials: Record<string, unknown>): OlxOAuthTokens {
+    const decoded = this.decryptPayload(credentials) as Omit<OlxOAuthTokens, 'expiresAt'> & {
+      expiresAt: string;
+    };
+    return { ...decoded, expiresAt: new Date(decoded.expiresAt) };
+  }
+
+  encryptAppCredentials(credentials: OlxOAuthAppCredentials): Record<string, unknown> {
+    return this.encryptPayload(credentials);
+  }
+
+  decryptAppCredentials(credentials: Record<string, unknown>): OlxOAuthAppCredentials {
+    const decoded = this.decryptPayload(credentials) as Partial<OlxOAuthAppCredentials>;
+    if (typeof decoded.clientId !== 'string' || typeof decoded.clientSecret !== 'string') {
+      throw new Error('Unsupported marketplace app credential payload');
+    }
+    return { clientId: decoded.clientId, clientSecret: decoded.clientSecret };
+  }
+
+  private encryptPayload(payload: unknown): Record<string, unknown> {
     const iv = randomBytes(12);
     const cipher = createCipheriv('aes-256-gcm', this.key, iv);
-    const plaintext = Buffer.from(JSON.stringify(tokens), 'utf8');
+    const plaintext = Buffer.from(JSON.stringify(payload), 'utf8');
     const ciphertext = Buffer.concat([cipher.update(plaintext), cipher.final()]);
 
     return {
@@ -48,7 +72,7 @@ export class AesGcmCredentialVault implements MarketplaceCredentialVault {
     } satisfies CredentialEnvelope;
   }
 
-  decrypt(credentials: Record<string, unknown>): OlxOAuthTokens {
+  private decryptPayload(credentials: Record<string, unknown>): unknown {
     if (!isEnvelope(credentials)) {
       throw new Error('Unsupported marketplace credential envelope');
     }
@@ -62,10 +86,7 @@ export class AesGcmCredentialVault implements MarketplaceCredentialVault {
       decipher.update(Buffer.from(credentials.ciphertext, 'base64')),
       decipher.final(),
     ]).toString('utf8');
-    const decoded = JSON.parse(plaintext) as Omit<OlxOAuthTokens, 'expiresAt'> & {
-      expiresAt: string;
-    };
-    return { ...decoded, expiresAt: new Date(decoded.expiresAt) };
+    return JSON.parse(plaintext);
   }
 
   private static decodeKey(encodedKey: string): Buffer {

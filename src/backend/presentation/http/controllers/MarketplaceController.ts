@@ -120,6 +120,32 @@ export class MarketplaceController {
     ok(res, result);
   };
 
+  getAppCredentials = async (req: Request, res: Response): Promise<void> => {
+    const result = await this.oauth.getAppCredentialStatus({
+      marketplaceId: routeParam(req.params.id),
+      workspaceId: req.user!.workspaceId!,
+    });
+    ok(res, result);
+  };
+
+  saveAppCredentials = async (req: Request, res: Response): Promise<void> => {
+    const result = await this.oauth.saveAppCredentials({
+      marketplaceId: routeParam(req.params.id),
+      workspaceId: req.user!.workspaceId!,
+      clientId: typeof req.body?.clientId === 'string' ? req.body.clientId : '',
+      clientSecret: typeof req.body?.clientSecret === 'string' ? req.body.clientSecret : '',
+    });
+    ok(res, result);
+  };
+
+  removeAppCredentials = async (req: Request, res: Response): Promise<void> => {
+    const result = await this.oauth.removeAppCredentials({
+      marketplaceId: routeParam(req.params.id),
+      workspaceId: req.user!.workspaceId!,
+    });
+    ok(res, result);
+  };
+
   importPreview = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const result = await this.imports.preview({
       marketplaceId: routeParam(req.params.id),

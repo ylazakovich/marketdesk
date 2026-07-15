@@ -20,6 +20,8 @@ import {
   useRelistListingMutation,
   useGetMarketplacesQuery,
   useGetMarketplaceQuery,
+  useGetMarketplaceAppCredentialsQuery,
+  useSaveMarketplaceAppCredentialsMutation,
   useSyncMarketplaceMutation,
   useConnectMarketplaceMutation,
   useLazyCheckMarketplaceQuery,
@@ -85,6 +87,8 @@ export const usePriceHistory = useGetPriceHistoryQuery;
 // ---- Marketplaces ----
 export const useMarketplaces = useGetMarketplacesQuery;
 export const useMarketplace = useGetMarketplaceQuery;
+export const useMarketplaceAppCredentials = useGetMarketplaceAppCredentialsQuery;
+export const useSaveMarketplaceAppCredentials = useSaveMarketplaceAppCredentialsMutation;
 export const useSyncMarketplace = useSyncMarketplaceMutation;
 export const useConnectMarketplace = useConnectMarketplaceMutation;
 export const useCheckMarketplace = useLazyCheckMarketplaceQuery;

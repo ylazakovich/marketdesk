@@ -23,6 +23,7 @@ import { ProductRepository } from '../../infrastructure/persistence/repositories
 import { ListingRepository } from '../../infrastructure/persistence/repositories/ListingRepository';
 import { MarketplaceRepository } from '../../infrastructure/persistence/repositories/MarketplaceRepository';
 import { MarketplaceAccountRepository } from '../../infrastructure/persistence/repositories/MarketplaceAccountRepository';
+import { MarketplaceAppCredentialRepository } from '../../infrastructure/persistence/repositories/MarketplaceAppCredentialRepository';
 import { PublishAttemptRepository } from '../../infrastructure/persistence/repositories/PublishAttemptRepository';
 import { EventRepository } from '../../infrastructure/persistence/repositories/EventRepository';
 import { WorkspaceRepository } from '../../infrastructure/persistence/repositories/WorkspaceRepository';
@@ -242,6 +243,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
   const listingRepo = new ListingRepository(pool);
   const marketplaceRepo = new MarketplaceRepository(pool);
   const marketplaceAccountRepo = new MarketplaceAccountRepository(pool);
+  const marketplaceAppCredentialRepo = new MarketplaceAppCredentialRepository(pool);
   const publishAttemptRepo = new PublishAttemptRepository(pool);
   const eventRepo = new EventRepository(pool);
   const workspaceRepo = new WorkspaceRepository(pool);
@@ -251,12 +253,13 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
   const marketplaceOAuthService = new MarketplaceOAuthService({
     marketplaceRepo,
     accountRepo: marketplaceAccountRepo,
+    appCredentialRepo: marketplaceAppCredentialRepo,
     stateStore: new RedisMarketplaceOAuthStateStore(redis),
-    oauthClient: new OlxOAuthClient({
+    oauthClientFactory: ({ clientId, clientSecret }) => new OlxOAuthClient({
       authorizationUrl: env.marketplaces.olx.authUrl,
       tokenUrl: env.marketplaces.olx.tokenUrl,
-      clientId: env.marketplaces.olx.clientId,
-      clientSecret: env.marketplaces.olx.clientSecret,
+      clientId,
+      clientSecret,
       redirectUri: env.marketplaces.olx.redirectUri,
       scopes: env.marketplaces.olx.requiredScopes
         .split(/[\s,]+/)

@@ -126,6 +126,24 @@ export interface MarketplaceOAuthStatus {
   refreshable: boolean;
 }
 
+export interface MarketplaceAppCredentialStatus {
+  configured: boolean;
+  marketplaceId: string;
+  providerKey: Marketplace['key'];
+  clientId?: string;
+  updatedAt?: string;
+}
+
+export interface SaveMarketplaceAppCredentialsInput {
+  clientId: string;
+  clientSecret: string;
+}
+
+export interface SaveMarketplaceAppCredentialsArg {
+  id: string;
+  input: SaveMarketplaceAppCredentialsInput;
+}
+
 export type UpdateMarketplaceInput = Partial<
   Pick<Marketplace, 'syncMode' | 'connected' | 'capacity'>
 > & { syncMode?: SyncMode };

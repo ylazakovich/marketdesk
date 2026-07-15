@@ -7,12 +7,14 @@ import {
   Box,
   Button,
   Chip,
+  Divider,
   FormControl,
   FormHelperText,
   InputLabel,
   MenuItem,
   Select,
   Stack,
+  TextField,
   Typography,
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
@@ -24,6 +26,8 @@ import type { MarketplaceImportPreview } from '../state/api/index.js';
 import { MARKETPLACE_NAMES } from '@shared/constants';
 import {
   useMarketplaces,
+  useMarketplaceAppCredentials,
+  useSaveMarketplaceAppCredentials,
   useSyncMarketplace,
   useConnectMarketplace,
   useCheckMarketplace,
@@ -76,6 +80,70 @@ function syncModeOptions(current: SyncMode): SyncMode[] {
     ? SUPPORTED_SYNC_MODES
     : [...SUPPORTED_SYNC_MODES, current];
 }
+
+const OlxAppCredentialsPanel: React.FC<{ marketplaceId: string }> = ({ marketplaceId }) => {
+  const dispatch = useAppDispatch();
+  const { data, isFetching, refetch } = useMarketplaceAppCredentials(marketplaceId);
+  const [saveCredentials, { isLoading }] = useSaveMarketplaceAppCredentials();
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
+
+  useEffect(() => {
+    if (data?.clientId) setClientId(data.clientId);
+  }, [data?.clientId]);
+
+  const handleSave = async () => {
+    try {
+      await saveCredentials({
+        id: marketplaceId,
+        input: { clientId, clientSecret },
+      }).unwrap();
+      setClientSecret('');
+      dispatch(enqueueToast({ message: 'OLX application credentials saved.', severity: 'success' }));
+      void refetch();
+    } catch (err) {
+      dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
+    }
+  };
+
+  return (
+    <Stack spacing={1.25}>
+      <Divider />
+      <Typography variant="subtitle2">OLX application credentials</Typography>
+      <Typography variant="body2" color="text.secondary">
+        {data?.configured
+          ? 'Credentials are saved for this workspace. Re-enter the secret only when rotating it.'
+          : 'Paste the client ID and client secret from your OLX developer application before connecting.'}
+      </Typography>
+      <TextField
+        size="small"
+        label="Client ID"
+        value={clientId}
+        onChange={(e) => setClientId(e.target.value)}
+        disabled={isFetching || isLoading}
+        fullWidth
+      />
+      <TextField
+        size="small"
+        label={data?.configured ? 'New client secret' : 'Client secret'}
+        type="password"
+        value={clientSecret}
+        onChange={(e) => setClientSecret(e.target.value)}
+        disabled={isFetching || isLoading}
+        helperText={data?.configured ? 'Stored secrets are never shown again.' : undefined}
+        fullWidth
+      />
+      <Button
+        variant="outlined"
+        size="small"
+        onClick={handleSave}
+        disabled={isFetching || isLoading || !clientId.trim() || !clientSecret.trim()}
+      >
+        {isLoading ? 'Saving…' : data?.configured ? 'Update OLX app credentials' : 'Save OLX app credentials'}
+      </Button>
+    </Stack>
+  );
+};
 
 export interface MarketplaceCardProps {
   marketplace: Marketplace;
@@ -175,6 +243,8 @@ export const MarketplaceCard: React.FC<MarketplaceCardProps> = ({
           </Select>
           <FormHelperText>{SYNC_MODE_HELP[m.syncMode]}</FormHelperText>
         </FormControl>
+
+        {m.key === 'olx' && <OlxAppCredentialsPanel marketplaceId={m.id} />}
 
         <Stack direction="row" spacing={1}>
           {m.connected ? (

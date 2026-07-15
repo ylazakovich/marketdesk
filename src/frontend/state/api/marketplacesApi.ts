@@ -6,6 +6,8 @@ import type {
   ConnectMarketplaceInput,
   MarketplaceOAuthStart,
   MarketplaceOAuthStatus,
+  MarketplaceAppCredentialStatus,
+  SaveMarketplaceAppCredentialsArg,
   UpdateMarketplaceArg,
   MarketplaceImportPreview,
   MarketplaceImportPreviewInput,
@@ -29,6 +31,25 @@ export const marketplacesApi = baseApi.injectEndpoints({
       query: (id) => `/marketplaces/${id}`,
       transformResponse: (res: ApiResponse<Marketplace>) => unwrap(res),
       providesTags: (_result, _error, id) => [{ type: 'Marketplace', id }],
+    }),
+
+    getMarketplaceAppCredentials: builder.query<MarketplaceAppCredentialStatus, string>({
+      query: (id) => `/marketplaces/${id}/app-credentials`,
+      transformResponse: (res: ApiResponse<MarketplaceAppCredentialStatus>) => unwrap(res),
+      providesTags: (_result, _error, id) => [{ type: 'Marketplace', id }],
+    }),
+
+    saveMarketplaceAppCredentials: builder.mutation<
+      MarketplaceAppCredentialStatus,
+      SaveMarketplaceAppCredentialsArg
+    >({
+      query: ({ id, input }) => ({
+        url: `/marketplaces/${id}/app-credentials`,
+        method: 'PUT',
+        body: input,
+      }),
+      transformResponse: (res: ApiResponse<MarketplaceAppCredentialStatus>) => unwrap(res),
+      invalidatesTags: (_result, _error, { id }) => [{ type: 'Marketplace', id }],
     }),
 
     // POST /marketplaces/:id/sync — enqueue a sync; may also refresh listings.
@@ -87,6 +108,8 @@ export const marketplacesApi = baseApi.injectEndpoints({
 export const {
   useGetMarketplacesQuery,
   useGetMarketplaceQuery,
+  useGetMarketplaceAppCredentialsQuery,
+  useSaveMarketplaceAppCredentialsMutation,
   useSyncMarketplaceMutation,
   useConnectMarketplaceMutation,
   useLazyCheckMarketplaceQuery,

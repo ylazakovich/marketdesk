@@ -8,6 +8,7 @@ import type { ListingApplicationService } from '../../../application/services/Li
 import type { MarketplaceOAuthService } from '../../../application/services/MarketplaceOAuthService';
 import type { MarketplaceSyncScheduler } from '../../../application/services/MarketplaceSyncScheduler';
 import type { MarketplaceImportService } from '../../../application/services/MarketplaceImportService';
+import type { OlxPublicationQuotaService } from '../../../application/services/OlxPublicationQuotaService';
 import type { SyncMode } from '../../../../shared/types';
 import { DomainError, InvalidStateError, NotFoundError } from '../../../domain/shared/DomainError';
 import { presentMarketplace } from '../../../application/dto/presenters';
@@ -26,9 +27,30 @@ export class MarketplaceController {
     private readonly oauth: MarketplaceOAuthService,
     private readonly syncScheduler: MarketplaceSyncScheduler,
     private readonly imports: MarketplaceImportService,
+    private readonly olxQuotas: OlxPublicationQuotaService | undefined,
     private readonly oauthReturnUrl: string,
     private readonly logger?: ErrorLogger,
   ) {}
+
+  listQuotas = async (req: Request, res: Response): Promise<void> => {
+    if (!this.olxQuotas) throw new InvalidStateError('OLX publication quota service is unavailable');
+    const result = await this.olxQuotas.list({
+      marketplaceId: routeParam(req.params.id),
+      workspaceId: req.user!.workspaceId!,
+    });
+    ok(res, result);
+  };
+
+  setQuota = async (req: Request, res: Response): Promise<void> => {
+    if (!this.olxQuotas) throw new InvalidStateError('OLX publication quota service is unavailable');
+    const result = await this.olxQuotas.set({
+      marketplaceId: routeParam(req.params.id),
+      workspaceId: req.user!.workspaceId!,
+      actorId: req.user!.userId,
+      ...req.body,
+    });
+    ok(res, result);
+  };
 
   list = async (req: Request, res: Response): Promise<void> => {
     const marketplaces = await this.marketplaceRepo.findByWorkspace(

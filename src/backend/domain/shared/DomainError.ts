@@ -11,11 +11,13 @@ export type DomainErrorCode =
 
 export class DomainError extends Error {
   readonly code: DomainErrorCode;
+  readonly details?: Record<string, unknown>;
 
-  constructor(message: string, code: DomainErrorCode) {
+  constructor(message: string, code: DomainErrorCode, details?: Record<string, unknown>) {
     super(message);
     this.name = new.target.name;
     this.code = code;
+    this.details = details;
     // Preserve prototype chain when targeting ES5-ish transpilation.
     Object.setPrototypeOf(this, new.target.prototype);
   }
@@ -52,8 +54,8 @@ export class ConflictError extends DomainError {
 }
 
 export class GuardrailViolationError extends DomainError {
-  constructor(message: string) {
-    super(message, 'GUARDRAIL_VIOLATION');
+  constructor(message: string, details?: Record<string, unknown>) {
+    super(message, 'GUARDRAIL_VIOLATION', details);
   }
 }
 

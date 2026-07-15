@@ -4,12 +4,18 @@ import { Router } from 'express';
 import type { MarketplaceController } from '../controllers/MarketplaceController';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { validateBody } from '../middleware/ValidationMiddleware';
-import { updateMarketplaceSchema } from '../validation/schemas';
+import { setOlxPublicationQuotaSchema, updateMarketplaceSchema } from '../validation/schemas';
 
 export function createMarketplaceRoutes(controller: MarketplaceController): Router {
   const router = Router();
   router.get('/', asyncHandler(controller.list));
   router.get('/:id', asyncHandler(controller.get));
+  router.get('/:id/quotas', asyncHandler(controller.listQuotas));
+  router.put(
+    '/:id/quotas',
+    validateBody(setOlxPublicationQuotaSchema),
+    asyncHandler(controller.setQuota),
+  );
   router.post('/:id/sync', asyncHandler(controller.sync));
   router.post('/:id/connect', asyncHandler(controller.connect));
   router.get('/:id/app-credentials', asyncHandler(controller.getAppCredentials));

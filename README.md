@@ -87,6 +87,7 @@ MarketDesk is an integrated product and listing management system designed to si
 ## Deployment Docs
 
 - [Caddy + Cloudflare VPS deployment](docs/deployment/caddy-cloudflare-vps.md) — production HTTPS reverse-proxy setup for the `hosting/domain provider → Cloudflare DNS → Caddy → VPS → MarketDesk` path.
+- [OLX publication quota guard](docs/olx-publication-quota.md) — operator workflow, fail-closed decisions, explicit overrides, and concurrency semantics.
 
 ## Design & Product Docs
 

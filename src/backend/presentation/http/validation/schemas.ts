@@ -97,6 +97,24 @@ export const createListingSchema = z.object({
 export const publishListingSchema = z.object({
   actorId: z.string().optional(),
   dryRun: z.boolean().optional(),
+  quotaOverride: z
+    .object({
+      confirmed: z.literal(true),
+      reason: z.string().trim().min(10).max(500),
+    })
+    .optional(),
+});
+
+export const setOlxPublicationQuotaSchema = z.object({
+  subcategoryId: z.string().trim().min(1).max(100),
+  cycleStartedAt: z.iso.datetime(),
+  cycleEndsAt: z.iso.datetime(),
+  publicationLimit: z.number().int().nonnegative(),
+  consumed: z.number().int().nonnegative(),
+  source: z.enum(['operator', 'provider', 'reconciled']),
+  confidence: z.enum(['verified', 'estimated']),
+  verifiedAt: z.iso.datetime(),
+  staleAt: z.iso.datetime(),
 });
 
 export const updateWorkspaceSchema = z

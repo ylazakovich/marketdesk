@@ -12,6 +12,7 @@ import {
 import { InMemoryActivityLogRepository, RecordingJobQueue, idFactory } from '../testkit/support';
 import type { PublishListingJob } from '../ports/IJobQueue';
 import type { MarketplaceAccountRepository } from '../services/MarketplaceOAuthService';
+import type { OlxPublicationQuotaService } from '../services/OlxPublicationQuotaService';
 
 function setup(connected: boolean, oauthAccount: 'connected' | 'missing' | 'legacy' = 'legacy') {
   const productRepo = new InMemoryProductRepository();
@@ -43,6 +44,21 @@ function setup(connected: boolean, oauthAccount: 'connected' | 'missing' | 'lega
             throw new Error('not used');
           },
         };
+  const quotaService = {
+    async authorize() {
+      return {
+        applicable: true,
+        marketplaceKey: 'olx' as const,
+        marketplaceAccountId: 'account-1',
+        subcategoryId: '4000',
+        status: 'available' as const,
+        decision: 'allow' as const,
+        reason: 'free_unit_available',
+        requiresOverride: false,
+        consumedUnit: true,
+      };
+    },
+  } as unknown as OlxPublicationQuotaService;
 
   const product = unwrap(
     Product.create({
@@ -80,7 +96,8 @@ function setup(connected: boolean, oauthAccount: 'connected' | 'missing' | 'lega
     publishQueue,
     activityLog,
     idFactory('rec'),
-    accountRepo
+    accountRepo,
+    quotaService,
   );
   return { useCase, publishQueue, activityLog };
 }

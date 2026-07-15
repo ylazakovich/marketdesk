@@ -8,7 +8,7 @@
 //     emits a domain event.
 
 import { Result, Ok, Err } from '../../domain/shared/Result';
-import { NotFoundError, InvalidStateError } from '../../domain/shared/DomainError';
+import { GuardrailViolationError, NotFoundError, InvalidStateError } from '../../domain/shared/DomainError';
 import { Money } from '../../domain/valueObjects/Money';
 import type { HermesEvent } from '../../domain/entities/HermesEvent';
 import type { Product } from '../../domain/entities/Product';
@@ -24,6 +24,7 @@ import type { IJobQueue, PublishListingJob, ListingUpdateJobChanges } from '../p
 import type { IdGenerator } from '../ports/IdGenerator';
 import type { ApproveEventDTO } from '../dto/ApproveEventDTO';
 import type { MarketplaceAccountRepository } from '../services/MarketplaceOAuthService';
+import type { OlxPublicationQuotaService } from '../services/OlxPublicationQuotaService';
 
 interface MarketplaceUpdateOperation {
   operationId: string;
@@ -49,7 +50,8 @@ export class ApproveHermesEventUseCase {
     private readonly publishQueue: IJobQueue<PublishListingJob>,
     private readonly eventPublisher: IEventPublisher,
     private readonly idGenerator: IdGenerator,
-    private readonly marketplaceAccountRepo?: MarketplaceAccountRepository
+    private readonly marketplaceAccountRepo?: MarketplaceAccountRepository,
+    private readonly olxQuota?: OlxPublicationQuotaService,
   ) {}
 
   async execute(input: ApproveEventDTO): Promise<Result<HermesEvent>> {
@@ -67,7 +69,7 @@ export class ApproveHermesEventUseCase {
       );
     }
 
-    const applied = await this.applyChange(event);
+    const applied = await this.applyChange(event, input.actorId);
     if (applied.isErr()) return applied;
 
     const approved = event.approve();
@@ -107,7 +109,10 @@ export class ApproveHermesEventUseCase {
     return Ok(event);
   }
 
-  private async applyChange(event: HermesEvent): Promise<Result<ApplyChangeOutcome>> {
+  private async applyChange(
+    event: HermesEvent,
+    actorId?: string,
+  ): Promise<Result<ApplyChangeOutcome>> {
     const change = event.proposedChange;
     if (change === null) return Ok({ marketplaceUpdates: [] });
 
@@ -132,7 +137,7 @@ export class ApproveHermesEventUseCase {
       }
       case 'relist':
         // Enqueues an actual republish job per referenced listing (real action).
-        return this.applyRelist(change.listingIds);
+        return this.applyRelist(change.listingIds, actorId);
       case 'create_listing':
         // There is no synchronous listing-creation flow wired, so approving a
         // create_listing event cannot actually create the listing. Reject rather
@@ -187,7 +192,10 @@ export class ApproveHermesEventUseCase {
     return this.enqueueMarketplaceUpdates(product, { price: change.to });
   }
 
-  private async applyRelist(listingIds: string[]): Promise<Result<ApplyChangeOutcome>> {
+  private async applyRelist(
+    listingIds: string[],
+    actorId?: string,
+  ): Promise<Result<ApplyChangeOutcome>> {
     const operations: MarketplaceUpdateOperation[] = [];
     let enqueued = 0;
     for (const listingId of listingIds) {
@@ -203,6 +211,26 @@ export class ApproveHermesEventUseCase {
       }
 
       const operationId = this.idGenerator();
+      if (marketplace.key === 'olx') {
+        if (!this.olxQuota) {
+          return Err(
+            new GuardrailViolationError(
+              'OLX publication quota guard is unavailable; relist fails closed',
+            ),
+          );
+        }
+        const quotaDecision = await this.olxQuota.authorize({
+          operationId,
+          mode: 'relist',
+          listing,
+          product,
+          marketplace,
+          actorId,
+        });
+        if (quotaDecision.decision === 'block') {
+          return Err(this.olxQuota.guardError(quotaDecision));
+        }
+      }
       await this.publishQueue.enqueue(
         {
           operationId,

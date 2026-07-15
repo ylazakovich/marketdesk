@@ -18,6 +18,7 @@ import { Money } from '../../../domain/valueObjects/Money';
 import { NotFoundError } from '../../../domain/shared/DomainError';
 import { presentListing } from '../../../application/dto/presenters';
 import { evaluatePublishEligibility } from '../../../application/usecases/PublishListingUseCase';
+import type { OlxPublicationQuotaService } from '../../../application/services/OlxPublicationQuotaService';
 import { ok, paginated } from '../formatters/ResponseFormatter';
 
 
@@ -31,6 +32,7 @@ export interface ListingControllerDeps {
   idGenerator?: IdGenerator;
   productRepo?: IProductRepository;
   marketplaceRepo?: IMarketplaceRepository;
+  olxQuotaService?: OlxPublicationQuotaService;
 }
 
 export class ListingController {
@@ -58,6 +60,23 @@ export class ListingController {
       warnings.push(...evaluatePublishEligibility(listing, product, marketplace).warnings);
     }
 
+    let quotaDecision;
+    if (product && marketplace && marketplace.key === 'olx') {
+      quotaDecision = this.deps.olxQuotaService
+        ? await this.deps.olxQuotaService.preview({ listing, product, marketplace })
+        : {
+            applicable: true,
+            marketplaceKey: 'olx' as const,
+            status: 'unknown' as const,
+            decision: 'block' as const,
+            reason: 'quota_guard_unavailable',
+            requiresOverride: true,
+          };
+      if (quotaDecision.decision === 'block') {
+        warnings.push(`OLX quota blocks publication: ${quotaDecision.reason}`);
+      }
+    }
+
     return {
       dryRun: true,
       canPublish: warnings.length === 0,
@@ -76,6 +95,7 @@ export class ListingController {
           }
         : null,
       warnings,
+      quotaDecision,
     };
   }
 
@@ -127,6 +147,7 @@ export class ListingController {
     const result = await this.listings.publishListing({
       listingId: listing.id,
       actorId: req.user!.userId,
+      quotaOverride: req.body?.quotaOverride,
     });
     if (result.isErr()) return next(result.error);
     ok(res, result.value);
@@ -179,6 +200,7 @@ export class ListingController {
     const result = await this.listings.relistListing({
       listingId: listing.id,
       actorId: req.user!.userId,
+      quotaOverride: req.body?.quotaOverride,
     });
     if (result.isErr()) return next(result.error);
     ok(res, result.value, 202);

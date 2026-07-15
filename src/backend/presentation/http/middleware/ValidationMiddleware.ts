@@ -16,7 +16,11 @@ function toDetails(error: ZodError): ErrorDetail[] {
 
 export function validateBody(schema: ZodTypeAny) {
   return (req: Request, res: Response, next: NextFunction): void => {
-    const result = schema.safeParse(req.body);
+    // Express leaves req.body as undefined when a POST has no Content-Type/body.
+    // Empty action endpoints (approve/dismiss) still have an object schema with
+    // only optional fields, so validate them as an empty object instead of
+    // failing at the root with "expected object, received undefined".
+    const result = schema.safeParse(req.body ?? {});
     if (!result.success) {
       fail(res, undefined, 400, {
         code: ERROR_CODES.VALIDATION_ERROR,

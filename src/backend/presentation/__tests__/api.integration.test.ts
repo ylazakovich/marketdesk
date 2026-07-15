@@ -580,6 +580,14 @@ describe('Presentation API', () => {
       expect(res.body.error.code).toBe('INVALID_STATE');
     });
 
+    it('dismisses a pending event without requiring an explicit JSON body', async () => {
+      const { app } = await buildTestApp();
+      const res = await auth(request(app).post('/api/hermes/events/pending/dismiss'));
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+    });
+
     it('returns a 404 error envelope for an unknown event', async () => {
       const { app } = await buildTestApp();
       const res = await auth(request(app).get('/api/hermes/events/nope'));

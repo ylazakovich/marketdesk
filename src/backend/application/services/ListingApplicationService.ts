@@ -59,7 +59,11 @@ export class ListingApplicationService {
     offset?: number
   ): Promise<PaginatedResponse<ListingView>> {
     const listings = await this.listingRepo.findByWorkspace(workspaceId);
-    const productIds = [...new Set(listings.map((listing) => listing.productId))];
+    const sorted = [...listings].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+    const normalizedOffset = normalizeOffset(offset);
+    const normalizedLimit = normalizeLimit(limit);
+    const pageListings = sorted.slice(normalizedOffset, normalizedOffset + normalizedLimit);
+    const productIds = [...new Set(pageListings.map((listing) => listing.productId))];
     const products = this.productRepo
       ? await Promise.all(
           productIds.map((productId) => this.productRepo!.findByIdForWorkspace(productId, workspaceId)),
@@ -70,8 +74,7 @@ export class ListingApplicationService {
         .filter((product): product is NonNullable<(typeof products)[number]> => Boolean(product))
         .map((product) => [product.id, product]),
     );
-    const sorted = [...listings].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
-    return paginate(sorted, normalizeOffset(offset), normalizeLimit(limit), (listing) => {
+    return paginate(sorted, normalizedOffset, normalizedLimit, (listing) => {
       const product = productById.get(listing.productId);
       return presentListing(listing, {
         productName: product?.name,

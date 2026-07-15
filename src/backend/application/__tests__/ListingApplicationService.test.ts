@@ -63,4 +63,43 @@ describe('ListingApplicationService', () => {
       }),
     ]);
   });
+
+  it('only loads product identities for listings on the requested page', async () => {
+    const { service, productRepo, listingRepo } = setup();
+    for (const id of ['product-1', 'product-2']) {
+      const product = unwrap(
+        Product.create({
+          id,
+          workspaceId: 'ws-1',
+          sku: `${id}-SKU`,
+          name: `${id} name`,
+          description: 'A product with all required details.',
+          costPrice: money(10),
+          sellingPrice: money(20),
+          condition: 'good',
+          category: 'audio',
+        }),
+      );
+      productRepo.items.set(product.id, product);
+      const listing = unwrap(
+        Listing.create({
+          id: `listing-${id}`,
+          productId: id,
+          marketplaceId: 'marketplace-olx',
+          price: money(20),
+          status: 'live',
+        }),
+      );
+      listingRepo.items.set(listing.id, listing);
+      listingRepo.listingWorkspaces.set(listing.id, 'ws-1');
+    }
+    const findSpy = jest.spyOn(productRepo, 'findByIdForWorkspace');
+
+    const page = await service.listByWorkspace('ws-1', 1, 0);
+
+    expect(page.items).toHaveLength(1);
+    expect(page.total).toBe(2);
+    expect(findSpy).toHaveBeenCalledTimes(1);
+    expect(findSpy).toHaveBeenCalledWith(page.items[0].productId, 'ws-1');
+  });
 });

@@ -4,6 +4,7 @@ import { PublishAttemptRepository } from '../PublishAttemptRepository';
 const row = {
   operation_id: 'operation-1',
   listing_id: 'listing-1',
+  listing_updated_at: new Date(0),
   marketplace_key: 'olx',
   status: 'publishing',
   external_listing_id: null,
@@ -13,7 +14,10 @@ const row = {
 
 describe('PublishAttemptRepository', () => {
   it('atomically creates the first publishing checkpoint', async () => {
-    const query = jest.fn(async () => ({ rows: [row], rowCount: 1 }));
+    const query = jest
+      .fn()
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [row], rowCount: 1 });
     const repository = new PublishAttemptRepository({ query } as unknown as Pool);
 
     await expect(
@@ -26,12 +30,13 @@ describe('PublishAttemptRepository', () => {
         status: 'publishing',
       },
     });
-    expect(String(query.mock.calls[0][0])).toContain('ON CONFLICT DO NOTHING');
+    expect(String(query.mock.calls[1][0])).toContain('ON CONFLICT DO NOTHING');
   });
 
   it('returns the durable winner when another worker already began publishing', async () => {
     const query = jest
       .fn()
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
       .mockResolvedValueOnce({ rows: [], rowCount: 0 })
       .mockResolvedValueOnce({ rows: [row], rowCount: 1 });
     const repository = new PublishAttemptRepository({ query } as unknown as Pool);
@@ -42,6 +47,20 @@ describe('PublishAttemptRepository', () => {
       created: false,
       checkpoint: { operationId: 'operation-1', status: 'publishing' },
     });
+  });
+
+  it('returns a newer durable listing generation without inserting a stale operation', async () => {
+    const newer = { ...row, listing_updated_at: new Date('2026-07-15T12:00:00.000Z') };
+    const query = jest.fn().mockResolvedValueOnce({ rows: [newer], rowCount: 1 });
+    const repository = new PublishAttemptRepository({ query } as unknown as Pool);
+
+    await expect(
+      repository.begin('operation-stale', 'listing-1', 'olx', new Date('2026-07-15T11:00:00.000Z'))
+    ).resolves.toMatchObject({
+      created: false,
+      checkpoint: { operationId: 'operation-1', listingUpdatedAt: newer.listing_updated_at },
+    });
+    expect(query).toHaveBeenCalledTimes(1);
   });
 
   it('stores the provider result before local finalization resumes', async () => {

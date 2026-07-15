@@ -95,6 +95,7 @@ function validatedUpdateChanges(changes: unknown): ListingUpdateJobChanges {
 export interface PublishAttemptCheckpoint {
   operationId: string;
   listingId: string;
+  listingUpdatedAt: Date;
   marketplaceKey: MarketplaceKey;
   status: 'publishing' | 'published' | 'finalized' | 'abandoned';
   externalListingId: string | null;
@@ -155,6 +156,7 @@ export interface ListingFinalizer {
     externalUrl: string | null;
     publishedAt: Date | null;
     updatedAt?: Date | null;
+    productUpdatedAt?: Date | null;
     currentInput?: ListingPublishJobInput;
   } | null>;
 }
@@ -215,6 +217,65 @@ export class PublishListingHandler {
           `Listing ${data.listingId} or its product has changed since this marketplace update was queued`
         );
       }
+      if (!this.publishAttempts) {
+        throw new InvalidStateError('Update handler is missing the durable operation store');
+      }
+      const listingGeneration = new Date(data.listingUpdatedAt ?? '');
+      const productGeneration = new Date(data.productUpdatedAt);
+      if (
+        !Number.isFinite(listingGeneration.getTime()) ||
+        !Number.isFinite(productGeneration.getTime())
+      ) {
+        throw new InvalidStateError('Update job is missing a valid listing/product generation');
+      }
+      const updateGeneration = new Date(
+        Math.max(listingGeneration.getTime(), productGeneration.getTime())
+      );
+      const claimUpdate = () =>
+        retryTransientPhase(() =>
+          this.publishAttempts!.begin(
+            operationId,
+            data.listingId,
+            data.marketplaceKey,
+            updateGeneration
+          )
+        );
+      let claim = await claimUpdate();
+      if (
+        !claim.created &&
+        claim.checkpoint.status === 'published' &&
+        claim.checkpoint.listingUpdatedAt.getTime() < updateGeneration.getTime()
+      ) {
+        await retryTransientPhase(() =>
+          this.publishAttempts!.markFinalized(claim.checkpoint.operationId)
+        );
+        claim = await claimUpdate();
+      }
+      if (!claim.created) {
+        const sameOperation = claim.checkpoint.operationId === operationId;
+        if (claim.checkpoint.status === 'published' || claim.checkpoint.status === 'finalized') {
+          if (claim.checkpoint.status !== 'finalized') {
+            await retryTransientPhase(() =>
+              this.publishAttempts!.markFinalized(claim.checkpoint.operationId)
+            );
+          }
+          return {
+            marketplaceKey: data.marketplaceKey,
+            listingId: data.listingId,
+            result: {
+              externalListingId: state.externalListingId,
+              externalUrl: state.externalUrl,
+              publishedAt: state.publishedAt ?? new Date(),
+            },
+            finalized: true,
+          };
+        }
+        if (!sameOperation) {
+          throw new InvalidStateError(
+            `Listing ${data.listingId} has another marketplace update in progress`
+          );
+        }
+      }
 
       let adapter: IMarketplaceAdapter;
       if (data.marketplaceKey === 'olx') {
@@ -235,16 +296,21 @@ export class PublishListingHandler {
         adapter = this.adapters.create(data.marketplaceKey);
       }
 
+      const updateResult: PublishResult = {
+        externalListingId: state.externalListingId,
+        externalUrl: state.externalUrl,
+        publishedAt: state.publishedAt ?? new Date(),
+      };
       await adapter.updateListing(state.externalListingId, changes, state.currentInput);
+      await retryTransientPhase(() =>
+        this.publishAttempts!.markPublished(operationId, updateResult)
+      );
+      await retryTransientPhase(() => this.publishAttempts!.markFinalized(operationId));
 
       return {
         marketplaceKey: data.marketplaceKey,
         listingId: data.listingId,
-        result: {
-          externalListingId: state.externalListingId,
-          externalUrl: state.externalUrl,
-          publishedAt: state.publishedAt ?? new Date(),
-        },
+        result: updateResult,
         finalized: true,
       };
     }

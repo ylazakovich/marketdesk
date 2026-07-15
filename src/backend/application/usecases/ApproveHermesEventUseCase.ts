@@ -250,7 +250,10 @@ export class ApproveHermesEventUseCase {
       if (this.marketplaceAccountRepo) {
         const account = await this.marketplaceAccountRepo.findByMarketplaceId(marketplace.id);
         if (!account || account.status !== 'connected') {
-          skippedLiveListings.push({ listingId: listing.id, reason: 'marketplace_account_not_connected' });
+          skippedLiveListings.push({
+            listingId: listing.id,
+            reason: 'marketplace_account_not_connected',
+          });
           continue;
         }
       }
@@ -261,6 +264,7 @@ export class ApproveHermesEventUseCase {
           operationId,
           mode: 'update',
           listingUpdatedAt: listing.updatedAt.toISOString(),
+          productUpdatedAt: product.updatedAt.toISOString(),
           marketplaceKey: marketplace.key,
           marketplaceId: marketplace.id,
           listingId: listing.id,

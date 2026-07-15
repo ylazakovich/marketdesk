@@ -101,6 +101,7 @@ export class ListingService {
     externalUrl: string | null;
     publishedAt: Date | null;
     updatedAt?: Date | null;
+    productUpdatedAt?: Date | null;
     currentInput?: ListingPublishInput;
   } | null> {
     const listing = await this.listingRepo.findById(listingId);
@@ -113,6 +114,7 @@ export class ListingService {
       externalUrl: listing.externalUrl,
       publishedAt: listing.publishedAt,
       updatedAt: listing.updatedAt,
+      productUpdatedAt: product.updatedAt,
       currentInput: {
         productName: product.name,
         description: product.description,

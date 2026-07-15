@@ -276,11 +276,16 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
   private extractPrice(price: OlxAdvertResponse['price']): { value: number | null; currency: string | null } {
     if (typeof price === 'number') return { value: price, currency: null };
     if (typeof price === 'string') {
-      const parsed = Number(price);
+      const parsed = price.trim() === '' ? Number.NaN : Number(price);
       return { value: Number.isFinite(parsed) ? parsed : null, currency: null };
     }
     if (!price) return { value: null, currency: null };
-    const parsed = typeof price.value === 'string' ? Number(price.value) : price.value;
+    const parsed =
+      typeof price.value === 'string'
+        ? price.value.trim() === ''
+          ? Number.NaN
+          : Number(price.value)
+        : price.value;
     return {
       value: Number.isFinite(parsed) ? parsed ?? null : null,
       currency: price.currency ?? null,

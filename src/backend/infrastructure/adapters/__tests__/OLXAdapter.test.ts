@@ -96,24 +96,38 @@ describe('OLXAdapter', () => {
     const calls: HttpRequestConfig[] = [];
     const http = mockClient((config) => {
       calls.push(config);
+      const page = config.query?.page;
       return {
         status: 200,
         data: {
-          data: [
-            {
-              id: 10,
-              status: 'active',
-              title: 'Imported camera',
-              description: 'Remote description',
-              url: 'https://www.olx.pl/d/oferta/imported-camera',
-              price: { value: '149.50', currency: 'PLN' },
-              category: { name: 'Electronics' },
-              photos: [{ url: 'https://img/remote.jpg' }],
-              updated_at: '2026-07-15T00:00:00.000Z',
-              metrics: { views: 7, favorites: 2, messages: 1 },
-            },
-          ],
-          meta: { last_page: 1 },
+          data:
+            page === 1
+              ? [
+                  {
+                    id: 10,
+                    status: 'active',
+                    title: 'Imported camera',
+                    description: 'Remote description',
+                    url: 'https://www.olx.pl/d/oferta/imported-camera',
+                    price: { value: '149.50', currency: 'PLN' },
+                    category: { name: 'Electronics' },
+                    photos: [{ url: 'https://img/remote.jpg' }],
+                    updated_at: '2026-07-15T00:00:00.000Z',
+                    metrics: { views: 7, favorites: 2, messages: 1 },
+                  },
+                ]
+              : [
+                  {
+                    id: 11,
+                    status: 'active',
+                    title: 'Imported lens',
+                    public_url: 'https://www.olx.pl/d/oferta/imported-lens',
+                    price: { value: '75', currency: 'PLN' },
+                    category: { name: 'Photography' },
+                    photos: [{ url: 'https://img/lens.jpg' }],
+                  },
+                ],
+          meta: { last_page: 2 },
         },
       };
     });
@@ -121,11 +135,18 @@ describe('OLXAdapter', () => {
 
     const adverts = await adapter.listOwnedListings({ pageSize: 50, statuses: ['active'] });
 
+    expect(calls).toHaveLength(2);
     expect(calls[0]).toMatchObject({
       method: 'GET',
       url: 'https://www.olx.pl/api/partner/adverts',
       query: { page: 1, limit: 50, status: 'active' },
     });
+    expect(calls[1]).toMatchObject({
+      method: 'GET',
+      url: 'https://www.olx.pl/api/partner/adverts',
+      query: { page: 2, limit: 50, status: 'active' },
+    });
+    expect(adverts).toHaveLength(2);
     expect(adverts[0]).toMatchObject({
       externalListingId: '10',
       externalUrl: 'https://www.olx.pl/d/oferta/imported-camera',
@@ -135,6 +156,15 @@ describe('OLXAdapter', () => {
       category: 'Electronics',
       imageUrls: ['https://img/remote.jpg'],
       metrics: { views: 7, watchers: 2, messages: 1 },
+    });
+    expect(adverts[1]).toMatchObject({
+      externalListingId: '11',
+      externalUrl: 'https://www.olx.pl/d/oferta/imported-lens',
+      title: 'Imported lens',
+      price: 75,
+      currency: 'PLN',
+      category: 'Photography',
+      imageUrls: ['https://img/lens.jpg'],
     });
   });
 

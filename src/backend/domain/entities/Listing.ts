@@ -17,6 +17,7 @@ export interface CreateListingProps {
   marketplaceId: string;
   price: Money;
   marketplaceListingId?: string | null;
+  externalUrl?: string | null;
   status?: ListingStatus;
   views?: number | null;
   watchers?: number | null;
@@ -36,6 +37,7 @@ export class Listing {
     public readonly marketplaceId: string,
     private _price: Money,
     private _marketplaceListingId: string | null,
+    private _externalUrl: string | null,
     private _status: ListingStatus,
     private _views: number | null,
     private _watchers: number | null,
@@ -70,6 +72,7 @@ export class Listing {
         props.marketplaceId,
         props.price,
         props.marketplaceListingId ?? null,
+        props.externalUrl ?? null,
         props.status ?? 'draft',
         props.views ?? null,
         props.watchers ?? null,
@@ -91,6 +94,7 @@ export class Listing {
       props.marketplaceId,
       props.price,
       props.marketplaceListingId,
+      props.externalUrl,
       props.status,
       props.views,
       props.watchers,
@@ -113,6 +117,9 @@ export class Listing {
   }
   get marketplaceListingId(): string | null {
     return this._marketplaceListingId;
+  }
+  get externalUrl(): string | null {
+    return this._externalUrl;
   }
   get views(): number | null {
     return this._views;
@@ -163,6 +170,7 @@ export class Listing {
     product: Product,
     marketplace: Marketplace,
     externalListingId: string,
+    externalUrl: string | null = null,
     publishedAt: Date = new Date(),
     expiresAt: Date | null = null,
   ): Result<void> {
@@ -191,6 +199,7 @@ export class Listing {
 
     this._status = 'live';
     this._marketplaceListingId = externalListingId;
+    this._externalUrl = externalUrl;
     this._publishedAt = publishedAt;
     this._expiresAt = expiresAt;
     this._syncError = null;
@@ -237,6 +246,11 @@ export class Listing {
     if (stats.watchers !== undefined && stats.watchers !== null) this._watchers = stats.watchers;
     if (stats.messages !== undefined && stats.messages !== null) this._messages = stats.messages;
     this._lastSyncAt = at;
+    this.touch();
+  }
+
+  recordExternalUrl(url: string | null): void {
+    this._externalUrl = url;
     this.touch();
   }
 

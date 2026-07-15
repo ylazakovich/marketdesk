@@ -63,6 +63,7 @@ export interface PublishAttemptCheckpoint {
   marketplaceKey: MarketplaceKey;
   status: 'publishing' | 'published' | 'finalized' | 'abandoned';
   externalListingId: string | null;
+  externalUrl: string | null;
   publishedAt: Date | null;
 }
 
@@ -101,6 +102,7 @@ export interface ListingFinalizer {
   publishListing(
     listingId: string,
     externalListingId: string,
+    externalUrl?: string | null,
     publishedAt?: Date,
     expiresAt?: Date | null
   ): Promise<Result<Listing>>;
@@ -111,6 +113,7 @@ export interface ListingFinalizer {
   getPublishState?(listingId: string): Promise<{
     isPublished: boolean;
     externalListingId: string | null;
+    externalUrl: string | null;
     publishedAt: Date | null;
   } | null>;
 }
@@ -169,6 +172,7 @@ export class PublishListingHandler {
             listingId: data.listingId,
             result: {
               externalListingId: state.externalListingId,
+              externalUrl: checkpoint?.externalUrl ?? state.externalUrl ?? null,
               publishedAt: state.publishedAt ?? new Date(),
             },
             finalized: true,
@@ -184,6 +188,7 @@ export class PublishListingHandler {
     ) {
       result = {
         externalListingId: checkpoint.externalListingId,
+        externalUrl: checkpoint.externalUrl,
         publishedAt: checkpoint.publishedAt ?? new Date(),
       };
     } else if (checkpoint?.status === 'publishing') {
@@ -226,6 +231,7 @@ export class PublishListingHandler {
           ) {
             result = {
               externalListingId: started.checkpoint.externalListingId,
+              externalUrl: started.checkpoint.externalUrl,
               publishedAt: started.checkpoint.publishedAt ?? new Date(),
             };
           } else {
@@ -264,6 +270,7 @@ export class PublishListingHandler {
           this.listings!.publishListing(
             data.listingId,
             result.externalListingId,
+            result.externalUrl ?? null,
             result.publishedAt
           ),
         (attempt) => attempt.isOk(),
@@ -301,6 +308,7 @@ export class PublishListingHandler {
         payload: {
           marketplaceKey: data.marketplaceKey,
           externalListingId: result.externalListingId,
+          externalUrl: result.externalUrl ?? null,
         },
         occurredAt: new Date(),
       });

@@ -185,6 +185,7 @@ export interface Listing {
   productId: string;
   marketplaceId: string;
   marketplaceListingId?: string;
+  externalUrl?: string;
   price: number;
   status: ListingStatus;
   views: number | null;

@@ -78,6 +78,9 @@ export interface OlxAdapterConfig {
 interface OlxAdvertResponse {
   id: string | number;
   status: string;
+  url?: string | null;
+  public_url?: string | null;
+  external_url?: string | null;
   metrics?: { views?: unknown; favorites?: unknown; messages?: unknown };
 }
 
@@ -150,6 +153,7 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
     const advert = this.unwrapAdvert(res.data);
     return {
       externalListingId: String(advert.id),
+      externalUrl: this.extractPublicUrl(advert),
       publishedAt: new Date(),
     };
   }
@@ -244,12 +248,28 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
     const remoteStatus = String(data.status ?? 'unknown').toLowerCase();
     return {
       externalListingId: String(data.id),
+      externalUrl: this.extractPublicUrl(data),
       status: OLX_STATUS_TO_LOCAL[remoteStatus] ?? 'draft',
       remoteStatus,
       views: this.parseCounter(data.metrics?.views),
       watchers: this.parseCounter(data.metrics?.favorites),
       messages: this.parseCounter(data.metrics?.messages),
     };
+  }
+
+  private extractPublicUrl(data: OlxAdvertResponse): string | null {
+    for (const candidate of [data.url, data.public_url, data.external_url]) {
+      if (!candidate) continue;
+      try {
+        const parsed = new URL(candidate);
+        if (parsed.protocol !== 'https:') continue;
+        if (!/(^|\.)olx\.pl$/i.test(parsed.hostname)) continue;
+        return parsed.toString();
+      } catch {
+        // Try the next candidate.
+      }
+    }
+    return null;
   }
 
   private parseCounter(value: unknown): number | null {

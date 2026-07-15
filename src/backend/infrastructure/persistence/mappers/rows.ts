@@ -35,6 +35,7 @@ export interface ListingRow {
   product_id: string;
   marketplace_id: string;
   marketplace_listing_id: string | null;
+  external_url: string | null;
   price: string | number;
   status: string;
   views: number | null;

@@ -16,11 +16,13 @@ export interface ListingPublishInput {
 
 export interface PublishResult {
   externalListingId: string;
+  externalUrl?: string | null;
   publishedAt: Date;
 }
 
 export interface SyncedListing {
   externalListingId: string;
+  externalUrl?: string | null;
   status: ListingStatus;
   remoteStatus?: string;
   missing?: boolean;

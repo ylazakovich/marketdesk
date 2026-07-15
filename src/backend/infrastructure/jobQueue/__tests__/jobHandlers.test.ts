@@ -74,6 +74,7 @@ function memoryPublishAttempts(): PublishAttemptStore {
         marketplaceKey,
         status: 'publishing',
         externalListingId: null,
+        externalUrl: null,
         publishedAt: null,
       };
       attempts.set(operationId, checkpoint);
@@ -86,6 +87,7 @@ function memoryPublishAttempts(): PublishAttemptStore {
         ...existing,
         status: 'published',
         externalListingId: result.externalListingId,
+        externalUrl: result.externalUrl ?? null,
         publishedAt: result.publishedAt,
       });
     },
@@ -206,7 +208,14 @@ describe('SyncMarketplaceHandler', () => {
 
   it('persists fetched stats onto listings and records the marketplace sync (C5)', async () => {
     const synced: SyncedListing[] = [
-      { externalListingId: 'ext-1', status: 'live', views: 42, watchers: 3, messages: 2 },
+      {
+        externalListingId: 'ext-1',
+        externalUrl: 'https://www.olx.pl/d/oferta/ext-1',
+        status: 'live',
+        views: 42,
+        watchers: 3,
+        messages: 2,
+      },
     ];
     const adapter = fakeAdapter({ sync: jest.fn(async () => synced) });
     const { resolver } = resolverFor(adapter);
@@ -254,6 +263,7 @@ describe('SyncMarketplaceHandler', () => {
     expect(result.marketplaceUpdated).toBe(true);
     expect(saved[0].views).toBe(42);
     expect(saved[0].watchers).toBe(3);
+    expect(saved[0].externalUrl).toBe('https://www.olx.pl/d/oferta/ext-1');
     expect(saved[0].lastSyncAt).not.toBeNull();
     expect(marketplaceStore.save).toHaveBeenCalled();
     expect(marketplace.errorCount).toBe(0); // reset on success
@@ -525,6 +535,7 @@ describe('SyncMarketplaceHandler', () => {
 describe('PublishListingHandler', () => {
   const publishResult: PublishResult = {
     externalListingId: 'olx-99',
+    externalUrl: 'https://www.olx.pl/d/oferta/olx-99',
     publishedAt: new Date('2026-07-11T00:00:00.000Z'),
   };
   const input = {
@@ -561,7 +572,10 @@ describe('PublishListingHandler', () => {
     expect(published).toHaveLength(1);
     expect(published[0].type).toBe('listing.published');
     expect(published[0].aggregateId).toBe('l-1');
-    expect(published[0].payload).toMatchObject({ externalListingId: 'olx-99' });
+    expect(published[0].payload).toMatchObject({
+      externalListingId: 'olx-99',
+      externalUrl: 'https://www.olx.pl/d/oferta/olx-99',
+    });
   });
 
   it('uses the marketplace account access token for real OLX publish jobs', async () => {
@@ -629,7 +643,12 @@ describe('PublishListingHandler', () => {
     });
 
     // The listing was finalized with the adapter-returned external id + timestamp.
-    expect(publishListing).toHaveBeenCalledWith('l-3', 'olx-99', publishResult.publishedAt);
+    expect(publishListing).toHaveBeenCalledWith(
+      'l-3',
+      'olx-99',
+      publishResult.externalUrl,
+      publishResult.publishedAt
+    );
     expect(result.finalized).toBe(true);
     // The handler must NOT double-emit; the finalizer owns the canonical event.
     expect(published).toHaveLength(0);
@@ -738,6 +757,7 @@ describe('PublishListingHandler', () => {
     expect(secondFinalizer).toHaveBeenCalledWith(
       'l-checkpoint',
       publishResult.externalListingId,
+      publishResult.externalUrl,
       publishResult.publishedAt
     );
   });
@@ -796,12 +816,23 @@ describe('PublishListingHandler', () => {
     const getPublishState = jest.fn(async () => ({
       isPublished: true,
       externalListingId: 'olx-99',
+      externalUrl: null,
       publishedAt: publishResult.publishedAt,
     }));
-    const handler = new PublishListingHandler(resolver, undefined, {
-      publishListing,
-      getPublishState,
-    });
+    const attempts = memoryPublishAttempts();
+    await attempts.begin('op-1', 'l-5', 'olx', new Date(0));
+    await attempts.markPublished('op-1', publishResult);
+    const handler = new PublishListingHandler(
+      resolver,
+      undefined,
+      {
+        publishListing,
+        getPublishState,
+      },
+      undefined,
+      undefined,
+      attempts
+    );
 
     const result = await handler.handle({
       operationId: 'op-1',
@@ -815,6 +846,7 @@ describe('PublishListingHandler', () => {
     expect(publish).not.toHaveBeenCalled();
     expect(result.finalized).toBe(true);
     expect(result.result.externalListingId).toBe('olx-99');
+    expect(result.result.externalUrl).toBe(publishResult.externalUrl);
   });
 
   it('re-publishes an explicitly requested relist even when the listing is currently live', async () => {
@@ -830,6 +862,7 @@ describe('PublishListingHandler', () => {
         getPublishState: async () => ({
           isPublished: true,
           externalListingId: 'olx-old',
+          externalUrl: 'https://www.olx.pl/d/oferta/old',
           publishedAt: new Date('2026-07-13T12:00:00.000Z'),
         }),
       },
@@ -852,6 +885,7 @@ describe('PublishListingHandler', () => {
     expect(publishListing).toHaveBeenCalledWith(
       'l-live',
       publishResult.externalListingId,
+      publishResult.externalUrl,
       publishResult.publishedAt
     );
   });
@@ -954,6 +988,7 @@ describe('PublishListingHandler', () => {
     const getPublishState = jest.fn(async () => ({
       isPublished: false,
       externalListingId: null,
+      externalUrl: null,
       publishedAt: null,
     }));
     const handler = new PublishListingHandler(resolver, undefined, {
@@ -970,7 +1005,12 @@ describe('PublishListingHandler', () => {
     });
 
     expect(publish).toHaveBeenCalledWith(input);
-    expect(publishListing).toHaveBeenCalledWith('l-6', 'olx-99', publishResult.publishedAt);
+    expect(publishListing).toHaveBeenCalledWith(
+      'l-6',
+      'olx-99',
+      publishResult.externalUrl,
+      publishResult.publishedAt
+    );
     expect(result.finalized).toBe(true);
   });
 });

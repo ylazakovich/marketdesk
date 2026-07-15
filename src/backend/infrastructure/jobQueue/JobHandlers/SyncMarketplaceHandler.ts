@@ -142,6 +142,9 @@ export class SyncMarketplaceHandler {
         watchers: s.watchers,
         messages: s.messages,
       });
+      if (s.externalUrl !== undefined) {
+        listing.recordExternalUrl(s.externalUrl);
+      }
       await this.reconcileStatus(listing, s);
       updated.push(listing);
     }

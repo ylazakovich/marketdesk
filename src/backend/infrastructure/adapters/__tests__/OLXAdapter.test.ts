@@ -49,13 +49,17 @@ describe('OLXAdapter', () => {
     let captured: HttpRequestConfig | undefined;
     const http = mockClient((config) => {
       captured = config;
-      return { status: 201, data: { data: { id: 123, status: 'active' } } };
+      return {
+        status: 201,
+        data: { data: { id: 123, status: 'active', url: 'https://www.olx.pl/d/oferta/camera-123' } },
+      };
     });
     const adapter = new OLXAdapter(http, fastOptions, realConfig);
 
     const result = await adapter.publish(publishInput);
 
     expect(result.externalListingId).toBe('123');
+    expect(result.externalUrl).toBe('https://www.olx.pl/d/oferta/camera-123');
     expect(result.publishedAt).toBeInstanceOf(Date);
     expect(captured?.method).toBe('POST');
     expect(captured?.url).toBe('https://www.olx.pl/api/partner/adverts');
@@ -76,7 +80,7 @@ describe('OLXAdapter', () => {
   it('maps a synced OLX ad without metrics as unavailable rather than zero', async () => {
     const http = mockClient(() => ({
       status: 200,
-      data: { data: { id: 9, status: 'active' } },
+      data: { data: { id: 9, status: 'active', public_url: 'https://www.olx.pl/d/oferta/olx-9' } },
     }));
     const adapter = new OLXAdapter(http, fastOptions);
 
@@ -84,6 +88,7 @@ describe('OLXAdapter', () => {
 
     expect(synced).toEqual({
       externalListingId: '9',
+      externalUrl: 'https://www.olx.pl/d/oferta/olx-9',
       status: 'live',
       remoteStatus: 'active',
       views: null,
@@ -143,6 +148,19 @@ describe('OLXAdapter', () => {
     });
   });
 
+  it('rejects unsafe external URLs from OLX responses instead of guessing links', async () => {
+    const http = mockClient(() => ({
+      status: 200,
+      data: { data: { id: 9, status: 'active', url: 'http://evil.test/olx-9' } },
+    }));
+    const adapter = new OLXAdapter(http, fastOptions);
+
+    const [synced] = await adapter.sync(['olx-9']);
+
+    expect(synced.externalListingId).toBe('9');
+    expect(synced.externalUrl).toBeNull();
+  });
+
   it('returns a missing sync record for OLX 404 without hiding auth or transport failures', async () => {
     const http = mockClient((config) => {
       if (config.url.endsWith('/adverts/missing')) throw new HttpError(404, 'not found');
@@ -165,6 +183,25 @@ describe('OLXAdapter', () => {
     await expect(adapter.sync(['rate-limited'])).rejects.toBeInstanceOf(
       MarketplaceRateLimitError,
     );
+  });
+
+  it('uses the first safe OLX URL candidate when earlier candidates are invalid', async () => {
+    const http = mockClient(() => ({
+      status: 200,
+      data: {
+        data: {
+          id: 9,
+          status: 'active',
+          url: 'http://evil.test/olx-9',
+          public_url: 'https://www.olx.pl/d/oferta/olx-9',
+        },
+      },
+    }));
+    const adapter = new OLXAdapter(http, fastOptions);
+
+    const [synced] = await adapter.sync(['olx-9']);
+
+    expect(synced.externalUrl).toBe('https://www.olx.pl/d/oferta/olx-9');
   });
 
   it('treats invalid, negative, and schema-changed OLX counters as unavailable', async () => {

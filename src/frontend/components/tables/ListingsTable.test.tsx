@@ -20,6 +20,21 @@ function listing(overrides: Partial<Listing> = {}): Listing {
   };
 }
 
+describe('ListingsTable layout', () => {
+  it('does not render a detached metrics legend below populated rows', () => {
+    const html = renderToStaticMarkup(
+      <ListingsTable listings={[listing()]} resolveMarketplaceName={() => 'OLX'} />,
+    );
+
+    expect(html).toContain('Views');
+    expect(html).toContain('Watchers');
+    expect(html).toContain('Messages');
+    expect(html).not.toContain('>views<');
+    expect(html).not.toContain('>watchers<');
+    expect(html).not.toContain('>messages<');
+  });
+});
+
 describe('ListingsTable external marketplace link', () => {
   it('renders a safe external OLX link for live listings', () => {
     const html = renderToStaticMarkup(

@@ -423,6 +423,57 @@ describe('MarketplaceOAuthService', () => {
     expect(appCredentialRepo.credentials.has(marketplace.id)).toBe(false);
   });
 
+  it('does not rotate app credentials when account token clearing fails', async () => {
+    const { service, marketplace, accountRepo, appCredentialRepo } = setup();
+    marketplace.connect();
+    await accountRepo.upsert({
+      id: 'account-existing',
+      marketplaceId: marketplace.id,
+      handle: 'OLX account',
+      credentials: { payload: initialTokens },
+      status: 'connected',
+      scopes: ['basic'],
+    });
+    const originalAccount = accountRepo.accounts.get(marketplace.id)!;
+    const originalAppCredentials = appCredentialRepo.credentials.get(marketplace.id)!;
+    jest.spyOn(accountRepo, 'upsert').mockRejectedValueOnce(new Error('disconnect persistence failed'));
+
+    await expect(
+      service.saveAppCredentials({
+        marketplaceId: marketplace.id,
+        workspaceId: 'ws-1',
+        clientId: 'new-client-id',
+        clientSecret: 'new-secret',
+      })
+    ).rejects.toThrow('disconnect persistence failed');
+
+    expect(accountRepo.accounts.get(marketplace.id)).toBe(originalAccount);
+    expect(appCredentialRepo.credentials.get(marketplace.id)).toBe(originalAppCredentials);
+  });
+
+  it('does not remove app credentials when account token clearing fails', async () => {
+    const { service, marketplace, accountRepo, appCredentialRepo } = setup();
+    marketplace.connect();
+    await accountRepo.upsert({
+      id: 'account-existing',
+      marketplaceId: marketplace.id,
+      handle: 'OLX account',
+      credentials: { payload: initialTokens },
+      status: 'connected',
+      scopes: ['basic'],
+    });
+    const originalAccount = accountRepo.accounts.get(marketplace.id)!;
+    const originalAppCredentials = appCredentialRepo.credentials.get(marketplace.id)!;
+    jest.spyOn(accountRepo, 'upsert').mockRejectedValueOnce(new Error('disconnect persistence failed'));
+
+    await expect(
+      service.removeAppCredentials({ marketplaceId: marketplace.id, workspaceId: 'ws-1' })
+    ).rejects.toThrow('disconnect persistence failed');
+
+    expect(accountRepo.accounts.get(marketplace.id)).toBe(originalAccount);
+    expect(appCredentialRepo.credentials.get(marketplace.id)).toBe(originalAppCredentials);
+  });
+
   it('re-reads credentials while holding the refresh lock', async () => {
     let accountRepo: InMemoryAccountRepository;
     const withLock = jest.fn(async (_marketplaceId: string, operation: () => Promise<string>) => {

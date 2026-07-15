@@ -174,6 +174,36 @@ describe('OLXAdapter', () => {
     });
   });
 
+  it.each([
+    ['empty string', ''],
+    ['decimal string', '2.5'],
+    ['negative string', '-1'],
+    ['boolean', true],
+    ['array', [2]],
+    ['decimal number', 2.5],
+    ['negative number', -1],
+  ])('treats invalid OLX counter value %s as unavailable', async (_label, value) => {
+    const http = mockClient(() => ({
+      status: 200,
+      data: {
+        data: {
+          id: 1085426829,
+          status: 'active',
+          statistics: { advert_views: value, favorites_count: value, contact_count: value },
+        },
+      },
+    }));
+    const adapter = new OLXAdapter(http, fastOptions);
+
+    const [synced] = await adapter.sync(['1085426829']);
+
+    expect(synced).toMatchObject({
+      views: null,
+      watchers: null,
+      messages: null,
+    });
+  });
+
   it('discovers owned OLX adverts through paginated read-only list calls', async () => {
     const calls: HttpRequestConfig[] = [];
     const http = mockClient((config) => {

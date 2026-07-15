@@ -396,10 +396,14 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
   }
 
   private parseCounter(value: unknown): number | null {
-    if (value === undefined || value === null) return null;
-    const parsed = typeof value === 'number' ? value : Number(value);
-    if (!Number.isFinite(parsed) || parsed < 0) return null;
-    return Math.trunc(parsed);
+    if (typeof value === 'number') {
+      return Number.isInteger(value) && value >= 0 ? value : null;
+    }
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!/^\d+$/.test(trimmed)) return null;
+    const parsed = Number(trimmed);
+    return Number.isSafeInteger(parsed) ? parsed : null;
   }
 
   private assertPublishDetails(categoryId: number | undefined): asserts categoryId is number {

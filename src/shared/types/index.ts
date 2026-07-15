@@ -183,6 +183,8 @@ export interface MarketplaceAccount {
 export interface Listing {
   id: string;
   productId: string;
+  productName?: string;
+  productSku?: string;
   marketplaceId: string;
   marketplaceListingId?: string;
   externalUrl?: string;

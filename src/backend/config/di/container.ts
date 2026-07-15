@@ -341,7 +341,8 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
   const listingService = new ListingApplicationService(
     listingRepo,
     publishListingUC,
-    syncMarketplaceUC
+    syncMarketplaceUC,
+    productRepo
   );
   const hermesService = new HermesApplicationService(
     eventRepo,

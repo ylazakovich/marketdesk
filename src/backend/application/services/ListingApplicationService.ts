@@ -3,6 +3,7 @@
 
 import { Result, Ok } from '../../domain/shared/Result';
 import type { IListingRepository } from '../../domain/repositories/interfaces/IListingRepository';
+import type { IProductRepository } from '../../domain/repositories/interfaces/IProductRepository';
 import type { PaginatedResponse } from '../../../shared/types';
 import { PublishListingUseCase } from '../usecases/PublishListingUseCase';
 import {
@@ -18,7 +19,8 @@ export class ListingApplicationService {
   constructor(
     private readonly listingRepo: IListingRepository,
     private readonly publishListingUseCase: PublishListingUseCase,
-    private readonly syncMarketplaceUseCase: SyncMarketplaceUseCase
+    private readonly syncMarketplaceUseCase: SyncMarketplaceUseCase,
+    private readonly productRepo?: IProductRepository,
   ) {}
 
   async publishListing(dto: PublishListingDTO): Promise<Result<ListingView>> {
@@ -48,7 +50,7 @@ export class ListingApplicationService {
 
   async listByProduct(productId: string): Promise<ListingView[]> {
     const listings = await this.listingRepo.findByProduct(productId);
-    return listings.map(presentListing);
+    return listings.map((listing) => presentListing(listing));
   }
 
   async listByWorkspace(
@@ -58,6 +60,26 @@ export class ListingApplicationService {
   ): Promise<PaginatedResponse<ListingView>> {
     const listings = await this.listingRepo.findByWorkspace(workspaceId);
     const sorted = [...listings].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
-    return paginate(sorted, normalizeOffset(offset), normalizeLimit(limit), presentListing);
+    const normalizedOffset = normalizeOffset(offset);
+    const normalizedLimit = normalizeLimit(limit);
+    const pageListings = sorted.slice(normalizedOffset, normalizedOffset + normalizedLimit);
+    const productIds = [...new Set(pageListings.map((listing) => listing.productId))];
+    const products = this.productRepo
+      ? await Promise.all(
+          productIds.map((productId) => this.productRepo!.findByIdForWorkspace(productId, workspaceId)),
+        )
+      : [];
+    const productById = new Map(
+      products
+        .filter((product): product is NonNullable<(typeof products)[number]> => Boolean(product))
+        .map((product) => [product.id, product]),
+    );
+    return paginate(sorted, normalizedOffset, normalizedLimit, (listing) => {
+      const product = productById.get(listing.productId);
+      return presentListing(listing, {
+        productName: product?.name,
+        productSku: product?.sku,
+      });
+    });
   }
 }

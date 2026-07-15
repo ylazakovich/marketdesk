@@ -49,10 +49,17 @@ export function presentProduct(product: Product): ProductView {
   };
 }
 
-export function presentListing(listing: Listing): ListingView {
+interface ListingIdentity {
+  productName?: string;
+  productSku?: string;
+}
+
+export function presentListing(listing: Listing, identity: ListingIdentity = {}): ListingView {
   return {
     id: listing.id,
     productId: listing.productId,
+    productName: identity.productName,
+    productSku: identity.productSku,
     marketplaceId: listing.marketplaceId,
     marketplaceListingId: listing.marketplaceListingId ?? undefined,
     externalUrl: listing.isLive() ? safeExternalUrl(listing.externalUrl) : undefined,

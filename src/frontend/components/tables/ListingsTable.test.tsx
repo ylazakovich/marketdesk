@@ -7,6 +7,8 @@ function listing(overrides: Partial<Listing> = {}): Listing {
   return {
     id: 'listing-1',
     productId: 'product-1',
+    productName: 'Apple AirPods 4 MXP63ZM/A bez ANC — bardzo dobry stan',
+    productSku: 'AIRPODS4-PL-001',
     marketplaceId: 'marketplace-1',
     marketplaceListingId: 'olx-1',
     price: 50,
@@ -23,7 +25,11 @@ function listing(overrides: Partial<Listing> = {}): Listing {
 describe('ListingsTable layout', () => {
   it('does not render a detached metrics legend below populated rows', () => {
     const html = renderToStaticMarkup(
-      <ListingsTable listings={[listing()]} resolveMarketplaceName={() => 'OLX'} />,
+      <ListingsTable
+        listings={[listing()]}
+        productHref={(row) => `/products/${row.productId}`}
+        resolveMarketplaceName={() => 'OLX'}
+      />,
     );
 
     expect(html).toContain('Views');
@@ -32,6 +38,25 @@ describe('ListingsTable layout', () => {
     expect(html).not.toContain('>views<');
     expect(html).not.toContain('>watchers<');
     expect(html).not.toContain('>messages<');
+  });
+});
+
+describe('ListingsTable product identity', () => {
+  it('renders product title and SKU before marketplace metadata', () => {
+    const html = renderToStaticMarkup(
+      <ListingsTable
+        listings={[listing()]}
+        productHref={(row) => `/products/${row.productId}`}
+        resolveMarketplaceName={() => 'OLX'}
+      />,
+    );
+
+    expect(html).toContain('Apple AirPods 4 MXP63ZM/A bez ANC — bardzo dobry stan');
+    expect(html).toContain('SKU AIRPODS4-PL-001');
+    expect(html).toContain('href="/products/product-1"');
+    expect(html).toContain('OLX');
+    expect(html.indexOf('Apple AirPods 4')).toBeLessThan(html.indexOf('SKU AIRPODS4-PL-001'));
+    expect(html.indexOf('SKU AIRPODS4-PL-001')).toBeLessThan(html.indexOf('OLX'));
   });
 });
 

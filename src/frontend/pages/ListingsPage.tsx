@@ -97,6 +97,7 @@ const ListingsPage: React.FC = () => {
           onRetry={refetch}
           currency={currency}
           resolveMarketplaceName={resolveMarketplaceName}
+          productHref={(l) => `/products/${l.productId}`}
           onRowClick={(l) => navigate(`/products/${l.productId}`)}
           onRelist={handleRelist}
         />

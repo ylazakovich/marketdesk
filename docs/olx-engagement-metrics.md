@@ -6,9 +6,9 @@ MarketDesk syncs OLX engagement counters only when the connected Partner API res
 
 | OLX field | MarketDesk field | Semantics |
 | --- | --- | --- |
-| `metrics.views` | `listing.views` | Numeric advert view count. |
-| `metrics.favorites` | `listing.watchers` | Numeric favourite/watcher count when exposed by OLX. |
-| `metrics.messages` | `listing.messages` | Numeric message/lead count when exposed as a counter. Message bodies are never ingested. |
+| `metrics.views`, `statistics.views`, `statistics.advert_views`, compatible `stats/counters` view aliases | `listing.views` | Numeric advert view count. |
+| `metrics.favorites`, `metrics.favourites`, `metrics.watchers`, compatible favourite/watcher aliases | `listing.watchers` | Numeric favourite/watcher count when exposed by OLX. |
+| `metrics.messages`, `statistics.messages`, `statistics.contact_count`, compatible message/contact/lead aliases | `listing.messages` | Numeric message/lead count when exposed as a counter. Message bodies are never ingested. |
 
 ## Unavailable metrics
 

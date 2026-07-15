@@ -89,7 +89,10 @@ interface OlxAdvertResponse {
   price?: { value?: number | string; currency?: string } | number | string | null;
   photos?: Array<{ url?: string | null }>;
   updated_at?: string | null;
-  metrics?: { views?: unknown; favorites?: unknown; messages?: unknown };
+  metrics?: { views?: unknown; favorites?: unknown; favourites?: unknown; watchers?: unknown; messages?: unknown };
+  statistics?: Record<string, unknown>;
+  stats?: Record<string, unknown>;
+  counters?: Record<string, unknown>;
 }
 
 interface OlxAdvertListResponse {
@@ -286,17 +289,17 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
       externalUrl: this.extractPublicUrl(data),
       status: OLX_STATUS_TO_LOCAL[remoteStatus] ?? 'draft',
       remoteStatus,
-      views: this.parseCounter(data.metrics?.views),
-      watchers: this.parseCounter(data.metrics?.favorites),
-      messages: this.parseCounter(data.metrics?.messages),
+      views: this.extractViews(data),
+      watchers: this.extractWatchers(data),
+      messages: this.extractMessages(data),
     };
   }
 
   private toImportedListing(data: OlxAdvertResponse): ImportedMarketplaceListing {
     const price = this.extractPrice(data.price);
-    const views = this.parseCounter(data.metrics?.views);
-    const watchers = this.parseCounter(data.metrics?.favorites);
-    const messages = this.parseCounter(data.metrics?.messages);
+    const views = this.extractViews(data);
+    const watchers = this.extractWatchers(data);
+    const messages = this.extractMessages(data);
     return {
       externalListingId: String(data.id),
       externalUrl: this.extractPublicUrl(data),
@@ -351,11 +354,56 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
     };
   }
 
+  private extractCounter(data: OlxAdvertResponse, keys: string[]): number | null {
+    for (const source of [data.metrics, data.statistics, data.stats, data.counters, data]) {
+      if (!source) continue;
+      for (const key of keys) {
+        const value = (source as Record<string, unknown>)[key];
+        const parsed = this.parseCounter(value);
+        if (parsed !== null) return parsed;
+      }
+    }
+    return null;
+  }
+
+  private extractViews(data: OlxAdvertResponse): number | null {
+    return this.extractCounter(data, ['views', 'view_count', 'views_count', 'advert_views', 'page_views']);
+  }
+
+  private extractWatchers(data: OlxAdvertResponse): number | null {
+    return this.extractCounter(data, [
+      'favorites',
+      'favourites',
+      'watchers',
+      'favorite_count',
+      'favourite_count',
+      'favorites_count',
+      'favourites_count',
+      'observed_count',
+    ]);
+  }
+
+  private extractMessages(data: OlxAdvertResponse): number | null {
+    return this.extractCounter(data, [
+      'messages',
+      'message_count',
+      'messages_count',
+      'contacts',
+      'contact_count',
+      'replies',
+      'leads',
+    ]);
+  }
+
   private parseCounter(value: unknown): number | null {
-    if (value === undefined || value === null) return null;
-    const parsed = typeof value === 'number' ? value : Number(value);
-    if (!Number.isFinite(parsed) || parsed < 0) return null;
-    return Math.trunc(parsed);
+    if (typeof value === 'number') {
+      return Number.isInteger(value) && value >= 0 ? value : null;
+    }
+    if (typeof value !== 'string') return null;
+    const trimmed = value.trim();
+    if (!/^\d+$/.test(trimmed)) return null;
+    const parsed = Number(trimmed);
+    return Number.isSafeInteger(parsed) ? parsed : null;
   }
 
   private assertPublishDetails(categoryId: number | undefined): asserts categoryId is number {

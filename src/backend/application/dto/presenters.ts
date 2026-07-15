@@ -55,7 +55,7 @@ export function presentListing(listing: Listing): ListingView {
     productId: listing.productId,
     marketplaceId: listing.marketplaceId,
     marketplaceListingId: listing.marketplaceListingId ?? undefined,
-    externalUrl: safeExternalUrl(listing.externalUrl),
+    externalUrl: listing.isLive() ? safeExternalUrl(listing.externalUrl) : undefined,
     price: listing.price.amount,
     status: listing.status,
     views: listing.views,

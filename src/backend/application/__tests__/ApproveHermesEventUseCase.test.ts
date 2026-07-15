@@ -114,6 +114,7 @@ function setup(accountStatus: 'connected' | 'missing' = 'connected') {
     priceHistory,
     publisher,
     product,
+    listingRepo,
     publishQueue,
   };
 }
@@ -156,6 +157,119 @@ describe('ApproveHermesEventUseCase', () => {
     });
     expect(activityLog.entries.map((e) => e.action)).toContain('hermes_event.approved');
     expect(publisher.published.map((e) => e.type)).toContain('hermes.event.applied');
+  });
+
+  it('queues marketplace updates for approved title changes on live listings', async () => {
+    const { useCase, eventRepo, listingRepo, publishQueue, activityLog } = setup();
+    const liveListing = unwrap(
+      Listing.create({
+        id: 'lst-live',
+        productId: 'prod-1',
+        marketplaceId: 'mp-1',
+        marketplaceListingId: 'olx-123',
+        price: money(100),
+        status: 'live',
+      })
+    );
+    listingRepo.items.set(liveListing.id, liveListing);
+    const event = unwrap(
+      HermesEvent.create({
+        id: 'evt-title',
+        workspaceId: 'ws-1',
+        productId: 'prod-1',
+        type: 'listing_optimization',
+        severity: 'info',
+        title: 'Improve title',
+        proposedChange: { kind: 'title', field: 'title', from: 'Lamp', to: 'Better Lamp' },
+      })
+    );
+    await eventRepo.save(event);
+
+    const result = await useCase.execute({ eventId: event.id, workspaceId: 'ws-1', actorId: 'user-1' });
+
+    expect(result.isOk()).toBe(true);
+    expect(publishQueue.jobs).toHaveLength(1);
+    expect(publishQueue.jobs[0]).toMatchObject({
+      options: { jobId: 'update:rec-1' },
+      data: {
+        operationId: 'rec-1',
+        mode: 'update',
+        listingId: 'lst-live',
+        marketplaceId: 'mp-1',
+        changes: { productName: 'Better Lamp' },
+        input: expect.objectContaining({ productName: 'Better Lamp' }),
+      },
+    });
+    expect(activityLog.entries[0].metadata.marketplaceSync).toMatchObject({
+      status: 'queued',
+      operations: [expect.objectContaining({ operationId: 'rec-1', listingId: 'lst-live' })],
+    });
+  });
+
+  it('keeps draft listings local-only for approved description changes', async () => {
+    const { useCase, eventRepo, publishQueue, activityLog } = setup();
+    const event = unwrap(
+      HermesEvent.create({
+        id: 'evt-description',
+        workspaceId: 'ws-1',
+        productId: 'prod-1',
+        type: 'listing_optimization',
+        severity: 'info',
+        title: 'Improve description',
+        proposedChange: {
+          kind: 'description',
+          field: 'description',
+          from: 'Old description',
+          to: 'A richer product description for buyers.',
+        },
+      })
+    );
+    await eventRepo.save(event);
+
+    const result = await useCase.execute({ eventId: event.id, workspaceId: 'ws-1', actorId: 'user-1' });
+
+    expect(result.isOk()).toBe(true);
+    expect(publishQueue.jobs).toHaveLength(0);
+    expect(activityLog.entries[0].metadata.marketplaceSync).toEqual({ status: 'not_required' });
+  });
+
+  it('updates listing price locally and queues remote price update for live listings', async () => {
+    const { useCase, eventRepo, listingRepo, publishQueue } = setup();
+    const liveListing = unwrap(
+      Listing.create({
+        id: 'lst-live-price',
+        productId: 'prod-1',
+        marketplaceId: 'mp-1',
+        marketplaceListingId: 'olx-456',
+        price: money(100),
+        status: 'live',
+      })
+    );
+    listingRepo.items.set(liveListing.id, liveListing);
+    const event = unwrap(
+      HermesEvent.create({
+        id: 'evt-price',
+        workspaceId: 'ws-1',
+        productId: 'prod-1',
+        type: 'suggested_lower_price',
+        severity: 'warning',
+        title: 'Lower price',
+        proposedChange: { kind: 'price', field: 'price', from: 100, to: 90 },
+      })
+    );
+    await eventRepo.save(event);
+
+    const result = await useCase.execute({ eventId: event.id, workspaceId: 'ws-1', actorId: 'user-1' });
+
+    expect(result.isOk()).toBe(true);
+    expect((await listingRepo.findById('lst-live-price'))?.price.amount).toBe(90);
+    expect(publishQueue.jobs).toHaveLength(1);
+    expect(publishQueue.jobs[0].data).toMatchObject({
+      mode: 'update',
+      listingId: 'lst-live-price',
+      changes: { price: 90 },
+      input: expect.objectContaining({ price: 90 }),
+    });
   });
 
   it('rejects approving an event that is not pending_review', async () => {

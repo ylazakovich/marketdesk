@@ -607,6 +607,47 @@ describe('PublishListingHandler', () => {
     expect(create).toHaveBeenCalledWith('olx', authenticatedClient);
   });
 
+  it('uses the marketplace account access token for real OLX update jobs', async () => {
+    const updateListing = jest.fn(async () => undefined);
+    const adapter = fakeAdapter({ updateListing });
+    const create = jest.fn(() => adapter);
+    const tokenProvider = {
+      getValidAccessToken: jest.fn(async () => 'workspace-access-token'),
+    };
+    const authenticatedClient = { request: jest.fn() };
+    const clientFactory = jest.fn(() => authenticatedClient);
+    const getPublishState = jest.fn(async () => ({
+      isPublished: true,
+      externalListingId: 'olx-123',
+      externalUrl: 'https://www.olx.pl/d/oferta/olx-123',
+      publishedAt: new Date('2026-07-10T00:00:00.000Z'),
+    }));
+    const handler = new PublishListingHandler(
+      { create },
+      undefined,
+      { publishListing: jest.fn(), getPublishState },
+      tokenProvider,
+      clientFactory
+    );
+
+    const result = await handler.handle({
+      operationId: 'op-update',
+      mode: 'update',
+      marketplaceKey: 'olx',
+      marketplaceId: 'm-1',
+      listingId: 'l-oauth',
+      input,
+      changes: { productName: 'Better Widget', price: 44 },
+    });
+
+    expect(tokenProvider.getValidAccessToken).toHaveBeenCalledWith('m-1');
+    expect(clientFactory).toHaveBeenCalledWith('workspace-access-token');
+    expect(create).toHaveBeenCalledWith('olx', authenticatedClient);
+    expect(updateListing).toHaveBeenCalledWith('olx-123', { productName: 'Better Widget', price: 44 });
+    expect(result).toMatchObject({ listingId: 'l-oauth', finalized: true });
+    expect(result.result.externalListingId).toBe('olx-123');
+  });
+
   it('works without an event publisher', async () => {
     const adapter = fakeAdapter({ publish: jest.fn(async () => publishResult) });
     const { resolver } = resolverFor(adapter);

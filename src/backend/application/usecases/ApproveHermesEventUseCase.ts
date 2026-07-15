@@ -25,6 +25,18 @@ import type { IdGenerator } from '../ports/IdGenerator';
 import type { ApproveEventDTO } from '../dto/ApproveEventDTO';
 import type { MarketplaceAccountRepository } from '../services/MarketplaceOAuthService';
 
+interface MarketplaceUpdateOperation {
+  operationId: string;
+  listingId: string;
+  marketplaceId: string;
+}
+
+interface ApplyChangeOutcome {
+  marketplaceUpdates: MarketplaceUpdateOperation[];
+}
+
+type MarketplaceUpdateChanges = NonNullable<PublishListingJob['changes']>;
+
 export class ApproveHermesEventUseCase {
   constructor(
     private readonly eventRepo: IEventRepository,
@@ -73,6 +85,13 @@ export class ApproveHermesEventUseCase {
       metadata: {
         eventType: event.type,
         proposedChange: event.proposedChange as unknown as Record<string, unknown> | null,
+        marketplaceSync:
+          applied.value.marketplaceUpdates.length > 0
+            ? {
+                status: 'queued',
+                operations: applied.value.marketplaceUpdates,
+              }
+            : { status: 'not_required' },
       },
       createdAt: event.resolvedAt ?? new Date(),
     });
@@ -82,9 +101,9 @@ export class ApproveHermesEventUseCase {
     return Ok(event);
   }
 
-  private async applyChange(event: HermesEvent): Promise<Result<void>> {
+  private async applyChange(event: HermesEvent): Promise<Result<ApplyChangeOutcome>> {
     const change = event.proposedChange;
-    if (change === null) return Ok(undefined);
+    if (change === null) return Ok({ marketplaceUpdates: [] });
 
     switch (change.kind) {
       case 'price':
@@ -95,7 +114,7 @@ export class ApproveHermesEventUseCase {
         const renamed = product.value.rename(change.to);
         if (renamed.isErr()) return renamed;
         await this.productRepo.save(product.value);
-        return Ok(undefined);
+        return this.enqueueMarketplaceUpdates(product.value, { productName: change.to });
       }
       case 'description': {
         const product = await this.requireProduct(event.productId);
@@ -103,7 +122,7 @@ export class ApproveHermesEventUseCase {
         const updated = product.value.updateDescription(change.to);
         if (updated.isErr()) return updated;
         await this.productRepo.save(product.value);
-        return Ok(undefined);
+        return this.enqueueMarketplaceUpdates(product.value, { description: change.to });
       }
       case 'relist':
         // Enqueues an actual republish job per referenced listing (real action).
@@ -119,14 +138,14 @@ export class ApproveHermesEventUseCase {
           )
         );
       default:
-        return Ok(undefined);
+        return Ok({ marketplaceUpdates: [] });
     }
   }
 
   private async applyPriceChange(
     event: HermesEvent,
     change: Extract<ProposedChange, { kind: 'price' }>
-  ): Promise<Result<void>> {
+  ): Promise<Result<ApplyChangeOutcome>> {
     const loaded = await this.requireProduct(event.productId);
     if (loaded.isErr()) return loaded;
     const product = loaded.value;
@@ -143,6 +162,11 @@ export class ApproveHermesEventUseCase {
     const listings = await this.listingRepo.findByProduct(product.id);
     const now = new Date();
     for (const listing of listings) {
+      const listingPrice = Money.of(change.to, listing.price.currency);
+      if (listingPrice.isErr()) return listingPrice;
+      const listingUpdated = listing.updatePrice(listingPrice.value);
+      if (listingUpdated.isErr()) return listingUpdated;
+      await this.listingRepo.save(listing);
       await this.priceHistory.record({
         id: this.idGenerator(),
         listingId: listing.id,
@@ -154,10 +178,11 @@ export class ApproveHermesEventUseCase {
       });
     }
 
-    return Ok(undefined);
+    return this.enqueueMarketplaceUpdates(product, { price: change.to });
   }
 
-  private async applyRelist(listingIds: string[]): Promise<Result<void>> {
+  private async applyRelist(listingIds: string[]): Promise<Result<ApplyChangeOutcome>> {
+    const operations: MarketplaceUpdateOperation[] = [];
     let enqueued = 0;
     for (const listingId of listingIds) {
       const listing = await this.listingRepo.findById(listingId);
@@ -192,12 +217,56 @@ export class ApproveHermesEventUseCase {
         },
         { jobId: `publish:${operationId}` }
       );
+      operations.push({ operationId, listingId: listing.id, marketplaceId: marketplace.id });
       enqueued++;
     }
     if (enqueued === 0 && listingIds.length > 0) {
       return Err(new InvalidStateError('relist event references no valid listings to publish'));
     }
-    return Ok(undefined);
+    return Ok({ marketplaceUpdates: operations });
+  }
+
+  private async enqueueMarketplaceUpdates(
+    product: Product,
+    changes: MarketplaceUpdateChanges
+  ): Promise<Result<ApplyChangeOutcome>> {
+    const operations: MarketplaceUpdateOperation[] = [];
+    const listings = await this.listingRepo.findByProduct(product.id);
+    for (const listing of listings) {
+      if (!listing.isLive() || !listing.marketplaceListingId) continue;
+
+      const marketplace = await this.marketplaceRepo.findById(listing.marketplaceId);
+      if (!marketplace || !marketplace.isConnected()) continue;
+      if (this.marketplaceAccountRepo) {
+        const account = await this.marketplaceAccountRepo.findByMarketplaceId(marketplace.id);
+        if (!account || account.status !== 'connected') continue;
+      }
+
+      const operationId = this.idGenerator();
+      await this.publishQueue.enqueue(
+        {
+          operationId,
+          mode: 'update',
+          listingUpdatedAt: listing.updatedAt.toISOString(),
+          marketplaceKey: marketplace.key,
+          marketplaceId: marketplace.id,
+          listingId: listing.id,
+          input: {
+            productName: product.name,
+            description: product.description,
+            price: listing.price.amount,
+            currency: listing.price.currency,
+            category: product.category,
+            condition: product.condition,
+            imageUrls: [...product.images],
+          },
+          changes,
+        },
+        { jobId: `update:${operationId}` }
+      );
+      operations.push({ operationId, listingId: listing.id, marketplaceId: marketplace.id });
+    }
+    return Ok({ marketplaceUpdates: operations });
   }
 
   private async requireProduct(productId: string | null): Promise<Result<Product>> {

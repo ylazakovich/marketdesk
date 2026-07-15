@@ -152,6 +152,50 @@ export class PublishListingHandler {
     // Backward-compatible fallback for jobs that were already queued before
     // operationId became part of the payload. New enqueue paths always set it.
     const operationId = data.operationId ?? data.listingId;
+    if (data.mode === 'update') {
+      const state = await this.listings?.getPublishState?.(data.listingId);
+      if (!state?.isPublished || !state.externalListingId) {
+        throw new InvalidStateError(
+          `Listing ${data.listingId} must be live with an external id before marketplace update`
+        );
+      }
+
+      let adapter: IMarketplaceAdapter;
+      if (data.marketplaceKey === 'olx' && this.accessTokens && this.authenticatedHttpClient) {
+        if (!data.marketplaceId) {
+          throw new InvalidStateError('Update job is missing marketplaceId for OLX OAuth');
+        }
+        const accessToken = await retryTransientPhase(() =>
+          this.accessTokens!.getValidAccessToken(data.marketplaceId)
+        );
+        adapter = this.adapters.create(
+          data.marketplaceKey,
+          this.authenticatedHttpClient(accessToken)
+        );
+      } else {
+        adapter = this.adapters.create(data.marketplaceKey);
+      }
+
+      await adapter.updateListing(
+        state.externalListingId,
+        data.changes ?? {
+          productName: data.input.productName,
+          description: data.input.description,
+          price: data.input.price,
+        }
+      );
+
+      return {
+        marketplaceKey: data.marketplaceKey,
+        listingId: data.listingId,
+        result: {
+          externalListingId: state.externalListingId,
+          externalUrl: state.externalUrl,
+          publishedAt: state.publishedAt ?? new Date(),
+        },
+        finalized: true,
+      };
+    }
     let checkpointOperationId = operationId;
     const checkpoint = await this.publishAttempts?.find(operationId);
     let checkpointFinalized = checkpoint?.status === 'finalized';

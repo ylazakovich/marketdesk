@@ -204,6 +204,7 @@ const ListingDetailsPage: React.FC = () => {
 
   const p = product.data;
   const images = p.images ?? [];
+  const selectedImageIndex = images.length > 0 ? Math.min(activeImage, images.length - 1) : 0;
 
   return (
     <Box>
@@ -246,7 +247,7 @@ const ListingDetailsPage: React.FC = () => {
             {images.length > 0 ? (
               <Box
                 component="img"
-                src={images[activeImage]}
+                src={images[selectedImageIndex]}
                 alt={p.name}
                 sx={{ width: '100%', height: '100%', objectFit: 'contain', objectPosition: 'center center' }}
               />
@@ -272,7 +273,7 @@ const ListingDetailsPage: React.FC = () => {
                     objectFit: 'cover',
                     cursor: 'pointer',
                     border: (t) =>
-                      `2px solid ${i === activeImage ? t.palette.primary.main : 'transparent'}`,
+                      `2px solid ${i === selectedImageIndex ? t.palette.primary.main : 'transparent'}`,
                   }}
                 />
               ))}

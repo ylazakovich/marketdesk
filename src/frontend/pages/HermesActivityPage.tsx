@@ -1,6 +1,7 @@
 // Hermes activity feed: filter by status/severity, review event cards with
 // approval actions, and trigger a fresh analysis run.
 import React, { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Alert, Box, Button, Chip, MenuItem, Select, Stack, Tab, Tabs, Typography } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
@@ -41,6 +42,7 @@ function errorMessage(err: unknown): string {
 
 const HermesActivityPage: React.FC = () => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
 
   const [statusFilter, setStatusFilter] = useState<HermesEventStatus[]>([]);
   const [severityFilter, setSeverityFilter] = useState<HermesSeverity[]>([]);
@@ -57,14 +59,17 @@ const HermesActivityPage: React.FC = () => {
   const [runHermes, { isLoading: running }] = useRunHermes();
 
   const events: HermesEvent[] = data?.items ?? [];
+  const isCompletedEvent = (event: HermesEvent): boolean => event.status === 'applied' || event.status === 'dismissed';
   const visibleEvents = useMemo(() => {
-    if (activityTab === 'completed') return events.filter((event) => event.status === 'applied');
+    if (activityTab === 'completed') return events.filter(isCompletedEvent);
     if (activityTab === 'alerts') return events.filter((event) => event.severity === 'critical' || event.severity === 'warning');
     if (activityTab === 'suggestions') return events.filter((event) => event.status === 'pending_review');
     return events;
   }, [activityTab, events]);
   const pendingCount = events.filter((event) => event.status === 'pending_review').length;
-  const completedCount = events.filter((event) => event.status === 'applied').length;
+  const completedCount = events.filter(isCompletedEvent).length;
+  const listingSuggestionCount = events.filter((event) => event.type === 'create_listing').length;
+  const estimatedReviewMinutes = events.length === 0 ? 0 : events.length * 6;
 
   const handleStatus = (e: SelectChangeEvent<HermesEventStatus[]>) => {
     const value = e.target.value;
@@ -113,7 +118,7 @@ const HermesActivityPage: React.FC = () => {
             </Typography>
           </Stack>
           <Stack direction="row" spacing={1}>
-            <Button variant="contained" color="secondary" onClick={() => dispatch(enqueueToast({ message: 'Hermes configuration panel is coming next.', severity: 'info' }))}>
+            <Button variant="contained" color="secondary" onClick={() => navigate('/settings')}>
               Configure
             </Button>
             <Button variant="outlined" color="inherit" startIcon={<AutoAwesomeIcon />} onClick={handleRun} disabled={running}>
@@ -125,10 +130,10 @@ const HermesActivityPage: React.FC = () => {
 
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 2.5 }}>
         {[
-          ['Actions today', String(events.length)],
+          ['Loaded feed actions', String(events.length)],
           ['Awaiting review', String(pendingCount)],
-          ['Listings created', String(events.filter((event) => event.type === 'create_listing').length)],
-          ['Time saved', `${Math.max(1, events.length * 6)} min`],
+          ['Loaded listing suggestions', String(listingSuggestionCount)],
+          ['Estimated review effort', `${estimatedReviewMinutes} min`],
         ].map(([label, value]) => (
           <Card key={label} sx={{ flex: 1 }} contentSx={{ p: 2 }}>
             <Typography variant="caption" color="text.secondary">{label}</Typography>

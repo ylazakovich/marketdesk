@@ -491,6 +491,22 @@ describe('Presentation API', () => {
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
     });
 
+    it('falls back to existing product images for photo-first AI draft requests', async () => {
+      const { app } = await buildTestApp();
+      const res = await auth(request(app).post('/api/products/ai-draft')).send({
+        mode: 'photos',
+        imageUrls: [],
+        existingFields: {
+          name: 'Vintage camera',
+          images: ['https://example.test/camera.jpg'],
+        },
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.fields.images).toEqual(['https://example.test/camera.jpg']);
+    });
+
     it('creates a draft OLX listing for a product', async () => {
       const { app } = await buildTestApp();
       const res = await auth(request(app).post('/api/products/p-real/listings')).send({

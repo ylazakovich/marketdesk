@@ -65,6 +65,8 @@ export interface PublishAttemptCheckpoint {
   externalListingId: string | null;
   externalUrl: string | null;
   publishedAt: Date | null;
+  remoteStatus: string | null;
+  remoteImageUrls: string[];
 }
 
 export interface PublishAttemptStore {
@@ -233,6 +235,8 @@ export class PublishListingHandler {
               externalListingId: state.externalListingId,
               externalUrl: checkpoint?.externalUrl ?? state.externalUrl ?? null,
               publishedAt: state.publishedAt ?? new Date(),
+              remoteStatus: checkpoint?.remoteStatus ?? null,
+              remoteImageUrls: checkpoint?.remoteImageUrls ?? [],
             },
             finalized: true,
           };
@@ -249,6 +253,8 @@ export class PublishListingHandler {
         externalListingId: checkpoint.externalListingId,
         externalUrl: checkpoint.externalUrl,
         publishedAt: checkpoint.publishedAt ?? new Date(),
+        remoteStatus: checkpoint.remoteStatus ?? null,
+        remoteImageUrls: checkpoint.remoteImageUrls ?? [],
       };
     } else if (checkpoint?.status === 'publishing') {
       throw new InvalidStateError(
@@ -292,6 +298,8 @@ export class PublishListingHandler {
               externalListingId: started.checkpoint.externalListingId,
               externalUrl: started.checkpoint.externalUrl,
               publishedAt: started.checkpoint.publishedAt ?? new Date(),
+              remoteStatus: started.checkpoint.remoteStatus ?? null,
+              remoteImageUrls: started.checkpoint.remoteImageUrls ?? [],
             };
           } else {
             throw new InvalidStateError(

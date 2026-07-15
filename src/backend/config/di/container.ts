@@ -287,7 +287,14 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     listingRepo,
     productRepo,
     marketplaceRepo,
-    eventPublisher
+    eventPublisher,
+    (work) =>
+      withTransaction((client) =>
+        work({
+          listingRepo: new ListingRepository(pool, client),
+          productRepo: new ProductRepository(pool, client),
+        })
+      )
   );
   const hermesEngine = new HermesDecisionEngine(
     productRepo,
@@ -341,7 +348,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     createProductUC,
     updateProductUC
   );
-  const productAIDraftService = new ProductAIDraftService();
+  const productAIDraftService = new ProductAIDraftService(aiProvider);
   const listingService = new ListingApplicationService(
     listingRepo,
     publishListingUC,

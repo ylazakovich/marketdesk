@@ -204,7 +204,7 @@ export class Listing {
     this._externalUrl = externalUrl;
     this._publishedAt = publishedAt;
     this._expiresAt = expiresAt;
-    this._remoteStatus = remoteStatus ?? 'published';
+    this._remoteStatus = remoteStatus;
     this._syncError = null;
     this.touch();
     return Ok(undefined);

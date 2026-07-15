@@ -15,10 +15,12 @@ interface PublishAttemptRow {
   external_listing_id: string | null;
   external_url: string | null;
   published_at: Date | string | null;
+  remote_status: string | null;
+  remote_image_urls: string[] | null;
 }
 
 const SELECT_COLUMNS =
-  'operation_id, listing_id, listing_updated_at, marketplace_key, status, external_listing_id, external_url, published_at';
+  'operation_id, listing_id, listing_updated_at, marketplace_key, status, external_listing_id, external_url, published_at, remote_status, remote_image_urls';
 
 function toCheckpoint(row: PublishAttemptRow): PublishAttemptCheckpoint {
   return {
@@ -29,6 +31,8 @@ function toCheckpoint(row: PublishAttemptRow): PublishAttemptCheckpoint {
     externalListingId: row.external_listing_id,
     externalUrl: row.external_url,
     publishedAt: row.published_at ? new Date(row.published_at) : null,
+    remoteStatus: row.remote_status ?? null,
+    remoteImageUrls: row.remote_image_urls ?? [],
   };
 }
 
@@ -80,9 +84,18 @@ export class PublishAttemptRepository implements PublishAttemptStore {
            external_listing_id = $2,
            external_url = $3,
            published_at = $4,
+           remote_status = $5,
+           remote_image_urls = $6,
            updated_at = NOW()
        WHERE operation_id = $1`,
-      [operationId, result.externalListingId, result.externalUrl ?? null, result.publishedAt]
+      [
+        operationId,
+        result.externalListingId,
+        result.externalUrl ?? null,
+        result.publishedAt,
+        result.remoteStatus ?? null,
+        result.remoteImageUrls ?? [],
+      ]
     );
     if (updated.rowCount !== 1) {
       throw new Error(`Publish checkpoint not found: ${operationId}`);

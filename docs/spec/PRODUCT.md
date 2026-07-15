@@ -12,7 +12,7 @@ MarketDesk helps a seller manage products and listings from one workspace, with 
 
 - Product creation/editing, image references, listing state, marketplace sync status, price/history, and AI suggestions.
 - Review-first Hermes workflows: suggestions must be visible, editable, approvable, or dismissible.
-- Remote marketplace truth: local UI must surface pending/active/error/expired remote lifecycle states separately from local draft/live state.
+- Remote marketplace truth: local UI must surface canonical normalized OLX states such as pending moderation, active, unavailable, and unknown separately from local draft/live state.
 
 ## Not ready / unsupported
 

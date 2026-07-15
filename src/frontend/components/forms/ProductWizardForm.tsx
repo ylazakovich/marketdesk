@@ -51,6 +51,14 @@ const STEP_FIELDS: Array<Array<keyof ProductFormValues>> = [
   [],
 ];
 
+const MARKETPLACE_OPTIONS = [
+  { key: 'olx', name: 'OLX', description: 'Connected when workspace OLX account is active; publish still requires confirmation.' },
+  { key: 'allegro', name: 'Allegro', description: 'Connect this marketplace first.' },
+  { key: 'vinted', name: 'Vinted', description: 'Connect this marketplace first.' },
+  { key: 'facebook', name: 'Facebook Marketplace', description: 'Connect this marketplace first.' },
+  { key: 'ebay', name: 'eBay', description: 'Connect this marketplace first.' },
+];
+
 const DRAFT_FIELD_ORDER: Array<keyof ProductFormValues> = [
   'name',
   'sku',
@@ -98,6 +106,7 @@ export const ProductWizardForm: React.FC<ProductWizardFormProps> = ({
   const [selectedDraftFields, setSelectedDraftFields] = useState<Array<keyof ProductFormValues>>([]);
   const [draftError, setDraftError] = useState<string | null>(null);
   const [draftLoading, setDraftLoading] = useState(false);
+  const [targetMarketplace, setTargetMarketplace] = useState(MARKETPLACE_OPTIONS[0].key);
 
   const change = <K extends keyof ProductFormValues>(field: K, value: ProductFormValues[K]) => {
     setValues((prev) => ({ ...prev, [field]: value }));
@@ -173,7 +182,7 @@ export const ProductWizardForm: React.FC<ProductWizardFormProps> = ({
       if (firstBad >= 0) setActiveStep(firstBad);
       return;
     }
-    onSubmit(toProductSubmissionValues(values));
+    onSubmit({ ...toProductSubmissionValues(values), targetMarketplace });
   };
 
   const availableDraftFields = draft
@@ -337,14 +346,35 @@ export const ProductWizardForm: React.FC<ProductWizardFormProps> = ({
         {activeStep === 4 && (
           <Stack spacing={2}>
             <Typography variant="subtitle2">Marketplaces</Typography>
-            {['OLX', 'Allegro', 'Vinted', 'Facebook Marketplace', 'eBay'].map((marketplace, index) => (
-              <Box key={marketplace} sx={{ p: 1.5, borderRadius: 2, border: (t) => `1px solid ${t.palette.divider}` }}>
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>{marketplace}</Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {index === 0 ? 'Connected when workspace OLX account is active; publish still requires confirmation.' : 'Connect this marketplace first.'}
-                </Typography>
-              </Box>
-            ))}
+            {MARKETPLACE_OPTIONS.map((marketplace) => {
+              const selected = targetMarketplace === marketplace.key;
+              return (
+                <Box
+                  key={marketplace.key}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setTargetMarketplace(marketplace.key)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter' || event.key === ' ') setTargetMarketplace(marketplace.key);
+                  }}
+                  sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    cursor: 'pointer',
+                    border: (t) => `2px solid ${selected ? t.palette.primary.main : t.palette.divider}`,
+                    bgcolor: selected ? 'action.selected' : 'background.paper',
+                  }}
+                >
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                    <Typography variant="body2" sx={{ fontWeight: 700 }}>{marketplace.name}</Typography>
+                    {selected && <Chip size="small" color="primary" label="Selected" />}
+                  </Stack>
+                  <Typography variant="caption" color="text.secondary">
+                    {marketplace.description}
+                  </Typography>
+                </Box>
+              );
+            })}
           </Stack>
         )}
         {activeStep === 5 && (

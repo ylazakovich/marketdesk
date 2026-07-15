@@ -79,8 +79,13 @@ export const productAIDraftSchema = z
     if (body.mode === 'title' && !body.title && !body.existingFields?.name) {
       ctx.addIssue({ code: 'custom', path: ['title'], message: 'Title is required' });
     }
-    if (body.mode === 'photos' && (body.imageUrls?.length ?? body.existingFields?.images?.length ?? 0) === 0) {
-      ctx.addIssue({ code: 'custom', path: ['imageUrls'], message: 'At least one photo URL is required' });
+    if (body.mode === 'photos') {
+      const imageCount = body.imageUrls && body.imageUrls.length > 0
+        ? body.imageUrls.length
+        : body.existingFields?.images?.length ?? 0;
+      if (imageCount === 0) {
+        ctx.addIssue({ code: 'custom', path: ['imageUrls'], message: 'At least one photo URL is required' });
+      }
     }
   });
 

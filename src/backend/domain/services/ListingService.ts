@@ -11,12 +11,17 @@ import type { IProductRepository } from '../repositories/interfaces/IProductRepo
 import type { IMarketplaceRepository } from '../repositories/interfaces/IMarketplaceRepository';
 import type { IEventPublisher, DomainEvent } from '../ports/IEventPublisher';
 
+export type ListingPersistenceTransaction = <T>(
+  work: (repos: { listingRepo: IListingRepository; productRepo: IProductRepository }) => Promise<T>,
+) => Promise<T>;
+
 export class ListingService {
   constructor(
     private readonly listingRepo: IListingRepository,
     private readonly productRepo: IProductRepository,
     private readonly marketplaceRepo: IMarketplaceRepository,
     private readonly eventPublisher: IEventPublisher,
+    private readonly transaction?: ListingPersistenceTransaction,
   ) {}
 
   async publishListing(
@@ -52,16 +57,23 @@ export class ListingService {
     );
     if (published.isErr()) return published;
 
-    if (remoteImageUrls.length > 0) {
-      product.clearImages();
-      for (const imageUrl of remoteImageUrls) {
-        const added = product.addImage(imageUrl);
-        if (added.isErr()) return added;
+    const persist = async (repos: { listingRepo: IListingRepository; productRepo: IProductRepository }) => {
+      if (remoteImageUrls.length > 0) {
+        product.clearImages();
+        for (const imageUrl of remoteImageUrls) {
+          const added = product.addImage(imageUrl);
+          if (added.isErr()) return added;
+        }
+        await repos.productRepo.save(product);
       }
-      await this.productRepo.save(product);
-    }
+      await repos.listingRepo.save(listing);
+      return Ok(undefined);
+    };
 
-    await this.listingRepo.save(listing);
+    const persisted = this.transaction
+      ? await this.transaction(persist)
+      : await persist({ listingRepo: this.listingRepo, productRepo: this.productRepo });
+    if (persisted.isErr()) return persisted;
     await this.publish('listing.published', listing.id, {
       listingId: listing.id,
       productId: listing.productId,

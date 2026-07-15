@@ -33,6 +33,11 @@ function remoteStatusLabel(remoteStatus: string | null | undefined): string | un
     unpaid: 'Unpaid',
     expired: 'Ended',
     removed: 'Ended',
+    deactivated: 'Ended',
+    deleted: 'Ended',
+    closed: 'Ended',
+    missing: 'Unavailable',
+    error: 'Error',
     rejected: 'Rejected',
     blocked: 'Blocked',
   };

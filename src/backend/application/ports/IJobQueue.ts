@@ -30,6 +30,14 @@ export interface ListingPublishJobInput {
   imageUrls: string[];
 }
 
+type RequireAtLeastOne<T> = {
+  [K in keyof T]-?: Required<Pick<T, K>> & Partial<Omit<T, K>>;
+}[keyof T];
+
+export type ListingUpdateJobChanges = RequireAtLeastOne<
+  Pick<ListingPublishJobInput, 'price' | 'description' | 'productName'>
+>;
+
 interface BasePublishListingJob {
   // Stable id for one logical publish/relist operation. Queue retries reuse it;
   // a later relist of the same listing receives a new id and checkpoint.
@@ -50,7 +58,7 @@ export interface PublishOrRelistListingJob extends BasePublishListingJob {
 
 export interface UpdateListingJob extends BasePublishListingJob {
   mode: 'update';
-  changes: Partial<Pick<ListingPublishJobInput, 'price' | 'description' | 'productName'>>;
+  changes: ListingUpdateJobChanges;
 }
 
 export type PublishListingJob = PublishOrRelistListingJob | UpdateListingJob;

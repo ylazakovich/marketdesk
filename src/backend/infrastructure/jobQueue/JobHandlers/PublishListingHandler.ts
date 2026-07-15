@@ -189,6 +189,10 @@ export class PublishListingHandler {
         adapter = this.adapters.create(data.marketplaceKey);
       }
 
+      if (!Object.keys(data.changes).some((key) => ['productName', 'description', 'price'].includes(key))) {
+        throw new InvalidStateError('Update job changes must include productName, description, or price');
+      }
+
       await adapter.updateListing(
         state.externalListingId,
         data.changes

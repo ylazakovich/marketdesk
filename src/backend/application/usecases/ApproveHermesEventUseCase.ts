@@ -20,7 +20,7 @@ import type { IMarketplaceRepository } from '../../domain/repositories/interface
 import type { IActivityLogRepository } from '../../domain/repositories/interfaces/IActivityLogRepository';
 import type { IEventPublisher, DomainEvent } from '../../domain/ports/IEventPublisher';
 import type { IPriceHistoryRecorder } from '../ports/IPriceHistoryRecorder';
-import type { IJobQueue, PublishListingJob } from '../ports/IJobQueue';
+import type { IJobQueue, PublishListingJob, ListingUpdateJobChanges } from '../ports/IJobQueue';
 import type { IdGenerator } from '../ports/IdGenerator';
 import type { ApproveEventDTO } from '../dto/ApproveEventDTO';
 import type { MarketplaceAccountRepository } from '../services/MarketplaceOAuthService';
@@ -36,7 +36,7 @@ interface ApplyChangeOutcome {
   skippedLiveListings?: Array<{ listingId: string; reason: string }>;
 }
 
-type MarketplaceUpdateChanges = NonNullable<PublishListingJob['changes']>;
+type MarketplaceUpdateChanges = ListingUpdateJobChanges;
 
 export class ApproveHermesEventUseCase {
   constructor(

@@ -4,7 +4,10 @@ import React, { useState } from 'react';
 import {
   Box,
   Button,
+  ButtonBase,
   Chip,
+  IconButton,
+  InputAdornment,
   Divider,
   FormControlLabel,
   MenuItem,
@@ -15,6 +18,8 @@ import {
   Typography,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import AddIcon from '@mui/icons-material/Add';
+import SearchIcon from '@mui/icons-material/Search';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import NotificationsIcon from '@mui/icons-material/NotificationsNone';
 import StorefrontIcon from '@mui/icons-material/StorefrontOutlined';
@@ -25,19 +30,19 @@ import SecurityIcon from '@mui/icons-material/SecurityOutlined';
 import TuneIcon from '@mui/icons-material/TuneOutlined';
 import type { AutonomyLevel, Workspace } from '@shared/types';
 import { AUTONOMY_LEVEL_LIST } from '@shared/constants';
+import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../state/hooks.js';
 import { setWorkspace, setAutonomyLevel } from '../state/slices/workspaceSlice.js';
 import type { WorkspaceState } from '../state/slices/workspaceSlice.js';
-import { setThemeMode, enqueueToast } from '../state/slices/uiSlice.js';
+import { setThemeMode, enqueueToast, toggleTheme } from '../state/slices/uiSlice.js';
 import { useUpdateWorkspace } from '../services/hooks/index.js';
 import { AUTONOMY_LABELS, AUTONOMY_DESCRIPTIONS } from '../utils/labels.js';
 import { PageHeader } from '../components/common/PageHeader.js';
 import { Card } from '../components/common/Card.js';
 
 const CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP', 'CZK', 'UAH'];
-const LANGUAGES = ['English', 'Polish', 'Ukrainian'];
 
-type SettingsSection =
+export type SettingsSection =
   | 'general'
   | 'hermes'
   | 'notifications'
@@ -47,7 +52,7 @@ type SettingsSection =
   | 'telegram'
   | 'security';
 
-const sections: Array<{ id: SettingsSection; label: string; caption: string; icon: React.ReactNode }> = [
+export const settingsSections: Array<{ id: SettingsSection; label: string; caption: string; icon: React.ReactNode }> = [
   { id: 'general', label: 'General', caption: 'Workspace basics', icon: <TuneIcon fontSize="small" /> },
   { id: 'hermes', label: 'Hermes AI', caption: 'Autonomy and automation', icon: <AutoAwesomeIcon fontSize="small" /> },
   { id: 'notifications', label: 'Notifications', caption: 'Channels by event', icon: <NotificationsIcon fontSize="small" /> },
@@ -86,6 +91,7 @@ function toWorkspaceState(ws: Workspace): WorkspaceState {
 
 const SettingsPage: React.FC = () => {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const workspace = useAppSelector((s) => s.workspace);
   const themeMode = useAppSelector((s) => s.ui.themeMode);
 
@@ -93,9 +99,7 @@ const SettingsPage: React.FC = () => {
   const [name, setName] = useState(workspace.name);
   const [currency, setCurrency] = useState(workspace.currency);
   const [timezone, setTimezone] = useState(workspace.timezone);
-  const [language, setLanguage] = useState('English');
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [hermesNotifications, setHermesNotifications] = useState(true);
+  const [settingsSearch, setSettingsSearch] = useState('');
 
   const [updateWorkspace, { isLoading: saving }] = useUpdateWorkspace();
 
@@ -156,11 +160,22 @@ const SettingsPage: React.FC = () => {
               </Select>
               <TextField label="Timezone" value={timezone} onChange={(e) => setTimezone(e.target.value)} fullWidth />
             </Stack>
-            <Select value={language} onChange={(e) => setLanguage(e.target.value)} fullWidth aria-label="Language">
-              {LANGUAGES.map((lang) => <MenuItem key={lang} value={lang}>{lang}</MenuItem>)}
-            </Select>
+            <TextField
+              label="Language"
+              value="English"
+              fullWidth
+              disabled
+              helperText="Language preferences are coming soon and are not saved yet."
+            />
             <Stack direction="row" spacing={1.5} justifyContent="flex-end">
-              <Button variant="outlined" onClick={() => { setName(workspace.name); setCurrency(workspace.currency); setTimezone(workspace.timezone); }}>
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setName(workspace.name);
+                  setCurrency(workspace.currency);
+                  setTimezone(workspace.timezone);
+                }}
+              >
                 Cancel
               </Button>
               <Button variant="contained" onClick={handleSaveProfile} disabled={!dirty || saving}>
@@ -175,13 +190,16 @@ const SettingsPage: React.FC = () => {
             {AUTONOMY_LEVEL_LIST.map((level) => {
               const selected = workspace.autonomyLevel === level;
               return (
-                <Box
+                <ButtonBase
                   key={level}
                   onClick={() => handleAutonomy(level)}
+                  aria-pressed={selected}
                   sx={{
                     p: 2,
                     borderRadius: 2.5,
-                    cursor: 'pointer',
+                    width: '100%',
+                    display: 'block',
+                    textAlign: 'left',
                     border: (t) => `2px solid ${selected ? t.palette.primary.main : t.palette.divider}`,
                     bgcolor: selected ? 'action.selected' : 'background.paper',
                   }}
@@ -191,7 +209,7 @@ const SettingsPage: React.FC = () => {
                     {selected && <CheckCircleIcon sx={{ fontSize: 18, color: 'primary.main' }} />}
                   </Stack>
                   <Typography variant="body2" color="text.secondary">{AUTONOMY_DESCRIPTIONS[level]}</Typography>
-                </Box>
+                </ButtonBase>
               );
             })}
           </Stack>
@@ -199,17 +217,14 @@ const SettingsPage: React.FC = () => {
       case 'notifications':
         return (
           <Stack spacing={1.5}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr repeat(3, auto)', sm: '1fr 96px 96px 96px' }, gap: 1, alignItems: 'center' }}>
-              <Typography variant="caption" color="text.secondary">Event</Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>Email</Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>Push</Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>Telegram</Typography>
+            <Typography variant="body2" color="text.secondary">
+              Per-event notification delivery is coming soon. The matrix is read-only until the backend can persist each event and channel independently.
+            </Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr auto' }, gap: 1, alignItems: 'center' }}>
               {notificationRows.map((row) => (
                 <React.Fragment key={row}>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>{row}</Typography>
-                  <Switch size="small" checked={emailNotifications} onChange={(e) => setEmailNotifications(e.target.checked)} slotProps={{ input: { 'aria-label': `${row} email` } }} />
-                  <Switch size="small" defaultChecked slotProps={{ input: { 'aria-label': `${row} push` } }} />
-                  <Switch size="small" checked={hermesNotifications} onChange={(e) => setHermesNotifications(e.target.checked)} slotProps={{ input: { 'aria-label': `${row} Telegram` } }} />
+                  <Chip size="small" label="Not configurable yet" variant="outlined" />
                 </React.Fragment>
               ))}
             </Box>
@@ -238,14 +253,51 @@ const SettingsPage: React.FC = () => {
     }
   };
 
-  const activeMeta = sections.find((section) => section.id === activeSection) ?? sections[0];
+  const activeMeta = settingsSections.find((section) => section.id === activeSection) ?? settingsSections[0];
+  const handleSettingsSearch = (event: React.FormEvent) => {
+    event.preventDefault();
+    const query = settingsSearch.trim().toLowerCase();
+    const match = settingsSections.find(
+      (section) =>
+        section.label.toLowerCase().includes(query) || section.caption.toLowerCase().includes(query),
+    );
+    if (match) setActiveSection(match.id);
+  };
 
   return (
     <Box>
       <PageHeader
         title="Settings"
         subtitle="Workspace and account preferences"
-        actions={<Button variant="contained" onClick={() => setActiveSection('general')}>Save-ready settings</Button>}
+        actions={
+          <Stack component="form" direction="row" spacing={1} onSubmit={handleSettingsSearch} flexWrap="wrap" useFlexGap>
+            <TextField
+              size="small"
+              placeholder="Search settings"
+              aria-label="Search settings"
+              value={settingsSearch}
+              onChange={(event) => setSettingsSearch(event.target.value)}
+              slotProps={{
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+            <IconButton type="button" onClick={() => dispatch(toggleTheme())} aria-label="Toggle theme">
+              <PaletteIcon />
+            </IconButton>
+            <IconButton type="button" onClick={() => setActiveSection('notifications')} aria-label="Open notifications settings">
+              <NotificationsIcon />
+            </IconButton>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/products?newProduct=1')}>
+              New product
+            </Button>
+          </Stack>
+        }
       />
 
       <Box
@@ -257,27 +309,7 @@ const SettingsPage: React.FC = () => {
         }}
       >
         <Card title="Settings sections" subtitle="Choose what to configure" contentSx={{ p: 1.25 }}>
-          <Stack spacing={0.75}>
-            {sections.map((section) => {
-              const active = activeSection === section.id;
-              return (
-                <Button
-                  key={section.id}
-                  onClick={() => setActiveSection(section.id)}
-                  startIcon={section.icon}
-                  fullWidth
-                  variant={active ? 'contained' : 'text'}
-                  color={active ? 'primary' : 'inherit'}
-                  sx={{ justifyContent: 'flex-start', textTransform: 'none', borderRadius: 2, py: 1.1 }}
-                >
-                  <Box sx={{ textAlign: 'left', minWidth: 0 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 800 }} noWrap>{section.label}</Typography>
-                    <Typography variant="caption" sx={{ opacity: active ? 0.9 : 0.68 }} noWrap>{section.caption}</Typography>
-                  </Box>
-                </Button>
-              );
-            })}
-          </Stack>
+          <SettingsSectionNavigation activeSection={activeSection} onSectionChange={setActiveSection} />
         </Card>
 
         <Card
@@ -292,6 +324,38 @@ const SettingsPage: React.FC = () => {
     </Box>
   );
 };
+
+export function SettingsSectionNavigation({
+  activeSection,
+  onSectionChange,
+}: {
+  activeSection: SettingsSection;
+  onSectionChange: (section: SettingsSection) => void;
+}) {
+  return (
+    <Stack spacing={0.75}>
+      {settingsSections.map((section) => {
+        const active = activeSection === section.id;
+        return (
+          <Button
+            key={section.id}
+            onClick={() => onSectionChange(section.id)}
+            startIcon={section.icon}
+            fullWidth
+            variant={active ? 'contained' : 'text'}
+            color={active ? 'primary' : 'inherit'}
+            sx={{ justifyContent: 'flex-start', textTransform: 'none', borderRadius: 2, py: 1.1 }}
+          >
+            <Box sx={{ textAlign: 'left', minWidth: 0 }}>
+              <Typography variant="body2" sx={{ fontWeight: 800 }} noWrap>{section.label}</Typography>
+              <Typography variant="caption" sx={{ opacity: active ? 0.9 : 0.68 }} noWrap>{section.caption}</Typography>
+            </Box>
+          </Button>
+        );
+      })}
+    </Stack>
+  );
+}
 
 function Placeholder({ title, detail }: { title: string; detail: string }) {
   return (

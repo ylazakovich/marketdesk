@@ -1,0 +1,70 @@
+import React from 'react';
+import { Button, Typography } from '@mui/material';
+import {
+  SettingsSectionNavigation,
+  settingsSections,
+  type SettingsSection,
+} from './SettingsPage';
+
+type ElementLike = React.ReactElement<{ children?: React.ReactNode; [key: string]: unknown }>;
+
+function childrenOf(element: ElementLike): ElementLike[] {
+  return React.Children.toArray(element.props.children).filter(React.isValidElement) as ElementLike[];
+}
+
+function findByType(element: ElementLike, type: unknown): ElementLike[] {
+  const direct = element.type === type ? [element] : [];
+  return [...direct, ...childrenOf(element).flatMap((child) => findByType(child, type))];
+}
+
+function textContent(node: React.ReactNode): string {
+  if (typeof node === 'string' || typeof node === 'number') return String(node);
+  if (Array.isArray(node)) return node.map(textContent).join('');
+  if (React.isValidElement(node)) return textContent((node as ElementLike).props.children);
+  return '';
+}
+
+describe('SettingsPage shell navigation', () => {
+  it('marks General as the default active section and exposes section captions', () => {
+    const tree = SettingsSectionNavigation({
+      activeSection: 'general',
+      onSectionChange: jest.fn(),
+    }) as ElementLike;
+
+    const buttons = findByType(tree, Button);
+    const labels = findByType(tree, Typography).map((node) => textContent(node));
+
+    expect(buttons).toHaveLength(settingsSections.length);
+    expect(buttons[0]?.props.variant).toBe('contained');
+    expect(labels).toEqual(expect.arrayContaining(['General', 'Workspace basics']));
+  });
+
+  it('invokes navigation updates for another representative section', () => {
+    const onSectionChange = jest.fn<void, [SettingsSection]>();
+    const tree = SettingsSectionNavigation({
+      activeSection: 'general',
+      onSectionChange,
+    }) as ElementLike;
+
+    const hermesButton = findByType(tree, Button).find((button) =>
+      textContent(button).includes('Hermes AI'),
+    );
+    hermesButton?.props.onClick?.({} as React.MouseEvent<HTMLButtonElement>);
+
+    expect(onSectionChange).toHaveBeenCalledWith('hermes');
+  });
+
+  it('moves active styling when Notifications becomes the selected section', () => {
+    const tree = SettingsSectionNavigation({
+      activeSection: 'notifications',
+      onSectionChange: jest.fn(),
+    }) as ElementLike;
+
+    const notificationsButton = findByType(tree, Button).find((button) =>
+      textContent(button).includes('Notifications'),
+    );
+
+    expect(notificationsButton?.props.variant).toBe('contained');
+    expect(textContent(notificationsButton)).toContain('Channels by event');
+  });
+});

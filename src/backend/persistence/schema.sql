@@ -117,7 +117,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_marketplace_accounts_marketplace ON marketp
 CREATE TABLE IF NOT EXISTS listings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-  marketplace_id UUID NOT NULL REFERENCES marketplaces(id) ON DELETE CASCADE,
+  marketplace_id UUID NOT NULL REFERENCES marketplaces(id),
   marketplace_listing_id VARCHAR(255),
   external_url TEXT,
   price DECIMAL(10, 2) NOT NULL,

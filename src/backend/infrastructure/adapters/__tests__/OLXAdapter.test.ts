@@ -110,6 +110,25 @@ describe('OLXAdapter', () => {
     expect(synced.externalUrl).toBeNull();
   });
 
+  it('uses the first safe OLX URL candidate when earlier candidates are invalid', async () => {
+    const http = mockClient(() => ({
+      status: 200,
+      data: {
+        data: {
+          id: 9,
+          status: 'active',
+          url: 'http://evil.test/olx-9',
+          public_url: 'https://www.olx.pl/d/oferta/olx-9',
+        },
+      },
+    }));
+    const adapter = new OLXAdapter(http, fastOptions);
+
+    const [synced] = await adapter.sync(['olx-9']);
+
+    expect(synced.externalUrl).toBe('https://www.olx.pl/d/oferta/olx-9');
+  });
+
   it('fails closed before a live publish when required OLX details are missing', async () => {
     const request = jest.fn();
     const adapter = new OLXAdapter(

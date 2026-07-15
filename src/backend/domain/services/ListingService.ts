@@ -67,12 +67,18 @@ export class ListingService {
   // non-idempotent marketplace publish (CR2/CR3).
   async getPublishState(
     listingId: string,
-  ): Promise<{ isPublished: boolean; externalListingId: string | null; publishedAt: Date | null } | null> {
+  ): Promise<{
+    isPublished: boolean;
+    externalListingId: string | null;
+    externalUrl: string | null;
+    publishedAt: Date | null;
+  } | null> {
     const listing = await this.listingRepo.findById(listingId);
     if (!listing) return null;
     return {
       isPublished: listing.isLive() && listing.marketplaceListingId !== null,
       externalListingId: listing.marketplaceListingId,
+      externalUrl: listing.externalUrl,
       publishedAt: listing.publishedAt,
     };
   }

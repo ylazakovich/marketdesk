@@ -206,16 +206,18 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
   }
 
   private extractPublicUrl(data: OlxAdvertResponse): string | null {
-    const candidate = data.url ?? data.public_url ?? data.external_url;
-    if (!candidate) return null;
-    try {
-      const parsed = new URL(candidate);
-      if (parsed.protocol !== 'https:') return null;
-      if (!/(^|\.)olx\.pl$/i.test(parsed.hostname)) return null;
-      return parsed.toString();
-    } catch {
-      return null;
+    for (const candidate of [data.url, data.public_url, data.external_url]) {
+      if (!candidate) continue;
+      try {
+        const parsed = new URL(candidate);
+        if (parsed.protocol !== 'https:') continue;
+        if (!/(^|\.)olx\.pl$/i.test(parsed.hostname)) continue;
+        return parsed.toString();
+      } catch {
+        // Try the next candidate.
+      }
     }
+    return null;
   }
 
   private assertPublishDetails(categoryId: number | undefined): asserts categoryId is number {

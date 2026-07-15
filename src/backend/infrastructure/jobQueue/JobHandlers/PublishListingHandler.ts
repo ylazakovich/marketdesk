@@ -113,6 +113,7 @@ export interface ListingFinalizer {
   getPublishState?(listingId: string): Promise<{
     isPublished: boolean;
     externalListingId: string | null;
+    externalUrl: string | null;
     publishedAt: Date | null;
   } | null>;
 }
@@ -171,7 +172,7 @@ export class PublishListingHandler {
             listingId: data.listingId,
             result: {
               externalListingId: state.externalListingId,
-              externalUrl: null,
+              externalUrl: checkpoint?.externalUrl ?? state.externalUrl ?? null,
               publishedAt: state.publishedAt ?? new Date(),
             },
             finalized: true,

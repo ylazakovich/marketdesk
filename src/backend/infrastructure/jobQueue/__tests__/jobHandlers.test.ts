@@ -495,12 +495,23 @@ describe('PublishListingHandler', () => {
     const getPublishState = jest.fn(async () => ({
       isPublished: true,
       externalListingId: 'olx-99',
+      externalUrl: null,
       publishedAt: publishResult.publishedAt,
     }));
-    const handler = new PublishListingHandler(resolver, undefined, {
-      publishListing,
-      getPublishState,
-    });
+    const attempts = memoryPublishAttempts();
+    await attempts.begin('op-1', 'l-5', 'olx', new Date(0));
+    await attempts.markPublished('op-1', publishResult);
+    const handler = new PublishListingHandler(
+      resolver,
+      undefined,
+      {
+        publishListing,
+        getPublishState,
+      },
+      undefined,
+      undefined,
+      attempts
+    );
 
     const result = await handler.handle({
       operationId: 'op-1',
@@ -514,6 +525,7 @@ describe('PublishListingHandler', () => {
     expect(publish).not.toHaveBeenCalled();
     expect(result.finalized).toBe(true);
     expect(result.result.externalListingId).toBe('olx-99');
+    expect(result.result.externalUrl).toBe(publishResult.externalUrl);
   });
 
   it('re-publishes an explicitly requested relist even when the listing is currently live', async () => {
@@ -529,6 +541,7 @@ describe('PublishListingHandler', () => {
         getPublishState: async () => ({
           isPublished: true,
           externalListingId: 'olx-old',
+          externalUrl: 'https://www.olx.pl/d/oferta/old',
           publishedAt: new Date('2026-07-13T12:00:00.000Z'),
         }),
       },
@@ -654,6 +667,7 @@ describe('PublishListingHandler', () => {
     const getPublishState = jest.fn(async () => ({
       isPublished: false,
       externalListingId: null,
+      externalUrl: null,
       publishedAt: null,
     }));
     const handler = new PublishListingHandler(resolver, undefined, {

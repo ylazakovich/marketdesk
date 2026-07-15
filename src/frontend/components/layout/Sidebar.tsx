@@ -166,7 +166,16 @@ export const Sidebar: React.FC = () => {
                 Profile
               </Button>
               <Tooltip title="Sign out">
-                <Button size="small" variant="text" color="inherit" onClick={() => dispatch(logout())} aria-label="Sign out">
+                <Button
+                  size="small"
+                  variant="text"
+                  color="inherit"
+                  onClick={() => {
+                    if (isMobile) dispatch(setMobileSidebarOpen(false));
+                    dispatch(logout());
+                  }}
+                  aria-label="Sign out"
+                >
                   <LogoutIcon fontSize="small" />
                 </Button>
               </Tooltip>

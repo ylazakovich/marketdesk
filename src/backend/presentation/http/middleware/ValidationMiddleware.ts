@@ -20,7 +20,7 @@ export function validateBody(schema: ZodTypeAny) {
     // Empty action endpoints (approve/dismiss) still have an object schema with
     // only optional fields, so validate them as an empty object instead of
     // failing at the root with "expected object, received undefined".
-    const result = schema.safeParse(req.body ?? {});
+    const result = schema.safeParse(req.body === undefined ? {} : req.body);
     if (!result.success) {
       fail(res, undefined, 400, {
         code: ERROR_CODES.VALIDATION_ERROR,

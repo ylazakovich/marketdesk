@@ -264,13 +264,13 @@ export class HermesEvent {
         new InvalidStateError(`Cannot revert event in ${this._status} state`),
       );
     }
-    this._status = 'applying';
+    this._status = 'reverting';
     this._resolvedAt = null;
     return Ok(undefined);
   }
 
   markReverted(at: Date = new Date()): Result<void> {
-    if (this._status !== 'applying') {
+    if (this._status !== 'reverting') {
       return Err(
         new InvalidStateError(`Cannot mark event reverted from ${this._status}`),
       );

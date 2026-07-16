@@ -390,6 +390,28 @@ describe('ApproveHermesEventUseCase', () => {
     if (result.isErr()) expect(result.error.code).toBe('NOT_FOUND');
   });
 
+  it('persists failed when an application dependency throws', async () => {
+    const { useCase, eventRepo, productRepo } = setup();
+    const event = unwrap(
+      HermesEvent.create({
+        id: 'evt-thrown',
+        workspaceId: 'ws-1',
+        productId: 'prod-1',
+        type: 'suggested_lower_price',
+        severity: 'warning',
+        title: 'Lower the price',
+        proposedChange: { kind: 'price', field: 'price', from: 100, to: 90 },
+      }),
+    );
+    await eventRepo.save(event);
+    jest.spyOn(productRepo, 'save').mockRejectedValueOnce(new Error('database unavailable'));
+
+    await expect(
+      useCase.execute({ eventId: event.id, workspaceId: 'ws-1' }),
+    ).rejects.toThrow('database unavailable');
+    expect((await eventRepo.findById(event.id))?.status).toBe('failed');
+  });
+
   it('does not enqueue a relist when the OAuth account is disconnected', async () => {
     const { useCase, eventRepo, publishQueue } = setup('missing');
     const event = unwrap(

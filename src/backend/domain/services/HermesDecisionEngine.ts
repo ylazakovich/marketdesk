@@ -77,27 +77,42 @@ export class HermesDecisionEngine {
         if (created.isErr()) continue;
         const event = created.value;
 
-        if (
+        event.setAutonomyDecision(decision);
+        const unsupportedAutomaticChange =
+          event.proposedChange?.kind === 'relist' ||
+          event.proposedChange?.kind === 'create_listing';
+
+        if (decision === 'auto_apply' && unsupportedAutomaticChange) {
+          decision = 'pending_review';
+          event.setAutonomyDecision(decision);
+          event.requestReview();
+        } else if (
           decision === 'auto_apply' &&
           !event.requiresHumanReview() &&
           this.passesGuardrails(product, event, workspace)
         ) {
           const started = event.beginAutoApply();
           if (started.isErr()) continue;
-          const applied = await this.applyChange(product, event.proposedChange);
-          if (applied.isOk()) {
-            event.markApplied();
-          } else {
+          await this.eventRepo.saveAll([event]);
+          try {
+            const applied = await this.applyChange(product, event.proposedChange);
+            if (applied.isOk()) {
+              event.markApplied();
+            } else {
+              event.markFailed();
+            }
+          } catch {
             event.markFailed();
           }
+          await this.eventRepo.saveAll([event]);
         } else if (decision === 'auto_apply') {
           // Guardrail: a critical change, a >20% drop, or a workspace guardrail
           // violation cannot auto-apply — force human review.
           decision = 'pending_review';
+          event.setAutonomyDecision(decision);
           event.requestReview();
         }
 
-        event.setAutonomyDecision(decision);
         events.push(event);
       }
     }

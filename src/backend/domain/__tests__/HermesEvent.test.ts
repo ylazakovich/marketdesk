@@ -92,14 +92,30 @@ describe('HermesEvent lifecycle transitions', () => {
     expect(decision.approve().isErr()).toBe(true);
   });
 
-  it('defines undo as applied -> applying -> reverted', () => {
+  it('defines undo as applied -> reverting -> reverted', () => {
     const event = unwrap(HermesEvent.create(priceEvent(100, 95)));
     unwrap(event.approve());
     unwrap(event.markApplied());
     expect(event.beginRevert().isOk()).toBe(true);
-    expect(event.status).toBe('applying');
+    expect(event.status).toBe('reverting');
     expect(event.markReverted().isOk()).toBe(true);
     expect(event.status).toBe('reverted');
+  });
+
+  it('rejects completing a forward application as reverted', () => {
+    const event = unwrap(HermesEvent.create(priceEvent(100, 95)));
+    unwrap(event.approve());
+    expect(event.markReverted().isErr()).toBe(true);
+    expect(event.status).toBe('applying');
+  });
+
+  it('rejects completing an undo as applied', () => {
+    const event = unwrap(HermesEvent.create(priceEvent(100, 95)));
+    unwrap(event.approve());
+    unwrap(event.markApplied());
+    unwrap(event.beginRevert());
+    expect(event.markApplied().isErr()).toBe(true);
+    expect(event.status).toBe('reverting');
   });
 
   it('rejects invalid terminal-state transitions', () => {

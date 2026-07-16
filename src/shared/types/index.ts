@@ -32,6 +32,7 @@ export const HERMES_EVENT_STATUSES = [
   'applied',
   'dismissed',
   'failed',
+  'reverting',
   'reverted',
 ] as const;
 export type HermesEventStatus = (typeof HERMES_EVENT_STATUSES)[number];

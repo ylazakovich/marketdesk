@@ -120,6 +120,7 @@ export const HERMES_EVENT_STATUS = {
   APPLIED: 'applied',
   DISMISSED: 'dismissed',
   FAILED: 'failed',
+  REVERTING: 'reverting',
   REVERTED: 'reverted',
 } as const;
 
@@ -130,6 +131,7 @@ export const HERMES_EVENT_STATUS_LIST: readonly HermesEventStatus[] = [
   'applied',
   'dismissed',
   'failed',
+  'reverting',
   'reverted',
 ];
 

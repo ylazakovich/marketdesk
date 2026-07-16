@@ -269,7 +269,7 @@ CREATE TABLE IF NOT EXISTS hermes_events (
   severity VARCHAR(50) NOT NULL,
   status VARCHAR(50) NOT NULL CONSTRAINT hermes_events_status_check CHECK (status IN (
     'pending_decision', 'pending_review', 'applying', 'applied',
-    'dismissed', 'failed', 'reverted'
+    'dismissed', 'failed', 'reverting', 'reverted'
   )),
   title VARCHAR(255) NOT NULL,
   detail TEXT,

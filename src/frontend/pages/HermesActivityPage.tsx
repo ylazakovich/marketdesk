@@ -25,6 +25,7 @@ const STATUS_LABELS: Record<HermesEventStatus, string> = {
   applied: 'Applied',
   dismissed: 'Dismissed',
   failed: 'Action failed',
+  reverting: 'Reverting',
   reverted: 'Reverted',
 };
 
@@ -72,7 +73,7 @@ const HermesActivityPage: React.FC = () => {
     if (activityTab === 'suggestions') return events.filter(isPendingSuggestion);
     return events;
   }, [activityTab, events]);
-  const pendingCount = events.filter(isPendingSuggestion).length;
+  const pendingCount = events.filter((event) => event.status === 'pending_review').length;
   const completedCount = events.filter(isCompletedEvent).length;
   const listingSuggestionCount = events.filter((event) => event.type === 'create_listing').length;
   const estimatedReviewMinutes = events.length === 0 ? 0 : events.length * 6;

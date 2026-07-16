@@ -67,6 +67,7 @@ const HERMES_STATUS_META: Record<HermesEventStatus, { label: string; color: Chip
   applied: { label: 'Applied', color: 'success' },
   dismissed: { label: 'Dismissed', color: 'default' },
   failed: { label: 'Action failed', color: 'error' },
+  reverting: { label: 'Reverting', color: 'info' },
   reverted: { label: 'Reverted', color: 'default' },
 };
 

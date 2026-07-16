@@ -125,7 +125,7 @@ describe('HermesDecisionEngine.run', () => {
     expect(photoEvent).toBeDefined();
     expect(photoEvent!.autonomyDecision).toBe('auto_apply');
     expect(photoEvent!.status).toBe('applied');
-    expect(eventRepo.savedBatches.length).toBe(1);
+    expect(eventRepo.savedBatches.length).toBeGreaterThanOrEqual(3);
     expect(publisher.published.some((e) => e.type === 'hermes.run_completed')).toBe(true);
   });
 
@@ -143,6 +143,30 @@ describe('HermesDecisionEngine.run', () => {
       expect(event.autonomyDecision).toBe('pending_review');
       expect(event.status).toBe('pending_review');
     }
+  });
+
+  it('routes unsupported automatic relists to review before execution', async () => {
+    const { engine, productRepo, listingRepo } = makeEngine();
+    seedProduct(productRepo, ['a.jpg', 'b.jpg', 'c.jpg']);
+    const listing = unwrap(
+      Listing.create({
+        id: 'l-expired',
+        productId: 'p1',
+        marketplaceId: 'm1',
+        price: money(80),
+        status: 'expired',
+      }),
+    );
+    listingRepo.items.set(listing.id, listing);
+    const workspace = unwrap(
+      Workspace.create({ id: 'w1', name: 'WS', autonomyLevel: 'full_auto' }),
+    );
+
+    const events = await engine.run(workspace);
+    const relist = events.find((event) => event.proposedChange?.kind === 'relist');
+    expect(relist).toBeDefined();
+    expect(relist?.status).toBe('pending_review');
+    expect(relist?.autonomyDecision).toBe('pending_review');
   });
 });
 
@@ -216,7 +240,7 @@ describe('HermesDecisionEngine guardrails (C1 / AMENDMENT FIX #5)', () => {
     );
     listingRepo.items.set(listing.id, listing);
 
-    return { engine, product };
+    return { engine, product, productRepo, eventRepo };
   }
 
   function priceEvent(events: Awaited<ReturnType<HermesDecisionEngine['run']>>) {
@@ -231,6 +255,15 @@ describe('HermesDecisionEngine guardrails (C1 / AMENDMENT FIX #5)', () => {
     expect(evt!.autonomyDecision).toBe('auto_apply');
     expect(evt!.status).toBe('applied');
     expect(product.sellingPrice.amount).toBe(90);
+  });
+
+  it('persists failed when automatic application throws', async () => {
+    const { engine, productRepo, eventRepo } = seedPricingScenario();
+    jest.spyOn(productRepo, 'save').mockRejectedValueOnce(new Error('database unavailable'));
+
+    const events = await engine.run(makeWorkspace(OPEN));
+    expect(priceEvent(events)?.status).toBe('failed');
+    expect(eventRepo.savedBatches.length).toBeGreaterThanOrEqual(3);
   });
 
   it('forces review when autoAdjustPricing is disabled, even under full_auto', async () => {

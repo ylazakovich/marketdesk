@@ -14,6 +14,7 @@ BEGIN
       'applied',
       'dismissed',
       'failed',
+      'reverting',
       'reverted'
     )
   ) THEN
@@ -34,6 +35,7 @@ ALTER TABLE hermes_events
     'applied',
     'dismissed',
     'failed',
+    'reverting',
     'reverted'
   ));
 

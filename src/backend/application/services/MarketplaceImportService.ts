@@ -7,6 +7,7 @@ import { evaluateOlxCategory } from '../../domain/services/OlxCategoryGuard';
 import type { IProductRepository } from '../../domain/repositories/interfaces/IProductRepository';
 import type { IListingRepository } from '../../domain/repositories/interfaces/IListingRepository';
 import type { IEventRepository } from '../../domain/repositories/interfaces/IEventRepository';
+import type { ICategoryCorrectionOperationRepository } from '../../domain/repositories/interfaces/ICategoryCorrectionOperationRepository';
 import type { IMarketplaceRepository } from '../../domain/repositories/interfaces/IMarketplaceRepository';
 import type {
   ActivityLogEntry,
@@ -87,6 +88,7 @@ export interface MarketplaceImportRepositories {
   listingRepo: IListingRepository;
   activityLog?: IActivityLogRepository;
   eventRepo?: IEventRepository;
+  correctionOperations?: ICategoryCorrectionOperationRepository;
 }
 
 export type MarketplaceImportUnitOfWork = <T>(
@@ -138,6 +140,7 @@ export class MarketplaceImportService {
       throw new InvalidStateError('MarketplaceImportService requires a transactional unit of work');
     },
     private readonly eventRepo?: IEventRepository,
+    private readonly correctionOperations?: ICategoryCorrectionOperationRepository,
   ) {}
 
   async preview(input: ImportPreviewInput): Promise<Result<ImportPreviewResult>> {
@@ -658,6 +661,7 @@ export class MarketplaceImportService {
       workspaceId,
       repos.activityLog,
       repos.eventRepo,
+      repos.correctionOperations,
     );
     await repos.activityLog?.record(
       this.activityEntry(
@@ -678,12 +682,14 @@ export class MarketplaceImportService {
     workspaceId: string,
     activityLog?: IActivityLogRepository,
     transactionEventRepo?: IEventRepository,
+    transactionCorrectionOperations?: ICategoryCorrectionOperationRepository,
   ): Promise<void> {
-    if (!product || listing.status !== 'live' || !currentCategory) return;
+    const eventRepo = transactionEventRepo ?? this.eventRepo;
+    const correctionOperations = transactionCorrectionOperations ?? this.correctionOperations;
+    if (!eventRepo || !product || listing.status !== 'live' || !currentCategory) return;
     const currentDecision = evaluateOlxCategory(product, currentCategory);
     const proposedDecision = proposedCategory ? evaluateOlxCategory(product, proposedCategory) : null;
     if (currentDecision.reason !== 'semantic_mismatch' || (proposedDecision && !proposedDecision.allowed)) return;
-
     const eventId = this.idGenerator();
     const delistIntentId = this.idGenerator();
     const recreateIntentId = this.idGenerator();
@@ -716,13 +722,30 @@ export class MarketplaceImportService {
       autonomyDecision: 'pending_review',
     });
     if (created.isErr()) throw created.error;
-    const repository = transactionEventRepo ?? this.eventRepo;
-    if (!repository) return;
-    const inserted = await repository.saveRecommendationIfAbsent(
+    const inserted = await eventRepo.saveRecommendationIfAbsent(
       created.value,
       `olx-category-mismatch:${listing.id}:${currentCategory.providerCategoryId}:${proposedCategory?.providerCategoryId ?? 'unresolved'}`,
     );
     if (!inserted) return;
+    if (correctionOperations && proposedCategory) {
+      const requestedAt = new Date();
+      await correctionOperations.createPair(
+        {
+          id: delistIntentId, workspaceId, recommendationEventId: eventId,
+          listingId: listing.id, marketplaceId: listing.marketplaceId, kind: 'delist',
+          state: 'requested', targetCategory: null, paidOverrideReason: null,
+          requestedBy: null, approvedBy: null, result: null, requestedAt,
+          approvedAt: null, executedAt: null, failedAt: null, updatedAt: requestedAt,
+        },
+        {
+          id: recreateIntentId, workspaceId, recommendationEventId: eventId,
+          listingId: listing.id, marketplaceId: listing.marketplaceId, kind: 'recreate',
+          state: 'requested', targetCategory: proposedCategory, paidOverrideReason: null,
+          requestedBy: null, approvedBy: null, result: null, requestedAt,
+          approvedAt: null, executedAt: null, failedAt: null, updatedAt: requestedAt,
+        },
+      );
+    }
     await activityLog?.record(this.activityEntry(
       workspaceId,
       listing.id,

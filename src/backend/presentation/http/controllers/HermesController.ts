@@ -7,6 +7,7 @@ import type { HermesEventStatus, HermesSeverity } from '../../../../shared/types
 import type { ListEventsQueryDTO } from '../../../application/dto/HermesDTO';
 import { NotFoundError } from '../../../domain/shared/DomainError';
 import { ok, paginated } from '../formatters/ResponseFormatter';
+import type { CategoryCorrectionOperationService } from '../../../application/services/CategoryCorrectionOperationService';
 
 // Parse a comma-separated multi-value query param (e.g. ?status=a,b) into a
 // trimmed, non-empty string array; returns undefined when the param is absent.
@@ -25,7 +26,33 @@ function routeParam(value: string | string[] | undefined): string {
 }
 
 export class HermesController {
-  constructor(private readonly hermes: HermesApplicationService) {}
+  constructor(
+    private readonly hermes: HermesApplicationService,
+    private readonly categoryCorrections?: CategoryCorrectionOperationService,
+  ) {}
+
+  listCategoryCorrectionOperations = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    if (!this.categoryCorrections) return next(new NotFoundError('Category correction workflow is unavailable'));
+    const operations = await this.categoryCorrections.list(routeParam(req.params.id), req.user!.workspaceId!);
+    ok(res, operations);
+  };
+
+  approveCategoryCorrectionOperation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    if (!this.categoryCorrections) return next(new NotFoundError('Category correction workflow is unavailable'));
+    const operation = await this.categoryCorrections.approve({
+      operationId: routeParam(req.params.operationId), workspaceId: req.user!.workspaceId!,
+      actorId: req.user!.userId!, paidOverrideReason: req.body?.paidOverrideReason,
+    });
+    ok(res, operation);
+  };
+
+  executeCategoryCorrectionOperation = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    if (!this.categoryCorrections) return next(new NotFoundError('Category correction workflow is unavailable'));
+    const operation = await this.categoryCorrections.execute({
+      operationId: routeParam(req.params.operationId), workspaceId: req.user!.workspaceId!, actorId: req.user!.userId!,
+    });
+    ok(res, operation);
+  };
 
   list = async (req: Request, res: Response): Promise<void> => {
     // Filters are comma-separated multi-value params (the frontend sends

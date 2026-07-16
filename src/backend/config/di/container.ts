@@ -31,6 +31,7 @@ import { ActivityLogRepository } from '../../infrastructure/persistence/reposito
 import { AuthUserRepository } from '../../infrastructure/persistence/repositories/AuthUserRepository';
 import { PriceHistoryRepository } from '../../infrastructure/persistence/repositories/PriceHistoryRepository';
 import { OlxPublicationQuotaRepository } from '../../infrastructure/persistence/repositories/OlxPublicationQuotaRepository';
+import { CategoryCorrectionOperationRepository } from '../../infrastructure/persistence/repositories/CategoryCorrectionOperationRepository';
 
 async function withPoolTransaction<T>(
   pool: Pool,
@@ -110,6 +111,7 @@ import { MarketplaceOAuthService } from '../../application/services/MarketplaceO
 import { MarketplaceSyncScheduler } from '../../application/services/MarketplaceSyncScheduler';
 import { MarketplaceImportService } from '../../application/services/MarketplaceImportService';
 import { OlxPublicationQuotaService } from '../../application/services/OlxPublicationQuotaService';
+import { CategoryCorrectionOperationService } from '../../application/services/CategoryCorrectionOperationService';
 import type { IdGenerator } from '../../application/ports/IdGenerator';
 import type {
   IJobQueue,
@@ -275,6 +277,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
   const authUserStore = new AuthUserRepository(pool);
   const priceHistoryRepo = new PriceHistoryRepository(pool);
   const olxPublicationQuotaRepo = new OlxPublicationQuotaRepository(pool);
+  const categoryCorrectionOperationRepo = new CategoryCorrectionOperationRepository(pool);
   const marketplaceOAuthService = new MarketplaceOAuthService({
     marketplaceRepo,
     accountRepo: marketplaceAccountRepo,
@@ -409,6 +412,30 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     listingRepo,
     marketplaceRepo
   );
+  const categoryCorrectionOperationService = new CategoryCorrectionOperationService(
+    categoryCorrectionOperationRepo,
+    eventRepo,
+    listingRepo,
+    productRepo,
+    marketplaceRepo,
+    olxPublicationQuotaService,
+    {
+      resolve: async (marketplace) => {
+        if (env.marketplaces.olx.adapterMode !== 'real') return adapterFactory.create(marketplace.key);
+        const accessToken = await marketplaceOAuthService.getValidAccessToken(marketplace.id);
+        return adapterFactory.create(
+          marketplace.key,
+          new FetchMarketplaceHttpClient({
+            defaultHeaders: buildOlxHeaders(accessToken),
+            timeoutMs: env.marketplaces.olx.requestTimeoutMs,
+            livePublishEnabled: env.marketplaces.olx.livePublishEnabled,
+          }),
+        );
+      },
+    },
+    activityLogRepo,
+    idGenerator,
+  );
   const marketplaceImportService = new MarketplaceImportService(
     marketplaceRepo,
     productRepo,
@@ -431,9 +458,11 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
           listingRepo: new ListingRepository(pool, client),
           activityLog: new ActivityLogRepository(pool, client),
           eventRepo: new EventRepository(pool, client),
+          correctionOperations: new CategoryCorrectionOperationRepository(pool, client),
         })
       ),
     eventRepo,
+    categoryCorrectionOperationRepo,
   );
 
   // 9. Register job handlers now that their collaborators exist. The publish
@@ -521,6 +550,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
       return new OlxTaxonomyResolver(http);
     },
     olxPublicationQuotaService,
+    categoryCorrectionOperationService,
     marketplaceOAuthReturnUrl: env.marketplaces.olx.oauthSuccessUrl,
     workspaceRepo,
     authUserStore,

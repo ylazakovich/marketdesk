@@ -171,3 +171,9 @@ export const dismissEventSchema = z.object({
 export const approveEventSchema = z.object({
   actorId: z.string().optional(),
 });
+
+export const approveCategoryCorrectionOperationSchema = z.object({
+  paidOverrideReason: z.string().trim().min(10).max(500).optional(),
+});
+
+export const executeCategoryCorrectionOperationSchema = z.object({});

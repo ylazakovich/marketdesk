@@ -1,7 +1,11 @@
 // Single-page product create/edit form. Owns local field state + validation;
 // the parent supplies onSubmit (wired to a create/update mutation) and busy flag.
 import React, { useMemo, useState } from 'react';
-import { Alert, Button, Checkbox, FormControlLabel, Stack } from '@mui/material';
+import { Alert, Button, Stack } from '@mui/material';
+import {
+  BelowCostConfirmationAlert,
+  useBelowCostConfirmation,
+} from './BelowCostConfirmation';
 import type { Product } from '@shared/types';
 import {
   belowCostConfirmationRequired,
@@ -39,15 +43,11 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     initial ? productToValues(initial) : emptyProductValues(),
   );
   const [errors, setErrors] = useState<ProductFieldErrors>({});
-  const [belowCostConfirmed, setBelowCostConfirmed] = useState(false);
-  const [confirmationError, setConfirmationError] = useState(false);
+  const belowCostConfirmation = useBelowCostConfirmation();
 
   const change = <K extends keyof ProductFormValues>(field: K, value: ProductFormValues[K]) => {
     setValues((prev) => ({ ...prev, [field]: value }));
-    if (field === 'costPrice' || field === 'sellingPrice') {
-      setBelowCostConfirmed(false);
-      setConfirmationError(false);
-    }
+    belowCostConfirmation.resetForField(field);
   };
 
   const warning = useMemo(() => marginWarning(values), [values]);
@@ -58,8 +58,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     const validation = validateProductValues(values);
     setErrors(validation);
     if (Object.keys(validation).length > 0) return;
-    if (belowCostConfirmationRequired(values, belowCostConfirmed)) {
-      setConfirmationError(true);
+    if (belowCostConfirmationRequired(values, belowCostConfirmation.confirmed)) {
+      belowCostConfirmation.setHasError(true);
       return;
     }
     onSubmit(toProductSubmissionValues(values));
@@ -72,21 +72,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({
         <DescriptionTagsFields {...fieldProps} />
         <PriceFields {...fieldProps} />
         {warning && (
-          <Alert severity={confirmationError ? 'error' : 'warning'}>
-            {warning}
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={belowCostConfirmed}
-                  onChange={(event) => {
-                    setBelowCostConfirmed(event.target.checked);
-                    setConfirmationError(false);
-                  }}
-                />
-              }
-              label="I confirm this product may be sold below cost."
-            />
-          </Alert>
+          <BelowCostConfirmationAlert
+            warning={warning}
+            confirmed={belowCostConfirmation.confirmed}
+            hasError={belowCostConfirmation.hasError}
+            onConfirmedChange={belowCostConfirmation.changeConfirmed}
+          />
         )}
         <StatusField {...fieldProps} />
         <ImagesField {...fieldProps} />

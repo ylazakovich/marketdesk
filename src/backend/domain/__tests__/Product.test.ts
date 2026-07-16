@@ -111,6 +111,16 @@ describe('Product price / description updates', () => {
     expect(product.sellingPrice.amount).toBeCloseTo(10);
   });
 
+  it('accepts equal-to-cost update boundaries without confirmation', () => {
+    const sellingUpdate = unwrap(Product.create(baseProps()));
+    expect(sellingUpdate.updateSellingPrice(money(50)).isOk()).toBe(true);
+    expect(sellingUpdate.sellingPrice.amount).toBeCloseTo(50);
+
+    const costUpdate = unwrap(Product.create(baseProps()));
+    expect(costUpdate.updateCostPrice(money(80)).isOk()).toBe(true);
+    expect(costUpdate.costPrice?.amount).toBeCloseTo(80);
+  });
+
   it('validates description length on update', () => {
     const product = unwrap(Product.create(baseProps()));
     expect(product.updateDescription('short').isErr()).toBe(true);

@@ -6,7 +6,8 @@
 import { Result, Ok, Err } from '../../domain/shared/Result';
 import { NotFoundError } from '../../domain/shared/DomainError';
 import { Money } from '../../domain/valueObjects/Money';
-import type { Product } from '../../domain/entities/Product';
+import { Product } from '../../domain/entities/Product';
+import { buildPricingDecision } from '../../domain/services/pricingDecision';
 import type { IProductRepository } from '../../domain/repositories/interfaces/IProductRepository';
 import type { IEventPublisher, DomainEvent } from '../../domain/ports/IEventPublisher';
 import type { UpdateProductDTO } from '../dto/UpdateProductDTO';
@@ -138,18 +139,10 @@ export class UpdateProductUseCase {
       workspaceId: product.workspaceId,
     };
     if (pricing.pricesChanged) {
-      payload.pricingDecision = {
-        belowCost: Boolean(product.costPrice?.isGreaterThan(product.sellingPrice)),
-        confirmed: pricing.belowCostConfirmed,
-        before: {
+      payload.pricingDecision = buildPricingDecision(product, pricing.belowCostConfirmed, {
           costPrice: pricing.previousCostPrice,
           sellingPrice: pricing.previousSellingPrice,
-        },
-        after: {
-          costPrice: product.costPrice?.amount ?? null,
-          sellingPrice: product.sellingPrice.amount,
-        },
-      };
+      });
     }
     return {
       type: 'product.updated',

@@ -8,6 +8,7 @@
 // authenticated principal (req.user.workspaceId), never trusted from the client body.
 
 import { z } from 'zod';
+import { requireBelowCostConfirmation } from '../../../../shared/validation/pricing';
 import {
   PRODUCT_STATUS_LIST,
   AUTONOMY_LEVEL_LIST,
@@ -34,15 +35,7 @@ export const createProductSchema = z
     images: z.array(z.string()).optional(),
     allowBelowCost: z.boolean().optional(),
   })
-  .superRefine((body, ctx) => {
-    if (body.sellingPrice < body.costPrice && body.allowBelowCost !== true) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['allowBelowCost'],
-        message: 'must be true when sellingPrice is below costPrice',
-      });
-    }
-  });
+  .superRefine(requireBelowCostConfirmation);
 
 export const updateProductSchema = z
   .object({
@@ -61,20 +54,7 @@ export const updateProductSchema = z
     images: z.array(z.string()).optional(),
     allowBelowCost: z.boolean().optional(),
   })
-  .superRefine((body, ctx) => {
-    if (
-      typeof body.costPrice === 'number' &&
-      typeof body.sellingPrice === 'number' &&
-      body.sellingPrice < body.costPrice &&
-      body.allowBelowCost !== true
-    ) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['allowBelowCost'],
-        message: 'must be true when sellingPrice is below costPrice',
-      });
-    }
-  })
+  .superRefine(requireBelowCostConfirmation)
   .refine((obj) => Object.keys(obj).length > 0, {
     message: 'At least one field must be provided',
   });

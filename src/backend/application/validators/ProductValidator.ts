@@ -4,6 +4,7 @@
 // domain Result so the rest of the application stays railway-oriented.
 
 import { z } from 'zod';
+import { requireBelowCostConfirmation } from '../../../shared/validation/pricing';
 import { Result, Ok, Err } from '../../domain/shared/Result';
 import { ValidationError } from '../../domain/shared/DomainError';
 import {
@@ -35,15 +36,7 @@ const createProductSchema = z
     images: z.array(z.string().trim().min(1)).optional(),
     allowBelowCost: z.boolean().optional(),
   })
-  .superRefine((dto, ctx) => {
-    if (dto.sellingPrice < dto.costPrice && dto.allowBelowCost !== true) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['allowBelowCost'],
-        message: 'must be true when sellingPrice is below costPrice',
-      });
-    }
-  });
+  .superRefine(requireBelowCostConfirmation);
 
 const updateProductSchema = z
   .object({
@@ -68,20 +61,7 @@ const updateProductSchema = z
     images: z.array(z.string().trim().min(1)).optional(),
     allowBelowCost: z.boolean().optional(),
   })
-  .superRefine((dto, ctx) => {
-    if (
-      typeof dto.costPrice === 'number' &&
-      typeof dto.sellingPrice === 'number' &&
-      dto.sellingPrice < dto.costPrice &&
-      dto.allowBelowCost !== true
-    ) {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['allowBelowCost'],
-        message: 'must be true when sellingPrice is below costPrice',
-      });
-    }
-  })
+  .superRefine(requireBelowCostConfirmation)
   .refine(
     (dto) =>
       dto.name !== undefined ||

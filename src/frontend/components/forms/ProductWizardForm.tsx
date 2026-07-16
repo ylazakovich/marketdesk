@@ -50,6 +50,10 @@ import {
 } from './ProductFields.js';
 import { ProductImageUploader } from './ProductImageUploader.js';
 import type { UploadedProductImage } from './ProductImageUploader.js';
+import {
+  BelowCostConfirmationAlert,
+  useBelowCostConfirmation,
+} from './BelowCostConfirmation.js';
 
 export interface ProductWizardFormProps {
   submitting?: boolean;
@@ -265,8 +269,7 @@ export const ProductWizardForm: React.FC<ProductWizardFormProps> = ({
   );
   const [draftError, setDraftError] = useState<string | null>(null);
   const [draftLoading, setDraftLoading] = useState(false);
-  const [belowCostConfirmed, setBelowCostConfirmed] = useState(false);
-  const [belowCostConfirmationError, setBelowCostConfirmationError] = useState(false);
+  const belowCostConfirmation = useBelowCostConfirmation();
   const [targetMarketplace, setTargetMarketplace] = useState<MarketplaceKey | null>(
     initialDraft?.targetMarketplace ?? null
   );
@@ -293,10 +296,7 @@ export const ProductWizardForm: React.FC<ProductWizardFormProps> = ({
 
   const change = <K extends keyof ProductFormValues>(field: K, value: ProductFormValues[K]) => {
     setValues((prev) => ({ ...prev, [field]: value }));
-    if (field === 'costPrice' || field === 'sellingPrice') {
-      setBelowCostConfirmed(false);
-      setBelowCostConfirmationError(false);
-    }
+    belowCostConfirmation.resetForField(field);
     setErrors((prev) => {
       if (!prev[field]) return prev;
       const next = { ...prev };
@@ -322,8 +322,9 @@ export const ProductWizardForm: React.FC<ProductWizardFormProps> = ({
     const validation = validationFor(step);
     setErrors(validation.fieldErrors);
     setMarketplaceError(validation.marketplaceError ?? null);
-    const pricingNeedsConfirmation = step === 2 && belowCostConfirmationRequired(values, belowCostConfirmed);
-    setBelowCostConfirmationError(pricingNeedsConfirmation);
+    const pricingNeedsConfirmation =
+      step === 2 && belowCostConfirmationRequired(values, belowCostConfirmation.confirmed);
+    belowCostConfirmation.setHasError(pricingNeedsConfirmation);
     return (
       Object.keys(validation.fieldErrors).length === 0 &&
       !validation.marketplaceError &&
@@ -357,8 +358,7 @@ export const ProductWizardForm: React.FC<ProductWizardFormProps> = ({
   const applyDraft = (fields: Array<keyof ProductFormValues>) => {
     if (!draft) return;
     if (fields.includes('costPrice') || fields.includes('sellingPrice')) {
-      setBelowCostConfirmed(false);
-      setBelowCostConfirmationError(false);
+      belowCostConfirmation.resetForField('costPrice');
     }
     setValues((prev) => {
       const next = { ...prev };
@@ -389,7 +389,8 @@ export const ProductWizardForm: React.FC<ProductWizardFormProps> = ({
   const handleFinish = () => {
     for (let step = 0; step <= 4; step += 1) {
       const validation = validationFor(step);
-      const pricingNeedsConfirmation = step === 2 && belowCostConfirmationRequired(values, belowCostConfirmed);
+      const pricingNeedsConfirmation =
+        step === 2 && belowCostConfirmationRequired(values, belowCostConfirmation.confirmed);
       if (
         Object.keys(validation.fieldErrors).length > 0 ||
         validation.marketplaceError ||
@@ -397,7 +398,7 @@ export const ProductWizardForm: React.FC<ProductWizardFormProps> = ({
       ) {
         setErrors(validation.fieldErrors);
         setMarketplaceError(validation.marketplaceError ?? null);
-        setBelowCostConfirmationError(pricingNeedsConfirmation);
+        belowCostConfirmation.setHasError(pricingNeedsConfirmation);
         setActiveStep(step);
         return;
       }
@@ -549,21 +550,12 @@ export const ProductWizardForm: React.FC<ProductWizardFormProps> = ({
               before publishing.
             </Alert>
             {warning && (
-              <Alert severity={belowCostConfirmationError ? 'error' : 'warning'}>
-                {warning}
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={belowCostConfirmed}
-                      onChange={(event) => {
-                        setBelowCostConfirmed(event.target.checked);
-                        setBelowCostConfirmationError(false);
-                      }}
-                    />
-                  }
-                  label="I confirm this product may be sold below cost."
-                />
-              </Alert>
+              <BelowCostConfirmationAlert
+                warning={warning}
+                confirmed={belowCostConfirmation.confirmed}
+                hasError={belowCostConfirmation.hasError}
+                onConfirmedChange={belowCostConfirmation.changeConfirmed}
+              />
             )}
           </Stack>
         )}

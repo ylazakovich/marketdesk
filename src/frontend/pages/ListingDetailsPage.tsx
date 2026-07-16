@@ -1,6 +1,6 @@
 // Product / listing detail: gallery, attributes, per-marketplace listings,
 // price editing (PricingForm), publish + relist actions, and price history.
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -249,8 +249,12 @@ const ListingDetailsPage: React.FC = () => {
   } | null>(null);
   const [quotaOverrideAccepted, setQuotaOverrideAccepted] = useState(false);
   const [quotaOverrideReason, setQuotaOverrideReason] = useState('');
+  const [previewingPublication, setPreviewingPublication] = useState(false);
+  const [submittingPublication, setSubmittingPublication] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
   const consumedNavigationReview = useRef<string | null>(null);
+  const previewInFlight = useRef(false);
+  const submissionInFlight = useRef(false);
 
   const listingItems = listings.data ?? [];
   const listingMarketplaceIds = new Set(listingItems.map((listing) => listing.marketplaceId));
@@ -267,6 +271,14 @@ const ListingDetailsPage: React.FC = () => {
     : 'Marketplace';
   const remoteMarketplace = remoteMarketplacePresentation(primaryListing, primaryMarketplaceName);
   const recommendations = selectProductRecommendations(hermesEvents.data?.items ?? [], productId);
+  const publicationBusy = previewingPublication || submittingPublication || publishing || relisting;
+
+  const closePublicationReview = () => {
+    if (publicationBusy) return;
+    setPublishCandidate(null);
+    setQuotaOverrideAccepted(false);
+    setQuotaOverrideReason('');
+  };
 
   const refreshAfterRecommendation = async () => {
     await Promise.all([hermesEvents.refetch(), product.refetch(), listings.refetch()]);
@@ -311,30 +323,31 @@ const ListingDetailsPage: React.FC = () => {
     }
   };
 
-  const handleRelist = async (listing: Listing) => {
+  const beginPublicationReview = useCallback(async (
+    listing: Listing,
+    mode: 'publish' | 'relist',
+  ) => {
+    if (previewInFlight.current || submissionInFlight.current) return;
+    previewInFlight.current = true;
+    setPreviewingPublication(true);
     try {
       const preview = await publishListingPreview(listing.id).unwrap();
       setQuotaOverrideAccepted(false);
       setQuotaOverrideReason('');
-      setPublishCandidate({ listing, preview, mode: 'relist' });
+      setPublishCandidate({ listing, preview, mode });
     } catch (err) {
       dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
+    } finally {
+      previewInFlight.current = false;
+      setPreviewingPublication(false);
     }
-  };
+  }, [dispatch, publishListingPreview]);
 
-  const handlePublish = async (listing: Listing) => {
-    try {
-      const preview = await publishListingPreview(listing.id).unwrap();
-      setQuotaOverrideAccepted(false);
-      setQuotaOverrideReason('');
-      setPublishCandidate({ listing, preview, mode: 'publish' });
-    } catch (err) {
-      dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
-    }
-  };
+  const handleRelist = (listing: Listing) => void beginPublicationReview(listing, 'relist');
+  const handlePublish = (listing: Listing) => void beginPublicationReview(listing, 'publish');
 
   const handleConfirmPublish = async () => {
-    if (!publishCandidate) return;
+    if (!publishCandidate || submissionInFlight.current) return;
     const input = buildPublishListingInput(
       publishCandidate.listing.id,
       publishCandidate.preview,
@@ -342,6 +355,8 @@ const ListingDetailsPage: React.FC = () => {
       quotaOverrideReason,
     );
     if (!input) return;
+    submissionInFlight.current = true;
+    setSubmittingPublication(true);
     try {
       if (publishCandidate.mode === 'relist') {
         await relistListing(input).unwrap();
@@ -359,6 +374,9 @@ const ListingDetailsPage: React.FC = () => {
       setQuotaOverrideReason('');
     } catch (err) {
       dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
+    } finally {
+      submissionInFlight.current = false;
+      setSubmittingPublication(false);
     }
   };
 
@@ -373,7 +391,9 @@ const ListingDetailsPage: React.FC = () => {
     const reviewKey = `${review.mode}:${review.listingId}`;
     if (
       consumedNavigationReview.current === reviewKey ||
+      publicationBusy ||
       listings.isLoading ||
+      listings.isFetching ||
       listings.isError
     ) return;
     consumedNavigationReview.current = reviewKey;
@@ -386,25 +406,17 @@ const ListingDetailsPage: React.FC = () => {
       }));
       return;
     }
-    void publishListingPreview(listing.id)
-      .unwrap()
-      .then((preview) => {
-        setQuotaOverrideAccepted(false);
-        setQuotaOverrideReason('');
-        setPublishCandidate({ listing, preview, mode: 'relist' });
-      })
-      .catch((err) => {
-        dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
-      });
+    void beginPublicationReview(listing, 'relist');
   }, [
-    dispatch,
+    beginPublicationReview,
     listingItems,
     listings.isError,
+    listings.isFetching,
     listings.isLoading,
     location.pathname,
     location.state,
     navigate,
-    publishListingPreview,
+    publicationBusy,
   ]);
 
   if (product.isError) {
@@ -606,6 +618,7 @@ const ListingDetailsPage: React.FC = () => {
               onRowClick={(l) => setPriceListing(l)}
               onRelist={handleRelist}
               onPublish={handlePublish}
+              actionsDisabled={publicationBusy}
             />
           </Card>
 
@@ -705,11 +718,8 @@ const ListingDetailsPage: React.FC = () => {
 
       <Modal
         open={Boolean(publishCandidate)}
-        onClose={() => {
-          setPublishCandidate(null);
-          setQuotaOverrideAccepted(false);
-          setQuotaOverrideReason('');
-        }}
+        onClose={closePublicationReview}
+        closeDisabled={publicationBusy}
         title={
           publishCandidate?.preview.canPublish
             ? 'Confirm publication request'
@@ -721,18 +731,13 @@ const ListingDetailsPage: React.FC = () => {
         maxWidth="xs"
         actions={
           <Stack direction="row" spacing={1}>
-            <Button variant="outlined" onClick={() => {
-              setPublishCandidate(null);
-              setQuotaOverrideAccepted(false);
-              setQuotaOverrideReason('');
-            }}>
+            <Button variant="outlined" disabled={publicationBusy} onClick={closePublicationReview}>
               Close
             </Button>
             <Button
               variant="contained"
               disabled={
-                publishing ||
-                relisting ||
+                publicationBusy ||
                 !publishCandidate ||
                 buildPublishListingInput(
                   publishCandidate.listing.id,
@@ -766,6 +771,7 @@ const ListingDetailsPage: React.FC = () => {
                   control={
                     <Checkbox
                       checked={quotaOverrideAccepted}
+                      disabled={publicationBusy}
                       onChange={(event) => setQuotaOverrideAccepted(event.target.checked)}
                     />
                   }
@@ -774,6 +780,7 @@ const ListingDetailsPage: React.FC = () => {
                 <TextField
                   label="Reason for quota override"
                   value={quotaOverrideReason}
+                  disabled={publicationBusy}
                   onChange={(event) => setQuotaOverrideReason(event.target.value)}
                   required
                   multiline

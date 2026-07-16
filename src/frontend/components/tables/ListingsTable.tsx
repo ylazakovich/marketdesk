@@ -35,6 +35,7 @@ export interface ListingsTableProps {
   resolveMarketplaceName?: (marketplaceId: string) => string;
   currency?: string;
   emptyAction?: React.ReactNode;
+  actionsDisabled?: boolean;
 }
 
 const HEAD_CELLS = ['Listing', 'Status', 'Price', 'Views', 'Watchers', 'Messages', ''];
@@ -51,6 +52,7 @@ export const ListingsTable: React.FC<ListingsTableProps> = ({
   resolveMarketplaceName,
   currency,
   emptyAction,
+  actionsDisabled = false,
 }) => {
   if (error) return <ErrorRetry error={error} onRetry={onRetry} />;
 
@@ -172,6 +174,7 @@ export const ListingsTable: React.FC<ListingsTableProps> = ({
                       <Tooltip title="Publish">
                         <IconButton
                           size="small"
+                          disabled={actionsDisabled}
                           onClick={(e) => {
                             e.stopPropagation();
                             onPublish(listing);
@@ -185,6 +188,7 @@ export const ListingsTable: React.FC<ListingsTableProps> = ({
                       <Tooltip title="Relist">
                         <IconButton
                           size="small"
+                          disabled={actionsDisabled}
                           onClick={(e) => {
                             e.stopPropagation();
                             onRelist(listing);

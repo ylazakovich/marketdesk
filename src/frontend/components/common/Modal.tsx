@@ -22,6 +22,7 @@ export interface ModalProps {
   maxWidth?: Breakpoint | false;
   fullWidth?: boolean;
   dividers?: boolean;
+  closeDisabled?: boolean;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -34,8 +35,14 @@ export const Modal: React.FC<ModalProps> = ({
   maxWidth = 'sm',
   fullWidth = true,
   dividers = true,
+  closeDisabled = false,
 }) => (
-  <Dialog open={open} onClose={onClose} maxWidth={maxWidth} fullWidth={fullWidth}>
+  <Dialog
+    open={open}
+    onClose={closeDisabled ? undefined : onClose}
+    maxWidth={maxWidth}
+    fullWidth={fullWidth}
+  >
     {(title || subtitle) && (
       <DialogTitle component="div" sx={{ pr: 6 }}>
         <Stack direction="row" alignItems="flex-start" justifyContent="space-between">
@@ -55,6 +62,7 @@ export const Modal: React.FC<ModalProps> = ({
         <IconButton
           aria-label="Close"
           onClick={onClose}
+          disabled={closeDisabled}
           sx={{ position: 'absolute', right: 12, top: 12, color: 'text.secondary' }}
         >
           <CloseIcon />

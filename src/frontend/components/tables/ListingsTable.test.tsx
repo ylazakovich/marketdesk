@@ -90,3 +90,21 @@ describe('ListingsTable external marketplace link', () => {
     expect(html).not.toContain('View on OLX');
   });
 });
+
+describe('ListingsTable publication actions', () => {
+  it('disables publish and relist actions while another publication request is in flight', () => {
+    const html = renderToStaticMarkup(
+      <ListingsTable
+        listings={[
+          listing({ id: 'draft', status: 'draft' }),
+          listing({ id: 'expired', status: 'expired' }),
+        ]}
+        onPublish={() => undefined}
+        onRelist={() => undefined}
+        actionsDisabled
+      />,
+    );
+
+    expect(html.match(/disabled=""/g)).toHaveLength(2);
+  });
+});

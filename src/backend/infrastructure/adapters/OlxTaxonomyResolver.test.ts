@@ -90,6 +90,16 @@ describe('OlxTaxonomyResolver', () => {
       { id: 1979, name: 'Sprzęt video', parent_id: 99, is_leaf: true },
       { id: 1984, name: 'Projektory', parent_id: 1979, is_leaf: true },
     ]],
+    ['a string zero root sentinel', [
+      { id: 99, name: 'Elektronika', parent_id: '0', is_leaf: false },
+      { id: 1979, name: 'Sprzęt video', parent_id: 99, is_leaf: false },
+      { id: 1984, name: 'Projektory', parent_id: 1979, is_leaf: true },
+    ]],
+    ['conflicting target leaf claims', [
+      { id: 99, name: 'Elektronika', parent_id: 0, is_leaf: false },
+      { id: 1979, name: 'Sprzęt video', parent_id: 99, is_leaf: false },
+      { id: 1984, name: 'Projektory', parent_id: 1979, leaf: true, is_leaf: false },
+    ]],
     ['a noncanonical parent id', [
       { id: 1979, name: 'Sprzęt video', parent_id: 0, is_leaf: false },
       { id: 1984, name: 'Projektory', parent_id: '01979', is_leaf: true },
@@ -117,7 +127,9 @@ describe('OlxTaxonomyResolver', () => {
   it.each([
     ['a client-supplied non-numeric id', 'projectors', { id: 2000, name: 'Projectors', path: ['Electronics', 'Projectors'], leaf: true }],
     ['a client-supplied noncanonical id', '02000', { id: 2000, name: 'Projectors', path: ['Electronics', 'Projectors'], leaf: true }],
+    ['a whitespace-padded client id', ' 2000 ', { id: 2000, name: 'Projectors', path: ['Electronics', 'Projectors'], leaf: true }],
     ['a mismatched provider id', '2000', { id: 9999, name: 'Projectors', path: ['Electronics', 'Projectors'], leaf: true }],
+    ['conflicting detail leaf claims', '2000', { id: 2000, name: 'Projectors', path: ['Electronics', 'Projectors'], leaf: true, is_leaf: false }],
     ['a non-leaf category', '2000', { id: 2000, name: 'Video', path: ['Electronics', 'Video'], leaf: false }],
     ['an incomplete path', '2000', { id: 2000, name: 'Projectors', leaf: true }],
   ])('rejects %s', async (_label, id, response) => {

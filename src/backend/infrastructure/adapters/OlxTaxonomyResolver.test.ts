@@ -39,7 +39,7 @@ describe('OlxTaxonomyResolver', () => {
       data: url.endsWith('/categories/1984')
         ? { id: 1984, name: 'Projektory', is_leaf: true }
         : { data: [
-            { id: 99, name: 'Elektronika', parent_id: null, is_leaf: false },
+            { id: 99, name: 'Elektronika', parent_id: 0, is_leaf: false },
             { id: 1979, name: 'Sprzęt video', parent_id: 99, is_leaf: false },
             { id: 1984, name: 'Projektory', parent_id: 1979, is_leaf: true },
           ] },
@@ -71,6 +71,18 @@ describe('OlxTaxonomyResolver', () => {
       { id: 1979, name: 'Sprzęt video', parent_id: 1984, is_leaf: false },
       { id: 1984, name: 'Projektory', parent_id: 1979, is_leaf: true },
     ]],
+    ['an intermediate node without parent_id', [
+      { id: 1979, name: 'Sprzęt video', is_leaf: false },
+      { id: 1984, name: 'Projektory', parent_id: 1979, is_leaf: true },
+    ]],
+    ['a noncanonical parent id', [
+      { id: 1979, name: 'Sprzęt video', parent_id: 0, is_leaf: false },
+      { id: 1984, name: 'Projektory', parent_id: '01979', is_leaf: true },
+    ]],
+    ['a zero category node id', [
+      { id: 0, name: 'Elektronika', parent_id: 0, is_leaf: false },
+      { id: 1984, name: 'Projektory', parent_id: 0, is_leaf: true },
+    ]],
   ])('rejects flat taxonomy with %s', async (_label, categories) => {
     const request = jest.fn(async ({ url }: { url: string }) => ({
       status: 200,
@@ -89,6 +101,7 @@ describe('OlxTaxonomyResolver', () => {
 
   it.each([
     ['a client-supplied non-numeric id', 'projectors', { id: 2000, name: 'Projectors', path: ['Electronics', 'Projectors'], leaf: true }],
+    ['a client-supplied noncanonical id', '02000', { id: 2000, name: 'Projectors', path: ['Electronics', 'Projectors'], leaf: true }],
     ['a mismatched provider id', '2000', { id: 9999, name: 'Projectors', path: ['Electronics', 'Projectors'], leaf: true }],
     ['a non-leaf category', '2000', { id: 2000, name: 'Video', path: ['Electronics', 'Video'], leaf: false }],
     ['an incomplete path', '2000', { id: 2000, name: 'Projectors', leaf: true }],

@@ -32,8 +32,8 @@ export class OlxTaxonomyResolver implements OlxTrustedTaxonomyResolver {
   }
 
   async verify(providerCategoryId: string): Promise<MarketplaceCategoryMetadata> {
-    const id = providerCategoryId.trim();
-    if (!/^\d+$/.test(id) || Number(id) <= 0) {
+    const id = this.canonicalCategoryId(providerCategoryId.trim());
+    if (!id) {
       throw new Error('OLX category id must be a positive numeric provider id');
     }
     if (!Number.isSafeInteger(this.ttlMs) || this.ttlMs <= 0 || this.ttlMs > 24 * 60 * 60 * 1000) {
@@ -107,8 +107,8 @@ export class OlxTaxonomyResolver implements OlxTrustedTaxonomyResolver {
     if (!Array.isArray(nodes)) return [];
     const byId = new Map<string, OlxCategoryNode>();
     for (const node of nodes) {
-      const nodeId = String(node?.id ?? '');
-      if (!/^\d+$/.test(nodeId) || byId.has(nodeId)) return [];
+      const nodeId = this.canonicalCategoryId(node?.id);
+      if (!nodeId || byId.has(nodeId)) return [];
       byId.set(nodeId, node);
     }
     const target = byId.get(id);
@@ -127,10 +127,20 @@ export class OlxTaxonomyResolver implements OlxTrustedTaxonomyResolver {
       visited.add(currentId);
       path.unshift(currentName);
       depth += 1;
-      if (current.parent_id === null || current.parent_id === undefined) break;
-      current = byId.get(String(current.parent_id));
+      if (current.parent_id === null || current.parent_id === 0 || current.parent_id === '0') break;
+      if (current.parent_id === undefined) return [];
+      const parentId = this.canonicalCategoryId(current.parent_id);
+      if (!parentId) return [];
+      current = byId.get(parentId);
       if (!current) return [];
     }
     return path.length > 1 ? path : [];
+  }
+
+  private canonicalCategoryId(value: unknown): string | null {
+    if (typeof value === 'number') {
+      return Number.isSafeInteger(value) && value > 0 ? String(value) : null;
+    }
+    return typeof value === 'string' && /^[1-9]\d*$/.test(value) ? value : null;
   }
 }

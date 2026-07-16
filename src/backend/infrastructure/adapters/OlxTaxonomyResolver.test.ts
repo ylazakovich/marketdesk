@@ -33,6 +33,60 @@ describe('OlxTaxonomyResolver', () => {
     });
   });
 
+  it('reconstructs a complete path from the authenticated flat taxonomy', async () => {
+    const request = jest.fn(async ({ url }: { url: string }) => ({
+      status: 200,
+      data: url.endsWith('/categories/1984')
+        ? { id: 1984, name: 'Projektory', is_leaf: true }
+        : { data: [
+            { id: 99, name: 'Elektronika', parent_id: null, is_leaf: false },
+            { id: 1979, name: 'Sprzęt video', parent_id: 99, is_leaf: false },
+            { id: 1984, name: 'Projektory', parent_id: 1979, is_leaf: true },
+          ] },
+    }));
+    const resolver = new OlxTaxonomyResolver(
+      { request: request as MarketplaceHttpClient['request'] },
+      'https://example.test/api',
+      () => now,
+    );
+
+    await expect(resolver.verify('1984')).resolves.toMatchObject({
+      providerCategoryId: '1984',
+      name: 'Projektory',
+      path: ['Elektronika', 'Sprzęt video', 'Projektory'],
+      isLeaf: true,
+      source: 'provider_taxonomy',
+    });
+    expect(request).toHaveBeenNthCalledWith(2, {
+      method: 'GET',
+      url: 'https://example.test/api/categories',
+    });
+  });
+
+  it.each([
+    ['a missing parent', [
+      { id: 1984, name: 'Projektory', parent_id: 1979, is_leaf: true },
+    ]],
+    ['a cyclic parent graph', [
+      { id: 1979, name: 'Sprzęt video', parent_id: 1984, is_leaf: false },
+      { id: 1984, name: 'Projektory', parent_id: 1979, is_leaf: true },
+    ]],
+  ])('rejects flat taxonomy with %s', async (_label, categories) => {
+    const request = jest.fn(async ({ url }: { url: string }) => ({
+      status: 200,
+      data: url.endsWith('/categories/1984')
+        ? { id: 1984, name: 'Projektory', is_leaf: true }
+        : { data: categories },
+    }));
+    const resolver = new OlxTaxonomyResolver(
+      { request: request as MarketplaceHttpClient['request'] },
+      undefined,
+      () => now,
+    );
+
+    await expect(resolver.verify('1984')).rejects.toThrow('complete category path');
+  });
+
   it.each([
     ['a client-supplied non-numeric id', 'projectors', { id: 2000, name: 'Projectors', path: ['Electronics', 'Projectors'], leaf: true }],
     ['a mismatched provider id', '2000', { id: 9999, name: 'Projectors', path: ['Electronics', 'Projectors'], leaf: true }],

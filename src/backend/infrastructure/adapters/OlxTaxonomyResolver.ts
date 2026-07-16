@@ -9,6 +9,7 @@ interface OlxCategoryNode {
   is_leaf?: boolean;
   children?: unknown[];
   parent?: OlxCategoryNode | null;
+  parent_id?: string | number | null;
 }
 
 interface OlxEnvelope<T> { data: T }
@@ -48,7 +49,8 @@ export class OlxTaxonomyResolver implements OlxTrustedTaxonomyResolver {
     if (!name) throw new Error('OLX taxonomy category name is missing');
     const isLeaf = node.leaf ?? node.is_leaf ?? (Array.isArray(node.children) ? node.children.length === 0 : undefined);
     if (isLeaf !== true) throw new Error('OLX category is not a verified leaf category');
-    const path = this.path(node, name);
+    let path = this.path(node, name);
+    if (path.length === 0) path = await this.pathFromFlatTaxonomy(id, name);
     if (path.length === 0 || path[path.length - 1] !== name) {
       throw new Error('OLX taxonomy did not return a complete category path');
     }
@@ -93,5 +95,42 @@ export class OlxTaxonomyResolver implements OlxTrustedTaxonomyResolver {
       current = current.parent;
     }
     return parents.length > 0 ? [...parents, name] : [];
+  }
+
+  private async pathFromFlatTaxonomy(id: string, expectedName: string): Promise<string[]> {
+    const response = await this.http.request<OlxCategoryNode[] | OlxEnvelope<OlxCategoryNode[]>>({
+      method: 'GET',
+      url: `${this.baseUrl}/categories`,
+    });
+    const value = response.data;
+    const nodes = Array.isArray(value) ? value : value?.data;
+    if (!Array.isArray(nodes)) return [];
+    const byId = new Map<string, OlxCategoryNode>();
+    for (const node of nodes) {
+      const nodeId = String(node?.id ?? '');
+      if (!/^\d+$/.test(nodeId) || byId.has(nodeId)) return [];
+      byId.set(nodeId, node);
+    }
+    const target = byId.get(id);
+    const targetLeaf = target?.leaf ?? target?.is_leaf
+      ?? (Array.isArray(target?.children) ? target.children.length === 0 : undefined);
+    if (target?.name?.trim() !== expectedName || targetLeaf !== true) return [];
+
+    const path: string[] = [];
+    const visited = new Set<string>();
+    let current: OlxCategoryNode | undefined = target;
+    let depth = 0;
+    while (current) {
+      const currentId = String(current.id ?? '');
+      const currentName = current.name?.trim();
+      if (!currentId || !currentName || visited.has(currentId) || depth >= 32) return [];
+      visited.add(currentId);
+      path.unshift(currentName);
+      depth += 1;
+      if (current.parent_id === null || current.parent_id === undefined) break;
+      current = byId.get(String(current.parent_id));
+      if (!current) return [];
+    }
+    return path.length > 1 ? path : [];
   }
 }

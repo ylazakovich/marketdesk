@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.10.0](https://github.com/ylazakovich/hermes-marketdesk/compare/hermes-marketdesk-v0.9.0...hermes-marketdesk-v0.10.0) (2026-07-16)
+
+
+### ✨ Features
+
+* **hermes:** define canonical event lifecycle ([#186](https://github.com/ylazakovich/hermes-marketdesk/issues/186)) ([64d1a64](https://github.com/ylazakovich/hermes-marketdesk/commit/64d1a64e9b27f551222ab8adcff2d1832f1f3f83))
+* **olx:** add quota-aware zero-spend publish guard ([#167](https://github.com/ylazakovich/hermes-marketdesk/issues/167)) ([14f6633](https://github.com/ylazakovich/hermes-marketdesk/commit/14f66334a4a2bf29f8a2e871ffae05cc6796cd48))
+* **products:** add wizard image uploads ([#183](https://github.com/ylazakovich/hermes-marketdesk/issues/183)) ([6c844e9](https://github.com/ylazakovich/hermes-marketdesk/commit/6c844e968ff8b4ede01b3f5ab5d77a8d2caee0de))
+* **products:** add workspace image upload API ([#182](https://github.com/ylazakovich/hermes-marketdesk/issues/182)) ([be08fbe](https://github.com/ylazakovich/hermes-marketdesk/commit/be08fbe3764698bf71a23f3825b952e4255ee94f))
+* **wizard:** autosave product drafts ([#181](https://github.com/ylazakovich/hermes-marketdesk/issues/181)) ([243448d](https://github.com/ylazakovich/hermes-marketdesk/commit/243448d7910577ef8d34fe958c6d8b232e086c90))
+
+
+### 🐛 Bug Fixes
+
+* **olx:** deliver applied Hermes changes to live adverts ([#168](https://github.com/ylazakovich/hermes-marketdesk/issues/168)) ([c920f12](https://github.com/ylazakovich/hermes-marketdesk/commit/c920f1222b017138034b1879bbaeb30227ebf80b))
+* **olx:** use revision CAS for token refresh ([#187](https://github.com/ylazakovich/hermes-marketdesk/issues/187)) ([9d051ee](https://github.com/ylazakovich/hermes-marketdesk/commit/9d051eef7aa16da869aafeb05db21004188d8c78))
+* **product:** center full-size image preview ([#166](https://github.com/ylazakovich/hermes-marketdesk/issues/166)) ([a9a7091](https://github.com/ylazakovich/hermes-marketdesk/commit/a9a7091fc8b8c7366733809e8651b87e9dd7082c))
+* **product:** connect recommendations and marketplace status ([#163](https://github.com/ylazakovich/hermes-marketdesk/issues/163)) ([5f5f120](https://github.com/ylazakovich/hermes-marketdesk/commit/5f5f120ec407b7abc03ae85f877cef85675eb17b))
+* **products:** require below-cost confirmation ([#184](https://github.com/ylazakovich/hermes-marketdesk/issues/184)) ([8ddff61](https://github.com/ylazakovich/hermes-marketdesk/commit/8ddff618283c56e4c57579a34ef7497ee2019c25))
+* **ui:** restore canonical application shell ([#176](https://github.com/ylazakovich/hermes-marketdesk/issues/176)) ([04540e6](https://github.com/ylazakovich/hermes-marketdesk/commit/04540e660958138b94192846e8171b4620da2bae))
+* **wizard:** validate required creation steps ([#180](https://github.com/ylazakovich/hermes-marketdesk/issues/180)) ([8451fe7](https://github.com/ylazakovich/hermes-marketdesk/commit/8451fe778b8c79687d16de6aaf92dc101084d14a))
+
+
+### 📚 Documentation
+
+* **architecture:** consolidate review decisions ([#185](https://github.com/ylazakovich/hermes-marketdesk/issues/185)) ([6fadcd6](https://github.com/ylazakovich/hermes-marketdesk/commit/6fadcd6a9922ceb412baca4cad3d8425da00188f))
+* **product:** restore PRD traceability gates ([#175](https://github.com/ylazakovich/hermes-marketdesk/issues/175)) ([952258a](https://github.com/ylazakovich/hermes-marketdesk/commit/952258af4d274bc4eba2afc32d90f1365250d488))
+
 ## [0.9.0](https://github.com/ylazakovich/hermes-marketdesk/compare/hermes-marketdesk-v0.8.0...hermes-marketdesk-v0.9.0) (2026-07-15)
 
 

@@ -31,6 +31,14 @@ export interface PaginationMeta {
 
 // Map a DomainError (or arbitrary error) to an HTTP status code (§5 / §19).
 export function statusForError(error: unknown): number {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'type' in error &&
+    error.type === 'entity.too.large'
+  ) {
+    return 413;
+  }
   if (error instanceof DomainError) {
     switch (error.code) {
       case 'VALIDATION_ERROR':
@@ -52,6 +60,17 @@ export function statusForError(error: unknown): number {
 }
 
 export function toErrorBody(error: unknown): ErrorBody {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'type' in error &&
+    error.type === 'entity.too.large'
+  ) {
+    return {
+      code: ERROR_CODES.PAYLOAD_TOO_LARGE,
+      message: 'Request body exceeds the configured limit',
+    };
+  }
   if (error instanceof DomainError) {
     return {
       code: error.code,

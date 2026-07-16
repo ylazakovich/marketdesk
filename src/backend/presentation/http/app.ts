@@ -8,6 +8,7 @@ import cors, { type CorsOptions } from 'cors';
 import helmet from 'helmet';
 import compression from 'compression';
 import crypto from 'crypto';
+import path from 'path';
 
 import type { ProductApplicationService } from '../../application/services/ProductApplicationService';
 import { ProductAIDraftService } from '../../application/services/ProductAIDraftService';
@@ -22,9 +23,12 @@ import type { IPriceHistoryReader } from '../../application/ports/IPriceHistoryR
 import type { IPriceHistoryRecorder } from '../../application/ports/IPriceHistoryRecorder';
 import type { IdGenerator } from '../../application/ports/IdGenerator';
 import type { IAuthUserStore } from './ports/IAuthUserStore';
+import type { ProductImageUploadService } from '../../application/services/ProductImageUploadService';
 
 import { NotFoundError } from '../../domain/shared/DomainError';
-import { isProduction } from '../../config/env';
+import { env, isProduction } from '../../config/env';
+import { ProductImageUploadService as DefaultProductImageUploadService } from '../../application/services/ProductImageUploadService';
+import { FilesystemProductImageStorage } from '../../infrastructure/storage/FilesystemProductImageStorage';
 import { ProductController } from './controllers/ProductController';
 import { ListingController } from './controllers/ListingController';
 import { MarketplaceController } from './controllers/MarketplaceController';
@@ -32,6 +36,7 @@ import { HermesController } from './controllers/HermesController';
 import { AnalyticsController } from './controllers/AnalyticsController';
 import { WorkspaceController } from './controllers/WorkspaceController';
 import { AuthController } from './controllers/AuthController';
+import { ProductImageUploadController } from './controllers/ProductImageUploadController';
 import type { MarketplaceOAuthService } from '../../application/services/MarketplaceOAuthService';
 import type { MarketplaceSyncScheduler } from '../../application/services/MarketplaceSyncScheduler';
 import type { MarketplaceImportService } from '../../application/services/MarketplaceImportService';
@@ -56,6 +61,7 @@ export interface AppDeps {
   marketplaceOAuthReturnUrl: string;
   workspaceRepo: IWorkspaceRepository;
   authUserStore: IAuthUserStore;
+  productImageUploadService?: ProductImageUploadService;
   // Optional ports (graceful degradation until wired).
   priceHistoryReader?: IPriceHistoryReader;
   priceHistoryRecorder?: IPriceHistoryRecorder;
@@ -66,6 +72,7 @@ export interface AppDeps {
 export interface AppOptions {
   enableRateLimit?: boolean;
   corsOrigin?: string;
+  maxUploadFileSize?: number;
 }
 
 const DEFAULT_CORS_ORIGIN = 'http://localhost:5173';
@@ -134,6 +141,20 @@ export function createCorsOptions(originConfig: string | undefined, isProd = isP
 
 export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
   const app = express();
+  const maxUploadFileSize = options.maxUploadFileSize ?? env.upload.maxFileSize;
+  const productImageUploadService =
+    deps.productImageUploadService ??
+    new DefaultProductImageUploadService(
+      new FilesystemProductImageStorage(
+        path.resolve(process.cwd(), env.upload.uploadDir),
+        crypto.randomUUID,
+        {
+          maxWorkspaceBytes: env.upload.maxWorkspaceBytes,
+          maxWorkspaceFiles: env.upload.maxWorkspaceFiles,
+        },
+      ),
+      maxUploadFileSize,
+    );
 
   app.use(helmet(HELMET_OPTIONS));
   app.use(compression());
@@ -177,11 +198,15 @@ export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
     hermes: new HermesController(deps.hermesService),
     analytics: new AnalyticsController(deps.analyticsService),
     workspaces: new WorkspaceController(deps.workspaceRepo),
+    uploads: new ProductImageUploadController(productImageUploadService),
   };
 
   app.use(
     '/api',
-    createApiRouter(controllers, { enableRateLimit: options.enableRateLimit }),
+    createApiRouter(controllers, {
+      enableRateLimit: options.enableRateLimit,
+      maxUploadFileSize,
+    }),
   );
 
   // Unmatched /api route -> 404 envelope via the central error handler.

@@ -11,6 +11,7 @@ import type { MarketplaceController } from '../controllers/MarketplaceController
 import type { HermesController } from '../controllers/HermesController';
 import type { AnalyticsController } from '../controllers/AnalyticsController';
 import type { WorkspaceController } from '../controllers/WorkspaceController';
+import type { ProductImageUploadController } from '../controllers/ProductImageUploadController';
 import { authMiddleware, requireWorkspace } from '../middleware/AuthMiddleware';
 import {
   publicRateLimiter,
@@ -24,6 +25,7 @@ import { createMarketplaceRoutes } from './marketplaces';
 import { createHermesRoutes } from './hermes';
 import { createAnalyticsRoutes } from './analytics';
 import { createWorkspaceRoutes } from './workspaces';
+import { createUploadRoutes } from './uploads';
 import { asyncHandler } from '../middleware/asyncHandler';
 
 export interface ApiControllers {
@@ -34,11 +36,13 @@ export interface ApiControllers {
   hermes: HermesController;
   analytics: AnalyticsController;
   workspaces: WorkspaceController;
+  uploads: ProductImageUploadController;
 }
 
 export interface ApiRouterOptions {
   // Rate limiting is stateful across requests; disable it for tests.
   enableRateLimit?: boolean;
+  maxUploadFileSize?: number;
 }
 
 export function createApiRouter(
@@ -77,6 +81,11 @@ export function createApiRouter(
   api.use('/hermes', ...guard, createHermesRoutes(c.hermes));
   api.use('/analytics', ...guard, createAnalyticsRoutes(c.analytics));
   api.use('/workspaces', ...guard, createWorkspaceRoutes(c.workspaces));
+  api.use(
+    '/uploads',
+    ...guard,
+    createUploadRoutes(c.uploads, options.maxUploadFileSize ?? 52_428_800),
+  );
 
   return api;
 }

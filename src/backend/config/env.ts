@@ -5,11 +5,19 @@ dotenv.config();
 const nodeEnv = process.env.NODE_ENV || 'development';
 const runningInProduction = nodeEnv === 'production';
 
-function optionalPositiveInt(value: string | undefined): number | undefined {
+export function optionalPositiveInt(value: string | undefined): number | undefined {
   if (!value?.trim()) return undefined;
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isInteger(parsed) || parsed <= 0) {
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
     throw new Error(`Expected a positive integer, received: ${value}`);
+  }
+  return parsed;
+}
+
+export function positiveInt(value: string | undefined, fallback: number, name: string): number {
+  const parsed = optionalPositiveInt(value) ?? fallback;
+  if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+    throw new Error(`${name} must be a positive integer`);
   }
   return parsed;
 }
@@ -140,7 +148,17 @@ export const env = {
 
   // File Upload
   upload: {
-    maxFileSize: parseInt(process.env.MAX_FILE_SIZE || '52428800', 10),
+    maxFileSize: positiveInt(process.env.MAX_FILE_SIZE, 52_428_800, 'MAX_FILE_SIZE'),
+    maxWorkspaceBytes: positiveInt(
+      process.env.MAX_UPLOAD_WORKSPACE_BYTES,
+      1_073_741_824,
+      'MAX_UPLOAD_WORKSPACE_BYTES',
+    ),
+    maxWorkspaceFiles: positiveInt(
+      process.env.MAX_UPLOAD_WORKSPACE_FILES,
+      1_200,
+      'MAX_UPLOAD_WORKSPACE_FILES',
+    ),
     uploadDir: process.env.UPLOAD_DIR || './uploads',
   },
 

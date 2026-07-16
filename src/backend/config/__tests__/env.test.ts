@@ -1,7 +1,21 @@
 // S1: the JWT secret resolver must fail-closed in production and return a
 // clearly-marked dev-only value outside production.
 
-import { resolveJwtSecret } from '../env';
+import { positiveInt, resolveJwtSecret } from '../env';
+
+describe('positiveInt', () => {
+  it('returns a configured positive integer or the fallback', () => {
+    expect(positiveInt('4096', 1024, 'MAX_FILE_SIZE')).toBe(4096);
+    expect(positiveInt(undefined, 1024, 'MAX_FILE_SIZE')).toBe(1024);
+  });
+
+  it.each(['abc', '12abc', '0', '-1', '1.5', '9007199254740992'])(
+    'rejects invalid configured value %s',
+    (value) => {
+      expect(() => positiveInt(value, 1024, 'MAX_FILE_SIZE')).toThrow(/positive integer/);
+    },
+  );
+});
 
 describe('resolveJwtSecret (S1 fail-closed JWT secret)', () => {
   describe('production', () => {

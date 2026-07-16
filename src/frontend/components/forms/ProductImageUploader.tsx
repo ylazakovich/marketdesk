@@ -33,7 +33,8 @@ export interface ProductImageUploaderProps {
 }
 
 const ACCEPTED_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
-const UPLOADED_IMAGE_ID = /\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(?:jpg|png|webp)$/i;
+const UPLOADED_IMAGE_ID =
+  /^\/uploads\/workspaces\/[0-9a-f]{24}\/products\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.(?:jpg|png|webp)$/i;
 
 export function uploadedImageId(url: string): string | null {
   return UPLOADED_IMAGE_ID.exec(url)?.[1] ?? null;

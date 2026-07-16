@@ -24,7 +24,7 @@ describe('ProductImageUploader helpers', () => {
   it('extracts only opaque uploaded image ids from durable URLs', () => {
     expect(
       uploadedImageId(
-        '/uploads/workspaces/abc/products/123e4567-e89b-42d3-a456-426614174000.webp'
+        '/uploads/workspaces/0123456789abcdef01234567/products/123e4567-e89b-42d3-a456-426614174000.webp'
       )
     ).toBe('123e4567-e89b-42d3-a456-426614174000');
     expect(uploadedImageId('https://example.com/photo.jpg')).toBeNull();

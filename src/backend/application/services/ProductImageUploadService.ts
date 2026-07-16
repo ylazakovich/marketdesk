@@ -40,15 +40,18 @@ export class ProductImageUploadService {
     if (typeof input.mediaType !== 'string' || !Buffer.isBuffer(input.bytes)) {
       throw new ValidationError('Image request is malformed');
     }
-    if (input.bytes.length === 0) throw new ValidationError('Image body is required');
-    if (input.bytes.length > this.maxFileSize) {
+    // Copy into an application-owned Buffer so downstream code never operates on
+    // an Express request value whose runtime shape can be string/array/buffer.
+    const bytes = Buffer.from(input.bytes);
+    if (bytes.length === 0) throw new ValidationError('Image body is required');
+    if (bytes.length > this.maxFileSize) {
       throw new ValidationError(`Image exceeds the ${this.maxFileSize} byte limit`);
     }
 
     let normalized: Buffer;
     let format: (typeof FORMATS)[string];
     try {
-      const decoder = sharp(input.bytes, {
+      const decoder = sharp(bytes, {
         failOn: 'error',
         limitInputPixels: MAX_INPUT_PIXELS,
       });

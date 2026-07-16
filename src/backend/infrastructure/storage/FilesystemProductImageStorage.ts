@@ -111,20 +111,23 @@ export class FilesystemProductImageStorage implements IProductImageStorage {
     if (!isUuid(imageId)) throw new ValidationError('Invalid image id');
     return this.withWorkspaceLock(workspaceId, async () => {
       const directory = path.resolve(this.uploadDir, 'workspaces', workspaceKey(workspaceId), 'products');
-      let deleted = false;
+      let entries;
+      try {
+        entries = await readdir(directory, { withFileTypes: true });
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;
+        throw error;
+      }
 
-      await Promise.all(
-        EXTENSIONS.map(async (extension) => {
-          try {
-            await unlink(path.join(directory, `${imageId}.${extension}`));
-            deleted = true;
-          } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-          }
-        }),
-      );
-
-      return deleted;
+      // Build deletion paths only from names returned by the filesystem. The
+      // request-provided UUID participates solely in an exact basename match.
+      const matches = entries.filter((entry) => {
+        if (!entry.isFile()) return false;
+        const extension = path.extname(entry.name).slice(1) as ProductImageExtension;
+        return EXTENSIONS.includes(extension) && path.basename(entry.name, `.${extension}`) === imageId;
+      });
+      await Promise.all(matches.map((entry) => unlink(path.join(directory, entry.name))));
+      return matches.length > 0;
     });
   }
 

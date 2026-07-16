@@ -75,6 +75,21 @@ describe('OlxTaxonomyResolver', () => {
       { id: 1979, name: 'Sprzęt video', is_leaf: false },
       { id: 1984, name: 'Projektory', parent_id: 1979, is_leaf: true },
     ]],
+    ['a null parent on an intermediate node', [
+      { id: 1979, name: 'Sprzęt video', parent_id: null, is_leaf: false },
+      { id: 1984, name: 'Projektory', parent_id: 1979, is_leaf: true },
+    ]],
+    ['a child attached to the asserted leaf', [
+      { id: 99, name: 'Elektronika', parent_id: 0, is_leaf: false },
+      { id: 1979, name: 'Sprzęt video', parent_id: 99, is_leaf: false },
+      { id: 1984, name: 'Projektory', parent_id: 1979, is_leaf: true },
+      { id: 3000, name: 'Projector accessories', parent_id: 1984, is_leaf: true },
+    ]],
+    ['an ancestor marked as a leaf', [
+      { id: 99, name: 'Elektronika', parent_id: 0, is_leaf: false },
+      { id: 1979, name: 'Sprzęt video', parent_id: 99, is_leaf: true },
+      { id: 1984, name: 'Projektory', parent_id: 1979, is_leaf: true },
+    ]],
     ['a noncanonical parent id', [
       { id: 1979, name: 'Sprzęt video', parent_id: 0, is_leaf: false },
       { id: 1984, name: 'Projektory', parent_id: '01979', is_leaf: true },

@@ -111,10 +111,16 @@ export class OlxTaxonomyResolver implements OlxTrustedTaxonomyResolver {
       if (!nodeId || byId.has(nodeId)) return [];
       byId.set(nodeId, node);
     }
+    const parentsWithChildren = new Set<string>();
+    for (const node of nodes) {
+      if (node.parent_id === 0 || node.parent_id === '0') continue;
+      const parentId = this.canonicalCategoryId(node.parent_id);
+      if (parentId) parentsWithChildren.add(parentId);
+    }
     const target = byId.get(id);
     const targetLeaf = target?.leaf ?? target?.is_leaf
       ?? (Array.isArray(target?.children) ? target.children.length === 0 : undefined);
-    if (target?.name?.trim() !== expectedName || targetLeaf !== true) return [];
+    if (target?.name?.trim() !== expectedName || targetLeaf !== true || parentsWithChildren.has(id)) return [];
 
     const path: string[] = [];
     const visited = new Set<string>();
@@ -127,8 +133,9 @@ export class OlxTaxonomyResolver implements OlxTrustedTaxonomyResolver {
       visited.add(currentId);
       path.unshift(currentName);
       depth += 1;
-      if (current.parent_id === null || current.parent_id === 0 || current.parent_id === '0') break;
-      if (current.parent_id === undefined) return [];
+      if (currentId !== id && (current.leaf === true || current.is_leaf === true)) return [];
+      if (current.parent_id === 0 || current.parent_id === '0') break;
+      if (current.parent_id === null || current.parent_id === undefined) return [];
       const parentId = this.canonicalCategoryId(current.parent_id);
       if (!parentId) return [];
       current = byId.get(parentId);

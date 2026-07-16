@@ -1,6 +1,10 @@
 import type { Marketplace } from '@shared/types';
 import { emptyProductValues } from './productFormModel';
-import { buildWizardMarketplaceOptions, validateWizardStep } from './ProductWizardForm';
+import {
+  buildWizardMarketplaceOptions,
+  validateWizardStep,
+  verifyWizardMarketplaceReadiness,
+} from './ProductWizardForm';
 
 function marketplace(overrides: Partial<Marketplace> = {}): Marketplace {
   return {
@@ -38,9 +42,17 @@ describe('ProductWizardForm required-step validation', () => {
 
   it('rejects blank photo values and more than twelve photos', () => {
     expect(
-      validateWizardStep(0, { ...validValues(), images: ['  '] }, null, [marketplace()])
-        .fieldErrors.images
-    ).toBe('Add at least one product photo.');
+      validateWizardStep(0, { ...validValues(), images: ['  '] }, null, [marketplace()]).fieldErrors
+        .images
+    ).toBe('Remove blank product photos.');
+    expect(
+      validateWizardStep(
+        0,
+        { ...validValues(), images: ['https://example.com/valid.jpg', ' '] },
+        null,
+        [marketplace()]
+      ).fieldErrors.images
+    ).toBe('Remove blank product photos.');
     expect(
       validateWizardStep(
         0,
@@ -113,5 +125,37 @@ describe('ProductWizardForm marketplace options', () => {
       configured: false,
       connected: false,
     });
+  });
+});
+
+describe('ProductWizardForm authoritative marketplace readiness', () => {
+  it('enables a local connection only after a matching authoritative check', async () => {
+    const connected = marketplace();
+    const check = jest.fn(async (id: string) => ({
+      connected: true,
+      marketplaceId: id,
+      providerKey: 'olx' as const,
+    }));
+
+    const result = await verifyWizardMarketplaceReadiness([connected], check);
+
+    expect(check).toHaveBeenCalledWith('marketplace-olx');
+    expect(result).toEqual({ marketplaces: [connected], hadCheckError: false });
+  });
+
+  it('fails closed for identity mismatch, check failure, and local disconnection', async () => {
+    const disconnected = marketplace({ id: 'marketplace-offline', connected: false });
+    const mismatch = marketplace({ id: 'marketplace-mismatch' });
+    const failed = marketplace({ id: 'marketplace-failed' });
+    const check = jest.fn(async (id: string) => {
+      if (id === failed.id) throw new Error('credentials cannot be decrypted');
+      return { connected: true, marketplaceId: 'other-id', providerKey: 'olx' as const };
+    });
+
+    const result = await verifyWizardMarketplaceReadiness([disconnected, mismatch, failed], check);
+
+    expect(check).toHaveBeenCalledTimes(2);
+    expect(result.marketplaces.every((item) => !item.connected)).toBe(true);
+    expect(result.hadCheckError).toBe(true);
   });
 });

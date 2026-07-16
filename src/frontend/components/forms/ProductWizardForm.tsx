@@ -7,13 +7,19 @@ import {
   Button,
   Checkbox,
   Divider,
+  FormControl,
   FormControlLabel,
   FormHelperText,
+  FormLabel,
   Chip,
+  Radio,
+  RadioGroup,
   Stack,
   Step,
   StepLabel,
   Stepper,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
@@ -86,6 +92,41 @@ export interface WizardStepValidation {
   marketplaceError?: string;
 }
 
+export interface MarketplaceReadinessStatus {
+  connected: boolean;
+  marketplaceId: string;
+  providerKey: MarketplaceKey;
+}
+
+export interface VerifiedMarketplaceResult {
+  marketplaces: Marketplace[];
+  hadCheckError: boolean;
+}
+
+export async function verifyWizardMarketplaceReadiness(
+  marketplaces: Marketplace[],
+  check: (id: string) => Promise<MarketplaceReadinessStatus>
+): Promise<VerifiedMarketplaceResult> {
+  let hadCheckError = false;
+  const verified = await Promise.all(
+    marketplaces.map(async (marketplace) => {
+      if (!marketplace.connected) return marketplace;
+      try {
+        const status = await check(marketplace.id);
+        const connected =
+          status.connected &&
+          status.marketplaceId === marketplace.id &&
+          status.providerKey === marketplace.key;
+        return { ...marketplace, connected };
+      } catch {
+        hadCheckError = true;
+        return { ...marketplace, connected: false };
+      }
+    })
+  );
+  return { marketplaces: verified, hadCheckError };
+}
+
 export function buildWizardMarketplaceOptions(
   marketplaces: Marketplace[] | undefined
 ): WizardMarketplaceOption[] {
@@ -110,7 +151,9 @@ export function validateWizardStep(
 ): WizardStepValidation {
   const all = validateProductValues(values);
   const validImages = values.images.filter((image) => image.trim().length > 0);
-  if (validImages.length === 0) {
+  if (validImages.length !== values.images.length) {
+    all.images = 'Remove blank product photos.';
+  } else if (validImages.length === 0) {
     all.images = 'Add at least one product photo.';
   } else if (validImages.length > 12) {
     all.images = 'Add no more than 12 product photos.';
@@ -475,99 +518,111 @@ export const ProductWizardForm: React.FC<ProductWizardFormProps> = ({
           </Stack>
         )}
         {activeStep === 3 && (
-          <Stack spacing={2}>
-            <Typography variant="subtitle2">Choose category</Typography>
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <FormControl error={Boolean(errors.category)}>
+            <FormLabel id="product-category-label">Choose category</FormLabel>
+            <ToggleButtonGroup
+              exclusive
+              value={values.category || null}
+              onChange={(_event, category: string | null) => {
+                if (category) change('category', category);
+              }}
+              aria-labelledby="product-category-label"
+              aria-describedby={errors.category ? 'product-category-error' : undefined}
+              sx={{ mt: 1, flexWrap: 'wrap', gap: 1 }}
+            >
               {['Electronics', 'Fashion', 'Home and Garden', 'Sports', 'Kitchen', 'Other'].map(
                 (category) => (
-                  <Button
+                  <ToggleButton
                     key={category}
-                    variant={values.category === category ? 'contained' : 'outlined'}
-                    onClick={() => change('category', category)}
+                    value={category}
+                    sx={{ border: 1, borderColor: 'divider', borderRadius: 1 }}
                   >
                     {category}
-                  </Button>
+                  </ToggleButton>
                 )
               )}
-            </Stack>
-            {errors.category && <FormHelperText error>{errors.category}</FormHelperText>}
+            </ToggleButtonGroup>
+            {errors.category && (
+              <FormHelperText id="product-category-error">{errors.category}</FormHelperText>
+            )}
             <Typography variant="caption" color="text.secondary">
               Hermes can suggest the closest category from photos, title, and description; final
               mapping stays editable.
             </Typography>
-          </Stack>
+          </FormControl>
         )}
         {activeStep === 4 && (
-          <Stack spacing={2}>
-            <Typography variant="subtitle2">Marketplaces</Typography>
+          <FormControl error={Boolean(marketplaceError)}>
+            <FormLabel id="target-marketplace-label">Marketplaces</FormLabel>
             {marketplacesLoading && <Alert severity="info">Loading marketplace connections…</Alert>}
             {marketplacesError && (
               <Alert severity="error">Marketplace connections could not be loaded.</Alert>
             )}
-            <Stack spacing={1} role="radiogroup" aria-label="Target marketplace">
+            <RadioGroup
+              value={targetMarketplace ?? ''}
+              onChange={(_event, key) => {
+                setTargetMarketplace(key as MarketplaceKey);
+                setMarketplaceError(null);
+              }}
+              aria-labelledby="target-marketplace-label"
+              aria-describedby={marketplaceError ? 'target-marketplace-error' : undefined}
+              sx={{ mt: 1, gap: 1 }}
+            >
               {marketplaceOptions.map((marketplace) => {
                 const selected = targetMarketplace === marketplace.key;
                 return (
-                  <Box
+                  <FormControlLabel
                     key={marketplace.key}
-                    role="radio"
-                    aria-checked={selected}
-                    aria-disabled={!marketplace.connected}
-                    tabIndex={marketplace.connected ? 0 : -1}
-                    onClick={() => {
-                      if (!marketplace.connected) return;
-                      setTargetMarketplace(marketplace.key);
-                      setMarketplaceError(null);
-                    }}
-                    onKeyDown={(event) => {
-                      if (marketplace.connected && (event.key === 'Enter' || event.key === ' ')) {
-                        event.preventDefault();
-                        setTargetMarketplace(marketplace.key);
-                        setMarketplaceError(null);
-                      }
-                    }}
+                    value={marketplace.key}
+                    disabled={!marketplace.connected}
+                    control={<Radio />}
                     sx={{
+                      m: 0,
                       p: 1.5,
                       borderRadius: 2,
-                      cursor: marketplace.connected ? 'pointer' : 'not-allowed',
                       opacity: marketplace.connected ? 1 : 0.62,
                       border: (t) =>
                         `2px solid ${selected ? t.palette.primary.main : t.palette.divider}`,
                       bgcolor: selected ? 'action.selected' : 'background.paper',
                     }}
-                  >
-                    <Stack
-                      direction="row"
-                      alignItems="center"
-                      justifyContent="space-between"
-                      spacing={1}
-                    >
-                      <Typography variant="body2" sx={{ fontWeight: 700 }}>
-                        {marketplace.name}
-                      </Typography>
-                      {selected ? (
-                        <Chip size="small" color="primary" label="Selected" />
-                      ) : (
-                        <Chip
-                          size="small"
-                          color={marketplace.connected ? 'success' : 'default'}
-                          label={marketplace.connected ? 'Connected' : 'Unavailable'}
-                        />
-                      )}
-                    </Stack>
-                    <Typography variant="caption" color="text.secondary">
-                      {marketplace.connected
-                        ? 'Connected to this workspace and available for publishing.'
-                        : marketplace.configured
-                          ? 'Connect this marketplace from Marketplace settings first.'
-                          : 'This channel is not configured for this workspace yet.'}
-                    </Typography>
-                  </Box>
+                    label={
+                      <Box sx={{ width: '100%' }}>
+                        <Stack
+                          direction="row"
+                          alignItems="center"
+                          justifyContent="space-between"
+                          spacing={1}
+                        >
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                            {marketplace.name}
+                          </Typography>
+                          {selected ? (
+                            <Chip size="small" color="primary" label="Selected" />
+                          ) : (
+                            <Chip
+                              size="small"
+                              color={marketplace.connected ? 'success' : 'default'}
+                              label={marketplace.connected ? 'Connected' : 'Unavailable'}
+                            />
+                          )}
+                        </Stack>
+                        <Typography variant="caption" color="text.secondary">
+                          {marketplace.connected
+                            ? 'Connected to this workspace and available for publishing.'
+                            : marketplace.configured
+                              ? 'Reconnect or verify this marketplace from Marketplace settings.'
+                              : 'This channel is not configured for this workspace yet.'}
+                        </Typography>
+                      </Box>
+                    }
+                  />
                 );
               })}
-            </Stack>
-            {marketplaceError && <FormHelperText error>{marketplaceError}</FormHelperText>}
-          </Stack>
+            </RadioGroup>
+            {marketplaceError && (
+              <FormHelperText id="target-marketplace-error">{marketplaceError}</FormHelperText>
+            )}
+          </FormControl>
         )}
         {activeStep === 5 && (
           <Stack spacing={2}>

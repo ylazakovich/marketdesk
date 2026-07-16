@@ -1,6 +1,6 @@
 // Products catalogue: server-driven filters/sort (RTK Query) + a client search,
 // paginated table, and a "New product" wizard modal.
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Autocomplete,
   Box,
@@ -17,11 +17,12 @@ import type { SelectChangeEvent } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import { useLocation, useNavigate } from 'react-router-dom';
-import type { Product, ProductStatus } from '@shared/types';
+import type { Marketplace, Product, ProductStatus } from '@shared/types';
 import { PRODUCT_STATUS_LIST } from '@shared/constants';
 import {
   useCreateProduct,
   useGenerateProductAIDraft,
+  useCheckMarketplace,
   useMarketplaces,
   useProducts,
 } from '../services/hooks/index.js';
@@ -32,7 +33,7 @@ import { Card } from '../components/common/Card.js';
 import { Modal } from '../components/common/Modal.js';
 import { ProductStatusBadge } from '../components/common/Badge.js';
 import { ProductsTable } from '../components/tables/index.js';
-import { ProductWizardForm } from '../components/forms/index.js';
+import { ProductWizardForm, verifyWizardMarketplaceReadiness } from '../components/forms/index.js';
 import type { ProductSubmissionValues } from '../components/forms/index.js';
 
 const PAGE_SIZE = 20;
@@ -78,8 +79,59 @@ const ProductsPage: React.FC = () => {
 
   const { data, isLoading, isFetching, isError, error, refetch } = useProducts(params);
   const marketplaces = useMarketplaces();
+  const [checkMarketplace] = useCheckMarketplace();
+  const [verifiedMarketplaces, setVerifiedMarketplaces] = useState<Marketplace[]>();
+  const [readinessLoading, setReadinessLoading] = useState(false);
+  const [readinessError, setReadinessError] = useState(false);
   const [createProduct, { isLoading: creating }] = useCreateProduct();
   const [generateProductAIDraft] = useGenerateProductAIDraft();
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!wizardOpen) {
+      setVerifiedMarketplaces(undefined);
+      setReadinessLoading(false);
+      setReadinessError(false);
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (!marketplaces.data) {
+      setVerifiedMarketplaces(undefined);
+      setReadinessLoading(marketplaces.isLoading);
+      setReadinessError(marketplaces.isError);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    setVerifiedMarketplaces(undefined);
+    setReadinessLoading(true);
+    setReadinessError(false);
+    void verifyWizardMarketplaceReadiness(marketplaces.data, (id) => checkMarketplace(id).unwrap())
+      .then((result) => {
+        if (cancelled) return;
+        setVerifiedMarketplaces(result.marketplaces);
+        setReadinessError(
+          result.hadCheckError && !result.marketplaces.some((marketplace) => marketplace.connected)
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setReadinessError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setReadinessLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    checkMarketplace,
+    marketplaces.data,
+    marketplaces.isError,
+    marketplaces.isLoading,
+    wizardOpen,
+  ]);
 
   const items = data?.items ?? [];
   const filtered = useMemo(() => {
@@ -244,9 +296,9 @@ const ProductsPage: React.FC = () => {
       >
         <ProductWizardForm
           submitting={creating}
-          marketplaces={marketplaces.data}
-          marketplacesLoading={marketplaces.isLoading && !marketplaces.data}
-          marketplacesError={marketplaces.isError && !marketplaces.data}
+          marketplaces={verifiedMarketplaces}
+          marketplacesLoading={readinessLoading}
+          marketplacesError={readinessError}
           onSubmit={handleCreate}
           onGenerateAIDraft={(request) => generateProductAIDraft(request).unwrap()}
           onCancel={closeWizard}

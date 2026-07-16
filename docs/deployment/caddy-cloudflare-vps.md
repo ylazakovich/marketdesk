@@ -48,9 +48,9 @@ verification (`rejectUnauthorized: true`). Modes that enable TLS without certifi
 verification are intentionally unsupported. `DB_SSL_MODE` is authoritative; TLS query
 parameters in `DATABASE_URL` are ignored so they cannot silently weaken this setting.
 For an external endpoint, also set its full `DATABASE_URL`; Compose preserves that value.
-When `DATABASE_URL` is empty, the app uses the individual `DB_HOST`, `DB_PORT`, `DB_USER`,
-`DB_PASSWORD`, and `DB_NAME` settings, whose Compose defaults target the bundled `postgres`
-service.
+When `DATABASE_URL` is empty, Compose targets the bundled `postgres` service explicitly;
+this intentionally overrides the copied `.env` value `DB_HOST=localhost`, which remains
+the correct default only for running the backend natively outside Docker.
 Database TLS is independent of the public Caddy/Cloudflare HTTPS configuration described
 below.
 

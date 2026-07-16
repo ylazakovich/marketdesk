@@ -29,6 +29,8 @@ try {
     join(projectDir, '.env'),
     [
       'DB_SSL_MODE=disable',
+      'DATABASE_URL=',
+      'DB_HOST=localhost',
       'DB_PASSWORD=internal-probe-password',
       'JWT_SECRET=compose-probe-jwt-secret',
       'HERMES_API_KEY=compose-probe-hermes-key',
@@ -36,11 +38,7 @@ try {
     { mode: 0o600 },
   );
 
-  const internal = renderCompose({
-    DATABASE_URL: '',
-    DB_HOST: '',
-    DB_SSL_MODE: 'disable',
-  });
+  const internal = renderCompose({ DATABASE_URL: '', DB_SSL_MODE: 'disable' });
   assert.equal(internal.services.app.environment.DATABASE_URL, '');
   assert.equal(internal.services.app.environment.DB_HOST, 'postgres');
   assert.equal(internal.services.app.environment.DB_SSL_MODE, 'disable');

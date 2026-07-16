@@ -67,8 +67,10 @@ services:
       DATABASE_URL: ${DATABASE_URL:-}
       # The Compose PostgreSQL service is plaintext inside the private Docker network.
       DB_SSL_MODE: ${DB_SSL_MODE:?DB_SSL_MODE must be set (use disable for internal Compose PostgreSQL)}
-      DB_HOST: ${DB_HOST:-postgres}
-      DB_PORT: ${DB_PORT:-5432}
+      # DATABASE_URL takes precedence for external databases. Without it, always
+      # target the bundled service rather than inheriting native-dev localhost.
+      DB_HOST: postgres
+      DB_PORT: 5432
       DB_USER: ${DB_USER:-marketdesk}
       DB_PASSWORD: ${DB_PASSWORD:-}
       DB_NAME: ${DB_NAME:-marketdesk}

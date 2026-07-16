@@ -419,12 +419,14 @@ See `.env.example` for all available configuration options.
 
 **Critical Variables**:
 
-- `DATABASE_URL` - PostgreSQL connection string
+- `DATABASE_URL` - optional PostgreSQL connection string for an external/managed
+  endpoint. Leave empty to use the individual `DB_*` settings.
 - `DB_SSL_MODE` - PostgreSQL transport mode: `disable` for local/internal Compose,
   or `verify-full` for verified TLS. Production requires an explicit value; this
   setting is authoritative over any TLS query parameters in `DATABASE_URL`.
   Compose preserves an explicitly configured external `DATABASE_URL`; when it is
-  empty, the app uses the individual `DB_*` settings and defaults to the bundled service.
+  empty, Compose targets its bundled `postgres` service even when the copied
+  `.env` keeps `DB_HOST=localhost` for native development.
 - `REDIS_URL` - Redis connection string
 - `JWT_SECRET` - Secret key for JWT signing
 

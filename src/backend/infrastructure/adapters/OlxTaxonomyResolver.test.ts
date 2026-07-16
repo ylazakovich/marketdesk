@@ -138,6 +138,24 @@ describe('OlxTaxonomyResolver', () => {
     await expect(resolver.verify('1984')).rejects.toThrow('does not match');
   });
 
+  it('rejects contradictory parent_id values inside a nested detail breadcrumb', async () => {
+    const resolver = new OlxTaxonomyResolver(client({
+      id: 1984,
+      name: 'Projektory',
+      parent_id: 1979,
+      is_leaf: true,
+      parent: {
+        id: 1979,
+        name: 'Sprzęt video',
+        parent_id: 777,
+        is_leaf: false,
+        parent: { id: 99, name: 'Elektronika', parent_id: '0', is_leaf: false, parent: null },
+      },
+    }), undefined, () => now);
+
+    await expect(resolver.verify('1984')).rejects.toThrow('ancestry is malformed');
+  });
+
   it('rejects a detail parent_id that disagrees with the flat taxonomy', async () => {
     const request = jest.fn(async ({ url }: { url: string }) => ({
       status: 200,
@@ -185,6 +203,56 @@ describe('OlxTaxonomyResolver', () => {
       method: 'GET',
       url: 'https://example.test/api/categories',
     });
+  });
+
+  it('uses explicit non-leaf status when an optional children array is empty', async () => {
+    const request = jest.fn(async ({ url }: { url: string }) => ({
+      status: 200,
+      data: url.endsWith('/categories/1984')
+        ? { id: 1984, name: 'Projektory', is_leaf: true }
+        : { data: [
+            { id: 99, name: 'Elektronika', parent_id: 0, is_leaf: false, children: [] },
+            { id: 1984, name: 'Projektory', parent_id: 99, is_leaf: true },
+          ] },
+    }));
+    const resolver = new OlxTaxonomyResolver(
+      { request: request as MarketplaceHttpClient['request'] },
+      undefined,
+      () => now,
+    );
+
+    await expect(resolver.verify('1984')).resolves.toMatchObject({
+      path: ['Elektronika', 'Projektory'],
+      isLeaf: true,
+    });
+  });
+
+  it('coalesces concurrent full-taxonomy requests and reuses the validated graph', async () => {
+    let detailCalls = 0;
+    let graphCalls = 0;
+    const request = jest.fn(async ({ url }: { url: string }) => {
+      if (url.endsWith('/categories/1984')) {
+        detailCalls += 1;
+        return { status: 200, data: { id: 1984, name: 'Projektory', is_leaf: true } };
+      }
+      graphCalls += 1;
+      await Promise.resolve();
+      return { status: 200, data: { data: [
+        { id: 99, name: 'Elektronika', parent_id: 0, is_leaf: false },
+        { id: 1984, name: 'Projektory', parent_id: 99, is_leaf: true },
+      ] } };
+    });
+    const resolver = new OlxTaxonomyResolver(
+      { request: request as MarketplaceHttpClient['request'] },
+      undefined,
+      () => now,
+    );
+
+    await Promise.all(Array.from({ length: 5 }, () => resolver.verify('1984')));
+    await resolver.verify('1984');
+
+    expect(detailCalls).toBe(6);
+    expect(graphCalls).toBe(1);
   });
 
   it.each([

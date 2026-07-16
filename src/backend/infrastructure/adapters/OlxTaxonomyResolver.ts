@@ -24,6 +24,11 @@ interface OlxDetailPath {
   names: string[];
 }
 
+interface OlxValidatedGraph {
+  byId: Map<string, OlxCategoryNode>;
+  parentsWithChildren: Set<string>;
+}
+
 export interface OlxTrustedTaxonomyResolver {
   verify(providerCategoryId: string): Promise<MarketplaceCategoryMetadata>;
 }
@@ -31,6 +36,8 @@ export interface OlxTrustedTaxonomyResolver {
 /** Resolves category claims against the authenticated OLX Partner taxonomy API. */
 export class OlxTaxonomyResolver implements OlxTrustedTaxonomyResolver {
   private readonly baseUrl: string;
+  private flatGraphCache?: { expiresAt: number; graph: OlxValidatedGraph };
+  private flatGraphInFlight?: Promise<OlxValidatedGraph | null>;
 
   constructor(
     private readonly http: MarketplaceHttpClient,
@@ -140,12 +147,71 @@ export class OlxTaxonomyResolver implements OlxTrustedTaxonomyResolver {
       if (!Object.prototype.hasOwnProperty.call(current, 'parent')) {
         throw new Error('OLX taxonomy detail ancestry is incomplete');
       }
+      if (Object.prototype.hasOwnProperty.call(current, 'parent_id')) {
+        if (current.parent === null) {
+          if (current.parent_id !== 0) throw new Error('OLX taxonomy detail ancestry is malformed');
+        } else {
+          const parentId = this.canonicalCategoryId(current.parent_id);
+          const nestedParentId = this.canonicalCategoryId(current.parent?.id);
+          if (!parentId || !nestedParentId || parentId !== nestedParentId) {
+            throw new Error('OLX taxonomy detail ancestry is malformed');
+          }
+        }
+      }
       current = current.parent;
     }
     return { ids: [...parentIds, id], names: [...parentNames, name] };
   }
 
   private async pathFromFlatTaxonomy(id: string, expectedName: string): Promise<OlxResolvedPath | null> {
+    const graph = await this.validatedFlatGraph();
+    if (!graph) return null;
+    const { byId, parentsWithChildren } = graph;
+    const target = byId.get(id);
+    const targetLeaf = target ? this.leafStatus(target) : undefined;
+    if (target?.name?.trim() !== expectedName || targetLeaf !== true || parentsWithChildren.has(id)) return null;
+
+    const ids: string[] = [];
+    const names: string[] = [];
+    const visited = new Set<string>();
+    let current: OlxCategoryNode | undefined = target;
+    let depth = 0;
+    while (current) {
+      const currentId = String(current.id ?? '');
+      const currentName = current.name?.trim();
+      if (!currentId || !currentName || visited.has(currentId) || depth >= 32) return null;
+      visited.add(currentId);
+      ids.unshift(currentId);
+      names.unshift(currentName);
+      depth += 1;
+      if (currentId !== id && this.leafStatus(current) !== false) return null;
+      if (current.parent_id === 0) break;
+      if (current.parent_id === null || current.parent_id === undefined) return null;
+      const parentId = this.canonicalCategoryId(current.parent_id);
+      if (!parentId) return null;
+      current = byId.get(parentId);
+      if (!current) return null;
+    }
+    return names.length > 1 ? { ids, names } : null;
+  }
+
+  private async validatedFlatGraph(): Promise<OlxValidatedGraph | null> {
+    const now = Date.now();
+    if (this.flatGraphCache && this.flatGraphCache.expiresAt > now) return this.flatGraphCache.graph;
+    if (this.flatGraphInFlight) return this.flatGraphInFlight;
+    this.flatGraphInFlight = this.fetchAndValidateFlatGraph();
+    try {
+      const graph = await this.flatGraphInFlight;
+      if (graph) {
+        this.flatGraphCache = { expiresAt: now + Math.min(this.ttlMs, 5 * 60 * 1000), graph };
+      }
+      return graph;
+    } finally {
+      this.flatGraphInFlight = undefined;
+    }
+  }
+
+  private async fetchAndValidateFlatGraph(): Promise<OlxValidatedGraph | null> {
     const response = await this.http.request<OlxCategoryNode[] | OlxEnvelope<OlxCategoryNode[]>>({
       method: 'GET',
       url: `${this.baseUrl}/categories`,
@@ -183,32 +249,7 @@ export class OlxTaxonomyResolver implements OlxTrustedTaxonomyResolver {
         if (!current) return null;
       }
     }
-    const target = byId.get(id);
-    const targetLeaf = target ? this.leafStatus(target) : undefined;
-    if (target?.name?.trim() !== expectedName || targetLeaf !== true || parentsWithChildren.has(id)) return null;
-
-    const ids: string[] = [];
-    const names: string[] = [];
-    const visited = new Set<string>();
-    let current: OlxCategoryNode | undefined = target;
-    let depth = 0;
-    while (current) {
-      const currentId = String(current.id ?? '');
-      const currentName = current.name?.trim();
-      if (!currentId || !currentName || visited.has(currentId) || depth >= 32) return null;
-      visited.add(currentId);
-      ids.unshift(currentId);
-      names.unshift(currentName);
-      depth += 1;
-      if (currentId !== id && this.leafStatus(current) !== false) return null;
-      if (current.parent_id === 0) break;
-      if (current.parent_id === null || current.parent_id === undefined) return null;
-      const parentId = this.canonicalCategoryId(current.parent_id);
-      if (!parentId) return null;
-      current = byId.get(parentId);
-      if (!current) return null;
-    }
-    return names.length > 1 ? { ids, names } : null;
+    return { byId, parentsWithChildren };
   }
 
   private canonicalCategoryId(value: unknown): string | null {
@@ -224,9 +265,8 @@ export class OlxTaxonomyResolver implements OlxTrustedTaxonomyResolver {
     if (node.children !== undefined && !Array.isArray(node.children)) return undefined;
     const explicit = node.leaf ?? node.is_leaf;
     if (typeof node.leaf === 'boolean' && typeof node.is_leaf === 'boolean' && node.leaf !== node.is_leaf) return undefined;
-    const inferred = Array.isArray(node.children) ? node.children.length === 0 : undefined;
     if (explicit === undefined) return undefined;
-    if (explicit !== undefined && inferred !== undefined && explicit !== inferred) return undefined;
+    if (explicit === true && Array.isArray(node.children) && node.children.length > 0) return undefined;
     return explicit;
   }
 

@@ -254,6 +254,7 @@ const ListingDetailsPage: React.FC = () => {
   const [activeImage, setActiveImage] = useState(0);
   const consumedNavigationReview = useRef<string | null>(null);
   const previewInFlight = useRef(false);
+  const publicationReviewOpen = useRef(false);
   const submissionInFlight = useRef(false);
 
   const listingItems = listings.data ?? [];
@@ -272,9 +273,11 @@ const ListingDetailsPage: React.FC = () => {
   const remoteMarketplace = remoteMarketplacePresentation(primaryListing, primaryMarketplaceName);
   const recommendations = selectProductRecommendations(hermesEvents.data?.items ?? [], productId);
   const publicationBusy = previewingPublication || submittingPublication || publishing || relisting;
+  const publicationActionsLocked = publicationBusy || Boolean(publishCandidate);
 
   const closePublicationReview = () => {
     if (publicationBusy || previewInFlight.current || submissionInFlight.current) return;
+    publicationReviewOpen.current = false;
     setPublishCandidate(null);
     setQuotaOverrideAccepted(false);
     setQuotaOverrideReason('');
@@ -327,13 +330,18 @@ const ListingDetailsPage: React.FC = () => {
     listing: Listing,
     mode: 'publish' | 'relist',
   ) => {
-    if (previewInFlight.current || submissionInFlight.current) return;
+    if (
+      previewInFlight.current ||
+      publicationReviewOpen.current ||
+      submissionInFlight.current
+    ) return;
     previewInFlight.current = true;
     setPreviewingPublication(true);
     try {
       const preview = await publishListingPreview(listing.id).unwrap();
       setQuotaOverrideAccepted(false);
       setQuotaOverrideReason('');
+      publicationReviewOpen.current = true;
       setPublishCandidate({ listing, preview, mode });
     } catch (err) {
       dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
@@ -369,6 +377,7 @@ const ListingDetailsPage: React.FC = () => {
           : 'Publication was accepted and queued.',
         severity: 'success',
       }));
+      publicationReviewOpen.current = false;
       setPublishCandidate(null);
       setQuotaOverrideAccepted(false);
       setQuotaOverrideReason('');
@@ -618,7 +627,7 @@ const ListingDetailsPage: React.FC = () => {
               onRowClick={(l) => setPriceListing(l)}
               onRelist={handleRelist}
               onPublish={handlePublish}
-              actionsDisabled={publicationBusy}
+              actionsDisabled={publicationActionsLocked}
             />
           </Card>
 

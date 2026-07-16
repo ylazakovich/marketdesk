@@ -34,6 +34,7 @@ import type { IMarketplaceRepository } from '../../domain/repositories/interface
 import type { IWorkspaceRepository } from '../../domain/repositories/interfaces/IWorkspaceRepository';
 import type { ProductView, HermesEventView } from '../../application/dto/presenters';
 import { HERMES_EVENT_STATUSES, type MarketplaceCategoryMetadata } from '../../../shared/types';
+import type { ListingStatus } from '../../domain/valueObjects/ListingStatus';
 import {
   InMemoryProductRepository,
   InMemoryListingRepository,
@@ -157,6 +158,9 @@ function stubListingService(): ListingApplicationService {
     },
     async publishListing() {
       return Ok({});
+    },
+    async relistListing() {
+      return Err(new InvalidStateError('Only expired or error listings may be relisted'));
     },
     async syncMarketplace() {
       return Ok({ marketplaceId: 'm1', enqueued: true, externalListingCount: 0 });
@@ -419,6 +423,7 @@ async function buildTestApp(options: {
 async function seedPreviewListing(
   listingRepo: InMemoryListingRepository,
   category?: MarketplaceCategoryMetadata | null,
+  status?: ListingStatus,
 ): Promise<void> {
   const price = Money.of(20, 'PLN');
   if (price.isErr()) throw new Error('money fixture failed');
@@ -427,6 +432,7 @@ async function seedPreviewListing(
     productId: 'p-real',
     marketplaceId: 'marketplace-olx',
     price: price.value,
+    status,
     marketplaceCategory: category === undefined ? {
       providerCategoryId: '2000', name: 'Widgets', path: ['Home', 'Tools', 'Widgets'],
       source: 'provider_taxonomy', confidence: 1, isLeaf: true,
@@ -971,6 +977,24 @@ describe('Presentation API', () => {
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('VALIDATION_ERROR');
     });
+
+    it.each(['draft', 'live'] as const)(
+      'rejects direct relist for a %s listing even with an explicit quota override',
+      async (status) => {
+        const { app, listingRepo } = await buildTestApp();
+        await seedPreviewListing(listingRepo, undefined, status);
+
+        const res = await auth(request(app).post('/api/listings/listing-preview/relist')).send({
+          quotaOverride: {
+            confirmed: true,
+            reason: 'Accept possible OLX publication fee',
+          },
+        });
+
+        expect(res.status).toBe(422);
+        expect(res.body.error.code).toBe('INVALID_STATE');
+      },
+    );
   });
 
   describe('hermes', () => {

@@ -327,9 +327,10 @@ async function login(app: ReturnType<typeof buildApp>): Promise<string> {
   return res.body.data.token as string;
 }
 
-function seedDraftListing(
+function seedListing(
   listingRepo: InMemoryListingRepository,
   productId: string,
+  status: 'draft' | 'expired' | 'error' | 'live' = 'draft',
 ): string {
   const listing = unwrap(
     Listing.create({
@@ -337,7 +338,7 @@ function seedDraftListing(
       productId,
       marketplaceId: 'm-1',
       price: money(25, 'PLN'),
-      status: 'draft',
+      status,
       marketplaceCategory: {
         providerCategoryId: 'widget-leaf-1',
         name: 'Widgets',
@@ -416,7 +417,7 @@ describe('E2E product/listing/Hermes flow (in-memory, no DB)', () => {
         category: 'electronics',
       });
     const productId = create.body.data.id as string;
-    const listingId = seedDraftListing(listingRepo, productId);
+    const listingId = seedListing(listingRepo, productId);
 
     const publish = await request(app)
       .post(`/api/listings/${listingId}/publish`)
@@ -453,7 +454,7 @@ describe('E2E product/listing/Hermes flow (in-memory, no DB)', () => {
         category: 'electronics',
       });
     const productId = create.body.data.id as string;
-    const listingId = seedDraftListing(listingRepo, productId);
+    const listingId = seedListing(listingRepo, productId, 'expired');
 
     const relist = await request(app)
       .post(`/api/listings/${listingId}/relist`)
@@ -489,7 +490,7 @@ describe('E2E product/listing/Hermes flow (in-memory, no DB)', () => {
         category: 'electronics',
       });
     const productId = create.body.data.id as string;
-    const listingId = seedDraftListing(listingRepo, productId);
+    const listingId = seedListing(listingRepo, productId);
 
     // Move the product to sold (forward-only transition via the update endpoint).
     const sold = await request(app)

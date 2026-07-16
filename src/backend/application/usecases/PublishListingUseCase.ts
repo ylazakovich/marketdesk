@@ -74,6 +74,13 @@ export class PublishListingUseCase {
       return Err(new NotFoundError(`Listing not found: ${input.listingId}`));
     }
 
+    const mode = input.mode ?? 'publish';
+    if (mode === 'relist' && listing.status !== 'expired' && listing.status !== 'error') {
+      return Err(new InvalidStateError(
+        `Cannot relist a listing in ${listing.status} status; only expired or error listings may be relisted`,
+      ));
+    }
+
     const product = await this.productRepo.findById(listing.productId);
     if (!product) {
       return Err(new NotFoundError(`Product not found: ${listing.productId}`));
@@ -128,7 +135,7 @@ export class PublishListingUseCase {
       }
       const quotaDecision = await this.olxQuota.authorize({
         operationId,
-        mode: input.mode ?? 'publish',
+        mode,
         listing,
         product,
         marketplace,
@@ -142,7 +149,7 @@ export class PublishListingUseCase {
     await this.publishQueue.enqueue(
       {
         operationId,
-        mode: input.mode ?? 'publish',
+        mode,
         listingUpdatedAt: listing.updatedAt.toISOString(),
         marketplaceKey: marketplace.key,
         marketplaceId: marketplace.id,

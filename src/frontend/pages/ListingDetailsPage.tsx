@@ -274,7 +274,7 @@ const ListingDetailsPage: React.FC = () => {
   const publicationBusy = previewingPublication || submittingPublication || publishing || relisting;
 
   const closePublicationReview = () => {
-    if (publicationBusy) return;
+    if (publicationBusy || previewInFlight.current || submissionInFlight.current) return;
     setPublishCandidate(null);
     setQuotaOverrideAccepted(false);
     setQuotaOverrideReason('');

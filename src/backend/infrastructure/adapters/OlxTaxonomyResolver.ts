@@ -62,6 +62,13 @@ export class OlxTaxonomyResolver implements OlxTrustedTaxonomyResolver {
     const directPath = this.detailPath(node, name, id);
     const resolvedPath = await this.pathFromFlatTaxonomy(id, name);
     if (!resolvedPath) throw new Error('OLX taxonomy did not return a complete category path');
+    if (Object.prototype.hasOwnProperty.call(node, 'parent_id')) {
+      const detailParentId = this.canonicalCategoryId(node.parent_id);
+      const expectedParentId = resolvedPath.ids[resolvedPath.ids.length - 2];
+      if (!detailParentId || detailParentId !== expectedParentId) {
+        throw new Error('OLX taxonomy detail parent does not match the flat taxonomy');
+      }
+    }
     if (directPath && (
       !this.samePath(directPath.names, resolvedPath.names)
       || (directPath.ids !== undefined && !this.samePath(directPath.ids, resolvedPath.ids))
@@ -218,8 +225,9 @@ export class OlxTaxonomyResolver implements OlxTrustedTaxonomyResolver {
     const explicit = node.leaf ?? node.is_leaf;
     if (typeof node.leaf === 'boolean' && typeof node.is_leaf === 'boolean' && node.leaf !== node.is_leaf) return undefined;
     const inferred = Array.isArray(node.children) ? node.children.length === 0 : undefined;
+    if (explicit === undefined) return undefined;
     if (explicit !== undefined && inferred !== undefined && explicit !== inferred) return undefined;
-    return explicit ?? inferred;
+    return explicit;
   }
 
   private samePath(left: string[], right: string[]): boolean {

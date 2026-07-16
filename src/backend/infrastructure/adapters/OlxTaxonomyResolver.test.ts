@@ -138,6 +138,25 @@ describe('OlxTaxonomyResolver', () => {
     await expect(resolver.verify('1984')).rejects.toThrow('does not match');
   });
 
+  it('rejects a detail parent_id that disagrees with the flat taxonomy', async () => {
+    const request = jest.fn(async ({ url }: { url: string }) => ({
+      status: 200,
+      data: url.endsWith('/categories/1984')
+        ? { id: 1984, name: 'Projektory', path: ['Elektronika', 'Projektory'], parent_id: 777, is_leaf: true }
+        : { data: [
+            { id: 99, name: 'Elektronika', parent_id: 0, is_leaf: false },
+            { id: 1984, name: 'Projektory', parent_id: 99, is_leaf: true },
+          ] },
+    }));
+    const resolver = new OlxTaxonomyResolver(
+      { request: request as MarketplaceHttpClient['request'] },
+      undefined,
+      () => now,
+    );
+
+    await expect(resolver.verify('1984')).rejects.toThrow('parent does not match');
+  });
+
   it('reconstructs a complete path from the authenticated flat taxonomy', async () => {
     const request = jest.fn(async ({ url }: { url: string }) => ({
       status: 200,
@@ -226,6 +245,19 @@ describe('OlxTaxonomyResolver', () => {
       { id: 1979, name: 'Sprzęt video', parent_id: 99, is_leaf: false },
       { id: 1984, name: 'Projektory', parent_id: 1979, is_leaf: true },
       { id: 3000, name: 'Malformed', parent_id: 99, leaf: true, is_leaf: false },
+    ]],
+    ['a target without an explicit leaf claim', [
+      { id: 99, name: 'Elektronika', parent_id: 0, is_leaf: false },
+      { id: 1984, name: 'Projektory', parent_id: 99, children: [] },
+    ]],
+    ['an ancestor without an explicit leaf claim', [
+      { id: 99, name: 'Elektronika', parent_id: 0, children: [{ id: 1984 }] },
+      { id: 1984, name: 'Projektory', parent_id: 99, is_leaf: true },
+    ]],
+    ['an unrelated node without an explicit leaf claim', [
+      { id: 99, name: 'Elektronika', parent_id: 0, is_leaf: false },
+      { id: 1984, name: 'Projektory', parent_id: 99, is_leaf: true },
+      { id: 3000, name: 'Malformed', parent_id: 99, children: [] },
     ]],
     ['an unrelated cyclic component', [
       { id: 99, name: 'Elektronika', parent_id: 0, is_leaf: false },

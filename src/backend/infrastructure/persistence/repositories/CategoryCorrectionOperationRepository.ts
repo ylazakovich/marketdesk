@@ -102,6 +102,17 @@ export class CategoryCorrectionOperationRepository implements ICategoryCorrectio
     return rows[0] ? this.map(rows[0]) : null;
   }
 
+  async releaseToApproved(id: string, workspaceId: string, result: Record<string, unknown>, at: Date): Promise<CategoryCorrectionOperation | null> {
+    const { rows } = await query<OperationRow>(
+      `UPDATE category_correction_operations
+       SET state = 'approved', result = $3, updated_at = $4
+       WHERE id = $1 AND workspace_id = $2 AND state = 'executing' RETURNING *`,
+      [id, workspaceId, JSON.stringify(result), at],
+      this.queryClient,
+    );
+    return rows[0] ? this.map(rows[0]) : null;
+  }
+
   async markExecuted(id: string, workspaceId: string, result: Record<string, unknown>, at: Date): Promise<CategoryCorrectionOperation | null> {
     return this.finish(id, workspaceId, 'executed', result, at);
   }

@@ -59,10 +59,12 @@ export const hermesApi = baseApi.injectEndpoints({
       CategoryRecreationOperationResolution,
       CategoryRecreationOperationCommand
     >({
-      query: ({ action }) => ({
+      query: ({ action, paidOverrideReason }) => ({
         url: action.href,
         method: action.method,
-        body: {},
+        body: action.kind === 'approve' && paidOverrideReason
+          ? { paidOverrideReason }
+          : {},
       }),
       transformResponse: (res: ApiResponse<CategoryRecreationOperationResolution>) => unwrap(res),
       invalidatesTags: (result) => [

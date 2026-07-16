@@ -302,7 +302,9 @@ export const HermesEventCard: React.FC<HermesEventCardProps> = ({
           <ProposedChangeDiff
             change={event.proposedChange}
             currency={currency}
-            onCategoryAction={(_intentId, action, operation) => setPendingOperation({ action, operation })}
+            onCategoryAction={showActions
+              ? (_intentId, action, operation) => setPendingOperation({ action, operation })
+              : undefined}
           />
 
           <Stack

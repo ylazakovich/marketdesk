@@ -18,10 +18,12 @@ import {
 import { InMemoryActivityLogRepository, idFactory } from '../../testkit/support';
 import type { MarketplaceCategoryMetadata } from '../../../../shared/types';
 
+const taxonomyNow = Date.now();
 const projectorCategory: MarketplaceCategoryMetadata = {
   providerCategoryId: '100', name: 'Projectors', path: ['Electronics', 'Video', 'Projectors'],
   source: 'provider_taxonomy', confidence: 0.98, isLeaf: true,
-  taxonomyVerifiedAt: '2026-07-16T00:00:00.000Z', taxonomyStaleAt: '2026-07-17T00:00:00.000Z',
+  taxonomyVerifiedAt: new Date(taxonomyNow - 60_000).toISOString(),
+  taxonomyStaleAt: new Date(taxonomyNow + 23 * 60 * 60 * 1000).toISOString(),
 };
 const headphonesCategory: MarketplaceCategoryMetadata = {
   ...projectorCategory, providerCategoryId: '200', name: 'Wireless headphones',
@@ -371,7 +373,6 @@ describe('MarketplaceImportService', () => {
         'status',
         'product_title',
         'product_description',
-        'product_category',
         'product_images',
         'product_selling_price',
       ]),

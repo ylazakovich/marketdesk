@@ -44,6 +44,12 @@ export interface ICategoryCorrectionOperationRepository {
     at: Date;
   }): Promise<CategoryCorrectionOperation | null>;
   claimApproved(id: string, workspaceId: string, at: Date): Promise<CategoryCorrectionOperation | null>;
+  releaseToApproved(
+    id: string,
+    workspaceId: string,
+    result: Record<string, unknown>,
+    at: Date,
+  ): Promise<CategoryCorrectionOperation | null>;
   markExecuted(
     id: string,
     workspaceId: string,

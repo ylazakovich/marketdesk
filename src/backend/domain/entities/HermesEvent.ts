@@ -117,7 +117,8 @@ export class HermesEvent {
         type === 'update_description' ||
         type === 'relist' ||
         type === 'needs_relisting' ||
-        type === 'create_listing';
+        type === 'create_listing' ||
+        type === 'olx_category_mismatch';
       if (requiresChange) {
         return Err(
           new ValidationError(`Event type ${type} requires a proposed change`),

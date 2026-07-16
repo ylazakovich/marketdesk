@@ -510,7 +510,9 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
       return await this.taxonomy.verify(String(data.category.id));
     } catch {
       // Advert payloads do not attest taxonomy path, leafness, confidence, or freshness.
-      return null;
+      // Resolver failure is transient/unknown: preserve previously verified sync metadata.
+      // Null remains reserved for provider-declared absence or invalid category data.
+      return undefined;
     }
   }
 

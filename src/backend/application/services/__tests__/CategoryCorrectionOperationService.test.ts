@@ -53,6 +53,11 @@ class InMemoryOperations implements ICategoryCorrectionOperationRepository {
     if (!value || value.state !== 'approved') return null;
     Object.assign(value, { state: 'executing', updatedAt: at }); return value;
   }
+  async releaseToApproved(id: string, workspaceId: string, result: Record<string, unknown>, at: Date) {
+    const value = await this.findByIdForWorkspace(id, workspaceId);
+    if (!value || value.state !== 'executing') return null;
+    Object.assign(value, { state: 'approved', result, updatedAt: at }); return value;
+  }
   async markExecuted(id: string, workspaceId: string, result: Record<string, unknown>, at: Date) {
     return this.finish(id, workspaceId, 'executed', result, at);
   }
@@ -100,15 +105,26 @@ function setup(decision: 'allow' | 'block' | 'override' = 'allow') {
     consumedUnit: decision !== 'block', subcategoryId: category.providerCategoryId,
   }));
   const quota = { authorize, guardError: (quotaDecision: unknown) => new GuardrailViolationError('quota blocked', { quotaDecision }) } as unknown as OlxPublicationQuotaService;
+  const publishAttempts = {
+    begin: jest.fn(async () => ({
+      created: true,
+      checkpoint: { operationId: 'recreate-1', status: 'publishing' as const, externalListingId: null,
+        externalUrl: null, publishedAt: null, remoteStatus: null },
+    })),
+    markPublished: jest.fn(async () => undefined),
+    markFinalized: jest.fn(async () => undefined),
+    markAbandoned: jest.fn(async () => undefined),
+  };
   const service = new CategoryCorrectionOperationService(operations, new InMemoryEventRepository(), listingRepo,
-    productRepo, marketplaceRepo, quota, { resolve: resolveAdapter }, activity, idFactory('audit'), () => now);
-  return { service, operations, authorize, publish, delist, resolveAdapter, activity, listing, listingRepo };
+    productRepo, marketplaceRepo, quota, { resolve: resolveAdapter }, activity, idFactory('audit'), publishAttempts, () => now);
+  return { service, operations, authorize, publish, delist, resolveAdapter, activity, listing, listingRepo, publishAttempts };
 }
 
 async function addAndApprove(setupResult: ReturnType<typeof setup>, kind: 'delist' | 'recreate', paidOverrideReason?: string) {
   if (kind === 'recreate') {
     const delist = operation('delist');
     delist.state = 'executed'; delist.approvedAt = now; delist.executedAt = now;
+    delist.result = { externalListingId: setupResult.listing.marketplaceListingId };
     setupResult.listing.expire();
     setupResult.operations.items.set(delist.id, delist);
   }
@@ -171,6 +187,25 @@ describe('CategoryCorrectionOperationService', () => {
     ] });
   });
 
+  it('releases the publication fence when the listing generation changes before provider publish', async () => {
+    const context = setup('allow');
+    await addAndApprove(context, 'recreate');
+    const changed = unwrap(Listing.create({
+      id: 'listing-1', productId: 'product-1', marketplaceId: 'marketplace-1', price: money(299),
+      status: 'expired', marketplaceListingId: 'old-advert-1', marketplaceCategory: category,
+      updatedAt: new Date(context.listing.updatedAt.getTime() + 1),
+    }));
+    jest.spyOn(context.listingRepo, 'findByIdForWorkspace')
+      .mockResolvedValueOnce(context.listing)
+      .mockResolvedValueOnce(changed);
+
+    await expect(context.service.execute({ operationId: 'recreate-1', workspaceId: 'ws-1', actorId: 'user-1' }))
+      .rejects.toThrow('Listing changed while recreate publication was being reserved');
+    expect(context.authorize).not.toHaveBeenCalled();
+    expect(context.publish).not.toHaveBeenCalled();
+    expect(context.publishAttempts.markAbandoned).toHaveBeenCalledWith('recreate-1');
+  });
+
   it('persists the provider identity in failure evidence when local relinking fails', async () => {
     const context = setup('allow'); await addAndApprove(context, 'recreate');
     jest.spyOn(context.listingRepo, 'save').mockRejectedValueOnce(new Error('database unavailable'));
@@ -188,7 +223,33 @@ describe('CategoryCorrectionOperationService', () => {
       .rejects.toThrow('quota blocked');
     expect(context.publish).not.toHaveBeenCalled();
     expect(context.resolveAdapter).not.toHaveBeenCalled();
-    expect(context.operations.items.get('recreate-1')).toMatchObject({ state: 'failed', result: { manualReconciliationRequired: true } });
+    expect(context.publishAttempts.markAbandoned).toHaveBeenCalledWith('recreate-1');
+    expect(context.operations.items.get('recreate-1')).toMatchObject({
+      state: 'approved', result: { retrySafe: true, manualReconciliationRequired: false },
+    });
+  });
+
+  it('keeps a recovered provider checkpoint out of the retryable quota-denial path', async () => {
+    const context = setup('unknown');
+    await addAndApprove(context, 'recreate');
+    context.publishAttempts.begin.mockResolvedValueOnce({
+      created: false,
+      checkpoint: {
+        operationId: 'recreate-1', status: 'published', externalListingId: 'new-advert-1',
+        externalUrl: 'https://olx.example/new-advert-1', publishedAt: now, remoteStatus: 'active',
+      },
+    });
+
+    await expect(context.service.execute({ operationId: 'recreate-1', workspaceId: 'ws-1', actorId: 'user-1' }))
+      .rejects.toThrow('quota blocked');
+    expect(context.publish).not.toHaveBeenCalled();
+    expect(context.operations.items.get('recreate-1')).toMatchObject({
+      state: 'failed',
+      result: {
+        providerEffect: 'published', externalListingId: 'new-advert-1',
+        manualReconciliationRequired: true,
+      },
+    });
   });
 
   it('uses only the persisted operation-scoped paid-risk override', async () => {

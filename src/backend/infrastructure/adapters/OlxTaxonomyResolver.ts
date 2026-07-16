@@ -73,14 +73,21 @@ export class OlxTaxonomyResolver implements OlxTrustedTaxonomyResolver {
 
   private path(node: OlxCategoryNode, name: string): string[] {
     if (Array.isArray(node.path)) {
-      return node.path.filter((part): part is string => typeof part === 'string' && part.trim().length > 0).map((part) => part.trim());
+      if (node.path.some((part) => typeof part !== 'string' || part.trim().length === 0)) return [];
+      return node.path.map((part) => part.trim());
     }
     if (typeof node.path === 'string') {
-      return node.path.split(/\s*(?:>|→|\/)\s*/).map((part) => part.trim()).filter(Boolean);
+      const parts = node.path.split(/\s*(?:>|→|\/)\s*/).map((part) => part.trim());
+      return parts.some((part) => part.length === 0) ? [] : parts;
     }
     const parents: string[] = [];
     let current = node.parent;
+    const visited = new Set<OlxCategoryNode>();
+    let depth = 0;
     while (current) {
+      if (visited.has(current) || depth >= 32) return [];
+      visited.add(current);
+      depth += 1;
       if (!current.name?.trim()) return [];
       parents.unshift(current.name.trim());
       current = current.parent;

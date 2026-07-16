@@ -255,6 +255,7 @@ export type HermesEventResolution = HermesEvent;
 export interface CategoryRecreationOperationCommand {
   action: CategoryRecreationOperationAction;
   operation: 'delist' | 'recreate';
+  paidOverrideReason?: string;
 }
 
 export interface CategoryRecreationOperationResolution {

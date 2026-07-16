@@ -7,7 +7,7 @@ import type { IEventRepository } from '../../domain/repositories/interfaces/IEve
 import type { IListingRepository } from '../../domain/repositories/interfaces/IListingRepository';
 import type { IMarketplaceRepository } from '../../domain/repositories/interfaces/IMarketplaceRepository';
 import type { IProductRepository } from '../../domain/repositories/interfaces/IProductRepository';
-import type { IMarketplaceAdapter } from '../../domain/services/MarketplaceAdapter';
+import type { IMarketplaceAdapter, PublishResult } from '../../domain/services/MarketplaceAdapter';
 import { evaluateOlxCategory } from '../../domain/services/OlxCategoryGuard';
 import {
   GuardrailViolationError,
@@ -29,6 +29,23 @@ export interface CategoryCorrectionAdapterResolver {
   resolve(marketplace: Marketplace): Promise<IMarketplaceAdapter>;
 }
 
+export interface CategoryCorrectionPublishAttemptStore {
+  begin(operationId: string, listingId: string, marketplaceKey: 'olx', listingUpdatedAt: Date): Promise<{
+    created: boolean;
+    checkpoint: {
+      operationId: string;
+      status: 'publishing' | 'published' | 'finalized' | 'abandoned';
+      externalListingId: string | null;
+      externalUrl: string | null;
+      publishedAt: Date | null;
+      remoteStatus: string | null;
+    };
+  }>;
+  markPublished(operationId: string, result: PublishResult): Promise<void>;
+  markFinalized(operationId: string): Promise<void>;
+  markAbandoned(operationId: string): Promise<void>;
+}
+
 export class CategoryCorrectionOperationService {
   private readonly now: () => Date;
 
@@ -42,6 +59,7 @@ export class CategoryCorrectionOperationService {
     private readonly adapters: CategoryCorrectionAdapterResolver,
     private readonly activity: IActivityLogRepository,
     private readonly idGenerator: IdGenerator,
+    private readonly publishAttempts: CategoryCorrectionPublishAttemptStore,
     now?: () => Date,
   ) {
     this.now = now ?? (() => new Date());
@@ -163,6 +181,8 @@ export class CategoryCorrectionOperationService {
     }
 
     let providerCheckpoint: Record<string, unknown> = {};
+    let publicationReserved = false;
+    let providerCallStarted = false;
     try {
       await this.audit(operation, input.actorId, 'olx.category_correction.executing', {});
       const listing = await this.listings.findByIdForWorkspace(operation.listingId, input.workspaceId);
@@ -191,19 +211,69 @@ export class CategoryCorrectionOperationService {
           deletionRestoresQuota: false,
         };
       } else {
+        if (listing.status !== 'expired') {
+          throw new InvalidStateError(`Recreate requires an expired listing; found ${listing.status}`);
+        }
+        const pair = await this.operations.findByRecommendationForWorkspace(
+          operation.recommendationEventId,
+          input.workspaceId,
+        );
+        const delist = pair.find((candidate) => candidate.kind === 'delist');
+        const delistedExternalId = typeof delist?.result?.externalListingId === 'string'
+          ? delist.result.externalListingId
+          : null;
+        if (!delistedExternalId || listing.marketplaceListingId !== delistedExternalId) {
+          throw new InvalidStateError('Listing identity changed after delist; recreate requires a new review');
+        }
         if (!operation.targetCategory) throw new InvalidStateError('Recreate requires an exact target category');
         const categoryDecision = evaluateOlxCategory(product, operation.targetCategory, this.now());
         if (!categoryDecision.allowed) {
           throw new GuardrailViolationError(`OLX target category blocks recreate: ${categoryDecision.reason}`, { categoryDecision });
         }
-        listing.recordMarketplaceCategory(operation.targetCategory);
-        // Authorization is deliberately the final step before the provider POST.
+        const listingGeneration = listing.updatedAt;
+
+        // Claim the cross-workflow publication fence before quota authorization.
+        // A losing concurrent path must not consume a quota unit it cannot use.
+        const started = await this.publishAttempts.begin(operation.id, listing.id, 'olx', listingGeneration);
+        publicationReserved = started.created;
+        let published: PublishResult | null = null;
+        if (!started.created) {
+          const checkpoint = started.checkpoint;
+          if (checkpoint.operationId !== operation.id
+            || !['published', 'finalized'].includes(checkpoint.status)
+            || !checkpoint.externalListingId
+            || !checkpoint.publishedAt) {
+            throw new InvalidStateError('Another publication owns this listing generation; reconcile it before recreate');
+          }
+          published = {
+            externalListingId: checkpoint.externalListingId,
+            externalUrl: checkpoint.externalUrl,
+            publishedAt: checkpoint.publishedAt,
+            remoteStatus: checkpoint.remoteStatus,
+          };
+          providerCheckpoint = {
+            providerEffect: 'published',
+            externalListingId: checkpoint.externalListingId,
+            externalUrl: checkpoint.externalUrl,
+            publishedAt: checkpoint.publishedAt.toISOString(),
+          };
+        } else {
+          const fencedListing = await this.listings.findByIdForWorkspace(operation.listingId, input.workspaceId);
+          if (!fencedListing
+            || fencedListing.status !== 'expired'
+            || fencedListing.marketplaceListingId !== delistedExternalId
+            || fencedListing.updatedAt.getTime() !== listingGeneration.getTime()) {
+            throw new InvalidStateError('Listing changed while recreate publication was being reserved');
+          }
+        }
+
         const quotaDecision = await this.quota.authorize({
           operationId: operation.id,
           mode: 'recreate',
           listing,
           product,
           marketplace,
+          marketplaceCategory: operation.targetCategory,
           actorId: input.actorId,
           ...(operation.paidOverrideReason
             ? { override: { confirmed: true as const, reason: operation.paidOverrideReason } }
@@ -212,19 +282,25 @@ export class CategoryCorrectionOperationService {
         if (quotaDecision.decision !== 'allow' && quotaDecision.decision !== 'override') {
           throw this.quota.guardError(quotaDecision);
         }
-        // Resolve/refresh authenticated provider access only after quota has allowed
-        // this exact recreate operation; even auth transport work stays behind the gate.
-        const adapter = await this.adapters.resolve(marketplace);
-        const published = await adapter.publish({
-          productName: product.name,
-          description: product.description,
-          price: listing.price.amount,
-          currency: listing.price.currency,
-          category: product.category,
-          marketplaceCategory: operation.targetCategory,
-          condition: product.condition,
-          imageUrls: [...product.images],
-        });
+
+        if (started.created) {
+          const adapter = await this.adapters.resolve(marketplace);
+          providerCallStarted = true;
+          published = await adapter.publish({
+            productName: product.name,
+            description: product.description,
+            price: listing.price.amount,
+            currency: listing.price.currency,
+            category: product.category,
+            marketplaceCategory: operation.targetCategory,
+            condition: product.condition,
+            imageUrls: [...product.images],
+          });
+          await this.publishAttempts.markPublished(operation.id, published);
+          publicationReserved = false;
+        }
+        if (!published) throw new InvalidStateError('Publication checkpoint did not produce a provider identity');
+        listing.recordMarketplaceCategory(operation.targetCategory);
         providerCheckpoint = {
           providerEffect: 'published',
           externalListingId: published.externalListingId,
@@ -242,6 +318,7 @@ export class CategoryCorrectionOperationService {
         );
         if (linked.isErr()) throw linked.error;
         await this.listings.save(listing);
+        await this.publishAttempts.markFinalized(operation.id);
         result = {
           externalListingId: published.externalListingId,
           externalUrl: published.externalUrl ?? null,
@@ -256,6 +333,34 @@ export class CategoryCorrectionOperationService {
       await this.audit(executed, input.actorId, 'olx.category_correction.executed', result);
       return executed;
     } catch (error) {
+      if (publicationReserved && !providerCallStarted) {
+        try {
+          await this.publishAttempts.markAbandoned(operation.id);
+          publicationReserved = false;
+        } catch {
+          providerCheckpoint = { publicationFenceReleaseFailed: true };
+        }
+      }
+      const quotaDecision = error instanceof GuardrailViolationError
+        ? error.details?.quotaDecision
+        : undefined;
+      if (quotaDecision && Object.keys(providerCheckpoint).length === 0) {
+        const blocked = {
+          quotaDecision,
+          retrySafe: true,
+          manualReconciliationRequired: false,
+        };
+        const released = await this.operations.releaseToApproved(
+          operation.id,
+          input.workspaceId,
+          blocked,
+          this.now(),
+        );
+        if (released) {
+          await this.audit(released, input.actorId, 'olx.category_correction.blocked', blocked);
+        }
+        throw error;
+      }
       const failure = {
         errorCode: error instanceof Error && 'code' in error ? String(error.code) : 'DEPENDENCY_FAILURE',
         message: error instanceof Error ? error.message : 'Unknown category correction failure',

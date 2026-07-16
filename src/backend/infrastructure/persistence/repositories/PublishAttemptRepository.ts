@@ -120,6 +120,18 @@ export class PublishAttemptRepository implements PublishAttemptStore {
     }
   }
 
+  async markAbandoned(operationId: string): Promise<void> {
+    const updated = await this.pool.query(
+      `UPDATE marketplace_publish_attempts
+       SET status = 'abandoned', updated_at = NOW()
+       WHERE operation_id = $1 AND status = 'publishing'`,
+      [operationId]
+    );
+    if (updated.rowCount !== 1) {
+      throw new Error(`Publishing checkpoint not found: ${operationId}`);
+    }
+  }
+
   private async findActiveByListing(listingId: string): Promise<PublishAttemptCheckpoint | null> {
     const result = await this.pool.query<PublishAttemptRow>(
       `SELECT ${SELECT_COLUMNS}

@@ -87,8 +87,8 @@ export interface MarketplaceImportRepositories {
   productRepo: IProductRepository;
   listingRepo: IListingRepository;
   activityLog?: IActivityLogRepository;
-  eventRepo?: IEventRepository;
-  correctionOperations?: ICategoryCorrectionOperationRepository;
+  eventRepo: IEventRepository;
+  correctionOperations: ICategoryCorrectionOperationRepository;
 }
 
 export type MarketplaceImportUnitOfWork = <T>(
@@ -533,7 +533,6 @@ export class MarketplaceImportService {
     if (product) {
       if (product.name !== remote.title) changes.push('product_title');
       if ((remote.description ?? '') !== product.description) changes.push('product_description');
-      if (remote.category && product.category !== remote.category) changes.push('product_category');
       if (!this.sameStringList([...product.images], remote.imageUrls))
         changes.push('product_images');
       if (
@@ -692,16 +691,16 @@ export class MarketplaceImportService {
     currentCategory: ImportedMarketplaceListing['marketplaceCategory'],
     proposedCategory: ImportedMarketplaceListing['marketplaceCategory'],
     workspaceId: string,
-    activityLog?: IActivityLogRepository,
-    transactionEventRepo?: IEventRepository,
-    transactionCorrectionOperations?: ICategoryCorrectionOperationRepository,
+    activityLog: IActivityLogRepository | undefined,
+    transactionEventRepo: IEventRepository,
+    transactionCorrectionOperations: ICategoryCorrectionOperationRepository,
   ): Promise<void> {
-    const eventRepo = transactionEventRepo ?? this.eventRepo;
-    const correctionOperations = transactionCorrectionOperations ?? this.correctionOperations;
-    if (!eventRepo || !product || listing.status !== 'live' || !currentCategory) return;
+    if (!product || listing.status !== 'live' || !currentCategory) return;
     const currentDecision = evaluateOlxCategory(product, currentCategory);
     const proposedDecision = proposedCategory ? evaluateOlxCategory(product, proposedCategory) : null;
-    if (currentDecision.reason !== 'semantic_mismatch' || (proposedDecision && !proposedDecision.allowed)) return;
+    if (currentDecision.reason !== 'semantic_mismatch') return;
+    const usableProposedCategory: NonNullable<ImportedMarketplaceListing['marketplaceCategory']> | null =
+      proposedDecision?.allowed ? (proposedCategory ?? null) : null;
     const eventId = this.idGenerator();
     const delistIntentId = this.idGenerator();
     const recreateIntentId = this.idGenerator();
@@ -713,12 +712,12 @@ export class MarketplaceImportService {
       severity: 'critical',
       status: 'pending_review',
       title: 'OLX advert category mismatch requires recreation',
-      detail: `Current: ${currentCategory.path.join(' → ')}. Proposed: ${proposedCategory ? proposedCategory.path.join(' → ') : 'select an exact verified OLX leaf category'}. OLX category is not corrected through a normal PUT; delist and recreate remain separate human-reviewed operations.`,
+      detail: `Current: ${currentCategory.path.join(' → ')}. Proposed: ${usableProposedCategory ? usableProposedCategory.path.join(' → ') : 'select an exact verified OLX leaf category'}. OLX category is not corrected through a normal PUT; delist and recreate remain separate human-reviewed operations.`,
       proposedChange: {
         kind: 'category_recreation',
         listingId: listing.id,
         currentCategory: currentCategory!,
-        proposedCategory: proposedCategory ?? null,
+        proposedCategory: usableProposedCategory,
         operations: [
           {
             kind: 'delist', intentId: delistIntentId, status: 'pending_review',
@@ -734,14 +733,14 @@ export class MarketplaceImportService {
       autonomyDecision: 'pending_review',
     });
     if (created.isErr()) throw created.error;
-    const inserted = await eventRepo.saveRecommendationIfAbsent(
+    const inserted = await transactionEventRepo.saveRecommendationIfAbsent(
       created.value,
-      `olx-category-mismatch:${listing.id}:${currentCategory.providerCategoryId}:${proposedCategory?.providerCategoryId ?? 'unresolved'}`,
+      `olx-category-mismatch:${listing.id}:${currentCategory.providerCategoryId}:${usableProposedCategory?.providerCategoryId ?? 'unresolved'}`,
     );
     if (!inserted) return;
-    if (correctionOperations) {
+    {
       const requestedAt = new Date();
-      await correctionOperations.createPair(
+      await transactionCorrectionOperations.createPair(
         {
           id: delistIntentId, workspaceId, recommendationEventId: eventId,
           listingId: listing.id, marketplaceId: listing.marketplaceId, kind: 'delist',
@@ -752,7 +751,7 @@ export class MarketplaceImportService {
         {
           id: recreateIntentId, workspaceId, recommendationEventId: eventId,
           listingId: listing.id, marketplaceId: listing.marketplaceId, kind: 'recreate',
-          state: 'requested', targetCategory: proposedCategory ?? null, paidOverrideReason: null,
+          state: 'requested', targetCategory: usableProposedCategory, paidOverrideReason: null,
           requestedBy: null, approvedBy: null, result: null, requestedAt,
           approvedAt: null, executedAt: null, failedAt: null, updatedAt: requestedAt,
         },
@@ -766,7 +765,7 @@ export class MarketplaceImportService {
       {
         eventId,
         currentCategory,
-        proposedCategory,
+        proposedCategory: usableProposedCategory,
         delistIntentId,
         recreateIntentId,
         deletionRestoresQuota: false,

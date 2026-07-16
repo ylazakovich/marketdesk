@@ -167,12 +167,15 @@ export class SyncMarketplaceHandler {
       updated.push(listing);
     }
 
-    if (updated.length > 0) await store.saveAll(updated);
+    // Build the idempotent durable mismatch pair before persisting the remote
+    // category. If recommendation creation fails, a retry still sees the prior
+    // verified category and can reconstruct the original mismatch.
     if (marketplace && this.deps.recommendCategoryMismatch) {
       for (const candidate of mismatchCandidates) {
         await this.deps.recommendCategoryMismatch({ ...candidate, workspaceId: marketplace.workspaceId });
       }
     }
+    if (updated.length > 0) await store.saveAll(updated);
     return updated.length;
   }
 

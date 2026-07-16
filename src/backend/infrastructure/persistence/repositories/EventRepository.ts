@@ -106,7 +106,12 @@ export class EventRepository implements IEventRepository {
 
   async deleteOlderThan(cutoff: Date): Promise<void> {
     await query(
-      `DELETE FROM hermes_events WHERE created_at < $1`,
+      `DELETE FROM hermes_events AS event
+       WHERE event.created_at < $1
+         AND NOT EXISTS (
+           SELECT 1 FROM category_correction_operations AS operation
+            WHERE operation.recommendation_event_id = event.id
+         )`,
       [cutoff],
       this.queryClient,
     );

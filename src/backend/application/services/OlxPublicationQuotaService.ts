@@ -17,6 +17,8 @@ import {
 import type { IdGenerator } from '../ports/IdGenerator';
 import type { MarketplaceAccountRepository, MarketplaceAccountRecord } from './MarketplaceOAuthService';
 import type { OlxQuotaConfidence, OlxQuotaSource, OlxQuotaStatus } from '../../domain/entities/OlxPublicationQuota';
+import { evaluateOlxCategory, parseMarketplaceCategoryMetadata } from '../../domain/services/OlxCategoryGuard';
+import type { MarketplaceCategoryMetadata } from '../../../shared/types';
 
 export interface OlxSubcategoryResolver {
   resolve(domainCategory: string): string | null;
@@ -201,10 +203,23 @@ export class OlxPublicationQuotaService {
     marketplace: Marketplace;
     actorId?: string;
     override?: OlxQuotaOverride;
+    marketplaceCategory?: MarketplaceCategoryMetadata;
   }): Promise<OlxQuotaDecisionView> {
     if (input.marketplace.key !== 'olx') return this.notApplicable();
+    const category = parseMarketplaceCategoryMetadata(input.marketplaceCategory ?? input.listing.marketplaceCategory);
+    const categoryDecision = evaluateOlxCategory(input.product, category, this.now());
+    if (!categoryDecision.allowed || !category) {
+      const decision = this.unknown(
+        `category_${categoryDecision.reason ?? 'invalid'}`,
+        undefined,
+        category?.providerCategoryId,
+        false,
+      );
+      await this.auditDecision(input, decision);
+      return decision;
+    }
     const account = await this.accountRepo.findByMarketplaceId(input.marketplace.id);
-    const subcategoryId = input.listing.marketplaceCategory?.providerCategoryId ?? null;
+    const subcategoryId = category.providerCategoryId;
     if (!account || account.status !== 'connected' || !subcategoryId) {
       const decision = this.unknown(
         !account || account.status !== 'connected'

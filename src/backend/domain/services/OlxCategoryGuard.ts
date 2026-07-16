@@ -33,7 +33,16 @@ export function parseMarketplaceCategoryMetadata(value: unknown): MarketplaceCat
     || typeof candidate.taxonomyVerifiedAt !== 'string'
     || typeof candidate.taxonomyStaleAt !== 'string'
   ) return null;
-  return candidate as MarketplaceCategoryMetadata;
+  return {
+    providerCategoryId: candidate.providerCategoryId.trim(),
+    name: candidate.name.trim(),
+    path: candidate.path.map((part) => part.trim()),
+    source: candidate.source as MarketplaceCategoryMetadata['source'],
+    confidence: candidate.confidence,
+    isLeaf: candidate.isLeaf,
+    taxonomyVerifiedAt: candidate.taxonomyVerifiedAt,
+    taxonomyStaleAt: candidate.taxonomyStaleAt,
+  };
 }
 
 function containsAny(value: string, terms: string[]): boolean {
@@ -57,6 +66,11 @@ export function evaluateOlxCategory(
   if (category.source !== 'provider_taxonomy') {
     return { allowed: false, requiresReview: true, reason: 'taxonomy_unverified', message: 'OLX category must be verified by the server against provider taxonomy' };
   }
+  const normalizedName = category.name.trim().toLocaleLowerCase('pl');
+  const normalizedLeaf = category.path[category.path.length - 1]?.trim().toLocaleLowerCase('pl');
+  if (!normalizedLeaf || normalizedLeaf !== normalizedName) {
+    return { allowed: false, requiresReview: true, reason: 'taxonomy_unverified', message: 'OLX category name does not match its taxonomy path' };
+  }
   if (!category.isLeaf) {
     return { allowed: false, requiresReview: true, reason: 'category_not_leaf', message: 'The selected OLX category is not a leaf category' };
   }
@@ -75,7 +89,7 @@ export function evaluateOlxCategory(
   }
 
   const productText = `${product.name} ${product.description} ${product.category}`.toLocaleLowerCase('pl');
-  const categoryText = category.path.join(' ').toLocaleLowerCase('pl');
+  const categoryText = `${category.name} ${category.path.join(' ')}`.toLocaleLowerCase('pl');
   const projectorProduct = containsAny(productText, PROJECTOR_TERMS);
   const headphoneProduct = containsAny(productText, HEADPHONE_TERMS);
   const projectorCategory = containsAny(categoryText, PROJECTOR_TERMS);

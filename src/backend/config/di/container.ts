@@ -435,6 +435,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     },
     activityLogRepo,
     idGenerator,
+    publishAttemptRepo,
   );
   const marketplaceImportService = new MarketplaceImportService(
     marketplaceRepo,
@@ -547,7 +548,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
         timeoutMs: env.marketplaces.olx.requestTimeoutMs,
         livePublishEnabled: false,
       });
-      return new OlxTaxonomyResolver(http);
+      return new OlxTaxonomyResolver(http, env.marketplaces.olx.apiBaseUrl);
     },
     olxPublicationQuotaService,
     categoryCorrectionOperationService,

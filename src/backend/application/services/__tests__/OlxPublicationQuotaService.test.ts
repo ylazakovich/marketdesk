@@ -178,7 +178,7 @@ function setup() {
     marketplaceCategory: {
       providerCategoryId: '2000', name: 'Cameras', path: ['Electronics', 'Cameras'],
       source: 'provider_taxonomy', confidence: 1, isLeaf: true,
-      taxonomyVerifiedAt: '2026-07-14T00:00:00.000Z', taxonomyStaleAt: '2026-07-20T00:00:00.000Z',
+      taxonomyVerifiedAt: '2026-07-15T00:00:00.000Z', taxonomyStaleAt: '2026-07-16T00:00:00.000Z',
     },
   }));
   const service = new OlxPublicationQuotaService(

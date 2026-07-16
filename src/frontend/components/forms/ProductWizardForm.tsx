@@ -43,11 +43,12 @@ import type {
 import type { ProductWizardDraftState } from './productWizardDraft.js';
 import {
   DescriptionTagsFields,
-  ImagesField,
   NameSkuFields,
   PriceFields,
   StatusField,
 } from './ProductFields.js';
+import { ProductImageUploader } from './ProductImageUploader.js';
+import type { UploadedProductImage } from './ProductImageUploader.js';
 
 export interface ProductWizardFormProps {
   submitting?: boolean;
@@ -59,6 +60,8 @@ export interface ProductWizardFormProps {
   onSubmit: (values: ProductSubmissionValues) => void;
   onCancel?: () => void;
   onGenerateAIDraft?: (request: ProductAIDraftRequest) => Promise<ProductAIDraft>;
+  onUploadImage: (file: File) => Promise<UploadedProductImage>;
+  onDeleteImage?: (imageId: string) => Promise<void>;
 }
 
 const STEPS = ['Photos', 'Basic info', 'Pricing', 'Category', 'Marketplaces', 'Review'] as const;
@@ -240,6 +243,8 @@ export const ProductWizardForm: React.FC<ProductWizardFormProps> = ({
   onSubmit,
   onCancel,
   onGenerateAIDraft,
+  onUploadImage,
+  onDeleteImage,
 }) => {
   const [activeStep, setActiveStep] = useState(initialDraft?.activeStep ?? 0);
   const [values, setValues] = useState<ProductFormValues>(() =>
@@ -492,32 +497,18 @@ export const ProductWizardForm: React.FC<ProductWizardFormProps> = ({
         {activeStep === 0 && (
           <Stack spacing={2}>
             <Typography variant="subtitle2">Upload photos</Typography>
-            <ImagesField {...fieldProps} />
+            <ProductImageUploader
+              images={values.images}
+              error={errors.images}
+              disabled={submitting}
+              onChange={(images) => change('images', images)}
+              onUpload={onUploadImage}
+              onDelete={onDeleteImage}
+            />
             <Typography variant="caption" color="text.secondary">
-              Add up to 12 image URLs. The first image is treated as the cover and can be analyzed
-              by Hermes.
+              Reorder photos with the arrow controls or mark any photo as the cover. Hermes analyzes
+              the current cover first.
             </Typography>
-            {values.images.length > 0 && (
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                {values.images.slice(0, 12).map((image, index) => (
-                  <Box key={image + index} sx={{ position: 'relative' }}>
-                    <Box
-                      component="img"
-                      src={image}
-                      alt={`Product photo ${index + 1}`}
-                      sx={{ width: 88, height: 88, borderRadius: 2, objectFit: 'cover' }}
-                    />
-                    {index === 0 && (
-                      <Chip
-                        size="small"
-                        label="Cover"
-                        sx={{ position: 'absolute', left: 6, top: 6 }}
-                      />
-                    )}
-                  </Box>
-                ))}
-              </Stack>
-            )}
           </Stack>
         )}
         {activeStep === 1 && (

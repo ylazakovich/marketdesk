@@ -11,6 +11,26 @@ import type {
   CreateProductListingInput,
 } from './dto.js';
 
+export interface ProductImageUpload {
+  id: string;
+  url: string;
+  mediaType: 'image/jpeg' | 'image/png' | 'image/webp';
+  size: number;
+}
+
+export function buildProductImageUploadRequest(file: File) {
+  return {
+    url: '/uploads/images',
+    method: 'POST' as const,
+    body: file,
+    headers: { 'content-type': file.type },
+  };
+}
+
+export function buildProductImageDeleteRequest(imageId: string) {
+  return { url: `/uploads/images/${imageId}`, method: 'DELETE' as const };
+}
+
 export const productsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getProducts: builder.query<PaginatedResponse<Product>, ProductListParams | void>({
@@ -40,6 +60,16 @@ export const productsApi = baseApi.injectEndpoints({
     generateProductAIDraft: builder.mutation<ProductAIDraft, ProductAIDraftRequest>({
       query: (body) => ({ url: '/products/ai-draft', method: 'POST', body }),
       transformResponse: (res: ApiResponse<ProductAIDraft>) => unwrap(res),
+    }),
+
+    uploadProductImage: builder.mutation<ProductImageUpload, File>({
+      query: buildProductImageUploadRequest,
+      transformResponse: (res: ApiResponse<ProductImageUpload>) => unwrap(res),
+    }),
+
+    deleteProductImage: builder.mutation<{ deleted: boolean }, string>({
+      query: buildProductImageDeleteRequest,
+      transformResponse: (res: ApiResponse<{ deleted: boolean }>) => unwrap(res),
     }),
 
     updateProduct: builder.mutation<Product, UpdateProductArg>({
@@ -94,6 +124,8 @@ export const {
   useGetProductQuery,
   useCreateProductMutation,
   useGenerateProductAIDraftMutation,
+  useUploadProductImageMutation,
+  useDeleteProductImageMutation,
   useUpdateProductMutation,
   useDeleteProductMutation,
   useCreateProductListingMutation,

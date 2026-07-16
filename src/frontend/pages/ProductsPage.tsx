@@ -24,6 +24,8 @@ import { PRODUCT_STATUS_LIST } from '@shared/constants';
 import {
   useCreateProduct,
   useGenerateProductAIDraft,
+  useUploadProductImage,
+  useDeleteProductImage,
   useCheckMarketplace,
   useMarketplaces,
   useProducts,
@@ -166,6 +168,8 @@ const ProductsPage: React.FC = () => {
   const [readinessError, setReadinessError] = useState(false);
   const [createProduct, { isLoading: creating }] = useCreateProduct();
   const [generateProductAIDraft] = useGenerateProductAIDraft();
+  const [uploadProductImage] = useUploadProductImage();
+  const [deleteProductImage] = useDeleteProductImage();
 
   useEffect(() => {
     if (blocker.state === 'blocked') setLeaveDialogOpen(true);
@@ -493,6 +497,10 @@ const ProductsPage: React.FC = () => {
             marketplacesError={readinessError}
             onSubmit={handleCreate}
             onGenerateAIDraft={(request) => generateProductAIDraft(request).unwrap()}
+            onUploadImage={(file) => uploadProductImage(file).unwrap()}
+            onDeleteImage={async (imageId) => {
+              await deleteProductImage(imageId).unwrap();
+            }}
             onCancel={requestWizardClose}
           />
         ) : (

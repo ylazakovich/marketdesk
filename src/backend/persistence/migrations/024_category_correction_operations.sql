@@ -34,6 +34,17 @@ CREATE TABLE IF NOT EXISTS category_correction_operations (
   CONSTRAINT uq_category_correction_recommendation_kind UNIQUE (recommendation_event_id, kind)
 );
 
+-- Upgrade safety: an earlier development revision created the same table with
+-- recreate target_category required even while state='requested'. CREATE TABLE
+-- IF NOT EXISTS cannot replace that constraint, so normalize it explicitly.
+ALTER TABLE category_correction_operations
+  DROP CONSTRAINT IF EXISTS category_correction_operations_target_valid;
+ALTER TABLE category_correction_operations
+  ADD CONSTRAINT category_correction_operations_target_valid CHECK (
+    (kind = 'delist' AND target_category IS NULL AND paid_override_reason IS NULL)
+    OR (kind = 'recreate' AND (state = 'requested' OR target_category IS NOT NULL))
+  );
+
 CREATE INDEX IF NOT EXISTS idx_category_correction_operations_workspace
   ON category_correction_operations(workspace_id, requested_at DESC);
 CREATE INDEX IF NOT EXISTS idx_category_correction_operations_listing

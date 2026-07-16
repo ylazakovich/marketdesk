@@ -10,9 +10,10 @@ import type { IListingRepository } from '../repositories/interfaces/IListingRepo
 import type { IProductRepository } from '../repositories/interfaces/IProductRepository';
 import type { IMarketplaceRepository } from '../repositories/interfaces/IMarketplaceRepository';
 import type { IEventPublisher, DomainEvent } from '../ports/IEventPublisher';
+import type { ListingPublishInput } from './MarketplaceAdapter';
 
 export type ListingPersistenceTransaction = <T>(
-  work: (repos: { listingRepo: IListingRepository; productRepo: IProductRepository }) => Promise<T>,
+  work: (repos: { listingRepo: IListingRepository; productRepo: IProductRepository }) => Promise<T>
 ) => Promise<T>;
 
 export class ListingService {
@@ -21,7 +22,7 @@ export class ListingService {
     private readonly productRepo: IProductRepository,
     private readonly marketplaceRepo: IMarketplaceRepository,
     private readonly eventPublisher: IEventPublisher,
-    private readonly transaction?: ListingPersistenceTransaction,
+    private readonly transaction?: ListingPersistenceTransaction
   ) {}
 
   async publishListing(
@@ -31,7 +32,7 @@ export class ListingService {
     publishedAt: Date = new Date(),
     expiresAt: Date | null = null,
     remoteStatus: string | null = null,
-    remoteImageUrls: string[] = [],
+    remoteImageUrls: string[] = []
   ): Promise<Result<Listing>> {
     const listing = await this.listingRepo.findById(listingId);
     if (!listing) return Err(new NotFoundError(`Listing not found: ${listingId}`));
@@ -53,11 +54,14 @@ export class ListingService {
       externalUrl,
       publishedAt,
       expiresAt,
-      remoteStatus,
+      remoteStatus
     );
     if (published.isErr()) return published;
 
-    const persist = async (repos: { listingRepo: IListingRepository; productRepo: IProductRepository }) => {
+    const persist = async (repos: {
+      listingRepo: IListingRepository;
+      productRepo: IProductRepository;
+    }) => {
       if (remoteImageUrls.length > 0) {
         product.clearImages();
         for (const imageUrl of remoteImageUrls) {
@@ -91,30 +95,42 @@ export class ListingService {
   // already published (live + marketplaceListingId set) so a retry after a
   // partial failure can finalize/short-circuit without re-issuing the
   // non-idempotent marketplace publish (CR2/CR3).
-  async getPublishState(
-    listingId: string,
-  ): Promise<{
+  async getPublishState(listingId: string): Promise<{
     isPublished: boolean;
     externalListingId: string | null;
     externalUrl: string | null;
     publishedAt: Date | null;
     updatedAt?: Date | null;
+    productUpdatedAt?: Date | null;
+    currentInput?: ListingPublishInput;
   } | null> {
     const listing = await this.listingRepo.findById(listingId);
     if (!listing) return null;
+    const product = await this.productRepo.findById(listing.productId);
+    if (!product) return null;
     return {
       isPublished: listing.isLive() && listing.marketplaceListingId !== null,
       externalListingId: listing.marketplaceListingId,
       externalUrl: listing.externalUrl,
       publishedAt: listing.publishedAt,
       updatedAt: listing.updatedAt,
+      productUpdatedAt: product.updatedAt,
+      currentInput: {
+        productName: product.name,
+        description: product.description,
+        price: listing.price.amount,
+        currency: listing.price.currency,
+        category: product.category,
+        condition: product.condition,
+        imageUrls: [...product.images],
+      },
     };
   }
 
   async relistListing(
     listingId: string,
     publishedAt: Date = new Date(),
-    expiresAt: Date | null = null,
+    expiresAt: Date | null = null
   ): Promise<Result<Listing>> {
     const listing = await this.listingRepo.findById(listingId);
     if (!listing) return Err(new NotFoundError(`Listing not found: ${listingId}`));
@@ -166,7 +182,7 @@ export class ListingService {
   private async publish(
     type: string,
     listingId: string,
-    payload: Record<string, unknown>,
+    payload: Record<string, unknown>
   ): Promise<void> {
     const event: DomainEvent = {
       type,

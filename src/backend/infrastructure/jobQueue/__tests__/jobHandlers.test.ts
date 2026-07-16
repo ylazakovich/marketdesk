@@ -19,7 +19,11 @@ import type { MarketplaceKey } from '../../../../shared/types';
 import { Listing } from '../../../domain/entities/Listing';
 import { Marketplace } from '../../../domain/entities/Marketplace';
 import { Ok, Err } from '../../../domain/shared/Result';
-import { NotFoundError, ServiceUnavailableError, InvalidStateError } from '../../../domain/shared/DomainError';
+import {
+  NotFoundError,
+  ServiceUnavailableError,
+  InvalidStateError,
+} from '../../../domain/shared/DomainError';
 import type { MarketplaceHttpClient } from '../../adapters/MarketplaceHttpClient';
 import { unwrap, money } from '../../../domain/testkit/support';
 
@@ -54,6 +58,12 @@ function memoryPublishAttempts(): PublishAttemptStore {
       marketplaceKey: MarketplaceKey,
       listingUpdatedAt: Date
     ) => {
+      const latest = [...attempts.values()]
+        .filter((attempt) => attempt.listingId === listingId)
+        .sort((a, b) => b.listingUpdatedAt.getTime() - a.listingUpdatedAt.getTime())[0];
+      if (latest && latest.listingUpdatedAt.getTime() >= listingUpdatedAt.getTime()) {
+        return { created: false, checkpoint: latest };
+      }
       const existing = attempts.get(operationId);
       if (existing) return { created: false, checkpoint: existing };
       const generationOperationId = listingGenerations.get(
@@ -71,6 +81,7 @@ function memoryPublishAttempts(): PublishAttemptStore {
       const checkpoint: PublishAttemptCheckpoint = {
         operationId,
         listingId,
+        listingUpdatedAt,
         marketplaceKey,
         status: 'publishing',
         externalListingId: null,
@@ -504,7 +515,11 @@ describe('SyncMarketplaceHandler', () => {
       },
     });
 
-    await handler.handle({ marketplaceKey: 'olx', marketplaceId: 'm-1', externalListingIds: ['ext-1'] });
+    await handler.handle({
+      marketplaceKey: 'olx',
+      marketplaceId: 'm-1',
+      externalListingIds: ['ext-1'],
+    });
 
     expect(listing.views).toBe(10);
     expect(listing.watchers).toBe(4);
@@ -620,36 +635,161 @@ describe('PublishListingHandler', () => {
     };
     const authenticatedClient = { request: jest.fn() };
     const clientFactory = jest.fn(() => authenticatedClient);
+    const currentInput = { ...input, productName: 'Better Widget', price: 44 };
     const getPublishState = jest.fn(async () => ({
       isPublished: true,
       externalListingId: 'olx-123',
       externalUrl: 'https://www.olx.pl/d/oferta/olx-123',
       publishedAt: new Date('2026-07-10T00:00:00.000Z'),
+      productUpdatedAt: new Date('2026-07-15T12:00:00.000Z'),
+      currentInput,
     }));
     const handler = new PublishListingHandler(
       { create },
       undefined,
       { publishListing: jest.fn(), getPublishState },
       tokenProvider,
-      clientFactory
+      clientFactory,
+      memoryPublishAttempts()
     );
 
     const result = await handler.handle({
       operationId: 'op-update',
       mode: 'update',
+      listingUpdatedAt: '2026-07-15T11:00:00.000Z',
       marketplaceKey: 'olx',
       marketplaceId: 'm-1',
       listingId: 'l-oauth',
-      input,
+      input: { ...input, category: 'stale-category' },
       changes: { productName: 'Better Widget', price: 44 },
     });
 
     expect(tokenProvider.getValidAccessToken).toHaveBeenCalledWith('m-1');
     expect(clientFactory).toHaveBeenCalledWith('workspace-access-token');
     expect(create).toHaveBeenCalledWith('olx', authenticatedClient);
-    expect(updateListing).toHaveBeenCalledWith('olx-123', { productName: 'Better Widget', price: 44 });
+    expect(updateListing).toHaveBeenCalledWith(
+      'olx-123',
+      { productName: 'Better Widget', price: 44 },
+      currentInput
+    );
     expect(result).toMatchObject({ listingId: 'l-oauth', finalized: true });
     expect(result.result.externalListingId).toBe('olx-123');
+  });
+
+  it('rejects a stale update snapshot instead of overwriting newer product data', async () => {
+    const updateListing = jest.fn(async () => undefined);
+    const adapter = fakeAdapter({ updateListing });
+    const handler = new PublishListingHandler(
+      { create: jest.fn(() => adapter) },
+      undefined,
+      {
+        publishListing: jest.fn(),
+        getPublishState: jest.fn(async () => ({
+          isPublished: true,
+          externalListingId: 'olx-123',
+          externalUrl: null,
+          publishedAt: new Date('2026-07-10T00:00:00.000Z'),
+          productUpdatedAt: new Date('2026-07-15T12:00:00.000Z'),
+          currentInput: { ...input, productName: 'Newest Widget' },
+        })),
+      },
+      { getValidAccessToken: jest.fn(async () => 'token') },
+      () => ({ request: jest.fn() }),
+      memoryPublishAttempts()
+    );
+
+    await expect(
+      handler.handle({
+        operationId: 'op-stale-update',
+        mode: 'update',
+        listingUpdatedAt: '2026-07-15T11:00:00.000Z',
+        productUpdatedAt: '2026-07-15T12:00:00.000Z',
+        marketplaceKey: 'olx',
+        marketplaceId: 'm-1',
+        listingId: 'l-stale',
+        input,
+        changes: { productName: 'Older Widget' },
+      })
+    ).rejects.toThrow('product has changed since this marketplace update was queued');
+    expect(updateListing).not.toHaveBeenCalled();
+  });
+
+  it('does not PUT an update after a newer listing generation was durably accepted', async () => {
+    const updateListing = jest.fn(async () => undefined);
+    const adapter = fakeAdapter({ updateListing });
+    const attempts: PublishAttemptStore = {
+      find: jest.fn(async () => null),
+      begin: jest.fn(async () => ({
+        created: false,
+        checkpoint: {
+          operationId: 'op-newer-update',
+          listingId: 'l-race',
+          listingUpdatedAt: new Date('2026-07-15T13:00:00.000Z'),
+          marketplaceKey: 'olx',
+          status: 'finalized',
+          externalListingId: 'olx-123',
+          externalUrl: null,
+          publishedAt: new Date('2026-07-10T00:00:00.000Z'),
+          remoteStatus: null,
+          remoteImageUrls: [],
+        },
+      })),
+      markPublished: jest.fn(async () => undefined),
+      markFinalized: jest.fn(async () => undefined),
+    };
+    const handler = new PublishListingHandler(
+      { create: jest.fn(() => adapter) },
+      undefined,
+      {
+        publishListing: jest.fn(),
+        getPublishState: jest.fn(async () => ({
+          isPublished: true,
+          externalListingId: 'olx-123',
+          externalUrl: null,
+          publishedAt: new Date('2026-07-10T00:00:00.000Z'),
+          productUpdatedAt: new Date('2026-07-15T12:00:00.000Z'),
+          currentInput: { ...input, productName: 'Current Widget' },
+        })),
+      },
+      { getValidAccessToken: jest.fn(async () => 'token') },
+      () => ({ request: jest.fn() }),
+      attempts
+    );
+
+    await expect(
+      handler.handle({
+        operationId: 'op-older-update',
+        mode: 'update',
+        listingUpdatedAt: '2026-07-15T11:00:00.000Z',
+        productUpdatedAt: '2026-07-15T12:00:00.000Z',
+        marketplaceKey: 'olx',
+        marketplaceId: 'm-1',
+        listingId: 'l-race',
+        input,
+        changes: { productName: 'Current Widget' },
+      })
+    ).resolves.toMatchObject({ finalized: true });
+    expect(updateListing).not.toHaveBeenCalled();
+  });
+
+  it('rejects undeclared runtime fields in persisted update jobs', async () => {
+    const create = jest.fn(() => fakeAdapter());
+    const handler = new PublishListingHandler({ create });
+
+    await expect(
+      handler.handle({
+        operationId: 'op-invalid-update',
+        mode: 'update',
+        listingUpdatedAt: '2026-07-15T11:00:00.000Z',
+        productUpdatedAt: '2026-07-15T12:00:00.000Z',
+        marketplaceKey: 'olx',
+        marketplaceId: 'm-1',
+        listingId: 'l-invalid',
+        input,
+        changes: { productName: 'Widget', category: 'forbidden' } as never,
+      })
+    ).rejects.toThrow('may only include productName, description, or price');
+    expect(create).not.toHaveBeenCalled();
   });
 
   it('works without an event publisher', async () => {

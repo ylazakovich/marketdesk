@@ -127,7 +127,45 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
   protected async doPublish(input: ListingPublishInput): Promise<PublishResult> {
     const categoryId = this.mapCategory(input.category);
     this.assertPublishDetails(categoryId);
+    const body = this.buildAdvertPayload(input, categoryId);
 
+    const res = await this.http.request<
+      OlxAdvertResponse | OlxResponseEnvelope<OlxAdvertResponse>
+    >({
+      method: 'POST',
+      url: `${this.baseUrl}/adverts`,
+      body,
+    });
+    const advert = this.unwrapAdvert(res.data);
+    return {
+      externalListingId: String(advert.id),
+      externalUrl: this.extractPublicUrl(advert),
+      publishedAt: new Date(),
+      remoteStatus: advert.status ?? null,
+      remoteImageUrls: this.extractImageUrls(advert),
+    };
+  }
+
+  protected async doUpdateListing(
+    externalListingId: string,
+    changes: Partial<Pick<ListingPublishInput, 'price' | 'description' | 'productName'>>,
+    current: ListingPublishInput,
+  ): Promise<void> {
+    const updated = { ...current, ...changes };
+    const categoryId = this.mapCategory(updated.category);
+    this.assertPublishDetails(categoryId);
+    const body = this.buildAdvertPayload(updated, categoryId);
+    await this.http.request({
+      method: 'PUT',
+      url: `${this.baseUrl}/adverts/${externalListingId}`,
+      body,
+    });
+  }
+
+  private buildAdvertPayload(
+    input: ListingPublishInput,
+    categoryId: number,
+  ): Record<string, unknown> {
     const body: Record<string, unknown> = {
       title: input.productName,
       description: input.description,
@@ -166,43 +204,7 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
       });
     }
     if (attributes.length > 0) body.attributes = attributes;
-
-    const res = await this.http.request<
-      OlxAdvertResponse | OlxResponseEnvelope<OlxAdvertResponse>
-    >({
-      method: 'POST',
-      url: `${this.baseUrl}/adverts`,
-      body,
-    });
-    const advert = this.unwrapAdvert(res.data);
-    return {
-      externalListingId: String(advert.id),
-      externalUrl: this.extractPublicUrl(advert),
-      publishedAt: new Date(),
-      remoteStatus: advert.status ?? null,
-      remoteImageUrls: this.extractImageUrls(advert),
-    };
-  }
-
-  protected async doUpdateListing(
-    externalListingId: string,
-    changes: Partial<Pick<ListingPublishInput, 'price' | 'description' | 'productName'>>,
-  ): Promise<void> {
-    const body: Record<string, unknown> = {};
-    if (changes.price !== undefined) {
-      body.price = {
-        value: changes.price,
-        currency: 'PLN',
-        negotiable: this.config.priceNegotiable ?? false,
-      };
-    }
-    if (changes.description !== undefined) body.description = changes.description;
-    if (changes.productName !== undefined) body.title = changes.productName;
-    await this.http.request({
-      method: 'PUT',
-      url: `${this.baseUrl}/adverts/${externalListingId}`,
-      body,
-    });
+    return body;
   }
 
   protected async doDelist(externalListingId: string): Promise<void> {

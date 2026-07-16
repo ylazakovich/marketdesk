@@ -58,6 +58,8 @@ export interface PublishOrRelistListingJob extends BasePublishListingJob {
 
 export interface UpdateListingJob extends BasePublishListingJob {
   mode: 'update';
+  // Product generation observed after the approved change was persisted.
+  productUpdatedAt?: string;
   changes: ListingUpdateJobChanges;
 }
 

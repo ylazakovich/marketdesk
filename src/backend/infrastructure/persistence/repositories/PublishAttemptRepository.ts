@@ -26,6 +26,7 @@ function toCheckpoint(row: PublishAttemptRow): PublishAttemptCheckpoint {
   return {
     operationId: row.operation_id,
     listingId: row.listing_id,
+    listingUpdatedAt: new Date(row.listing_updated_at),
     marketplaceKey: row.marketplace_key,
     status: row.status,
     externalListingId: row.external_listing_id,
@@ -56,6 +57,10 @@ export class PublishAttemptRepository implements PublishAttemptStore {
     listingUpdatedAt: Date
   ): Promise<{ created: boolean; checkpoint: PublishAttemptCheckpoint }> {
     for (let attempt = 0; attempt < 3; attempt += 1) {
+      const latest = await this.findLatestByListing(listingId);
+      if (latest && latest.listingUpdatedAt.getTime() >= listingUpdatedAt.getTime()) {
+        return { created: false, checkpoint: latest };
+      }
       const inserted = await this.pool.query<PublishAttemptRow>(
         `INSERT INTO marketplace_publish_attempts
            (operation_id, listing_id, listing_updated_at, marketplace_key, status)
@@ -71,7 +76,8 @@ export class PublishAttemptRepository implements PublishAttemptStore {
       const existing =
         (await this.find(operationId)) ??
         (await this.findByListingGeneration(listingId, listingUpdatedAt)) ??
-        (await this.findActiveByListing(listingId));
+        (await this.findActiveByListing(listingId)) ??
+        (await this.findLatestByListing(listingId));
       if (existing) return { created: false, checkpoint: existing };
     }
     throw new Error(`Publish checkpoint conflict could not be resolved: ${operationId}`);
@@ -137,6 +143,18 @@ export class PublishAttemptRepository implements PublishAttemptStore {
        ORDER BY created_at DESC
        LIMIT 1`,
       [listingId, listingUpdatedAt]
+    );
+    return result.rows[0] ? toCheckpoint(result.rows[0]) : null;
+  }
+
+  private async findLatestByListing(listingId: string): Promise<PublishAttemptCheckpoint | null> {
+    const result = await this.pool.query<PublishAttemptRow>(
+      `SELECT ${SELECT_COLUMNS}
+       FROM marketplace_publish_attempts
+       WHERE listing_id = $1
+       ORDER BY listing_updated_at DESC, created_at DESC
+       LIMIT 1`,
+      [listingId]
     );
     return result.rows[0] ? toCheckpoint(result.rows[0]) : null;
   }

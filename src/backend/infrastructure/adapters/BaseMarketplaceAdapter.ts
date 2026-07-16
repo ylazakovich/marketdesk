@@ -100,9 +100,10 @@ export abstract class BaseMarketplaceAdapter implements IMarketplaceAdapter {
   updateListing(
     externalListingId: string,
     changes: Partial<Pick<ListingPublishInput, 'price' | 'description' | 'productName'>>,
+    current: ListingPublishInput,
   ): Promise<void> {
     return this.execute('updateListing', () =>
-      this.doUpdateListing(externalListingId, changes),
+      this.doUpdateListing(externalListingId, changes, current),
     );
   }
 
@@ -131,6 +132,7 @@ export abstract class BaseMarketplaceAdapter implements IMarketplaceAdapter {
   protected abstract doUpdateListing(
     externalListingId: string,
     changes: Partial<Pick<ListingPublishInput, 'price' | 'description' | 'productName'>>,
+    current: ListingPublishInput,
   ): Promise<void>;
   protected abstract doDelist(externalListingId: string): Promise<void>;
   protected abstract doSync(externalListingIds: string[]): Promise<SyncedListing[]>;

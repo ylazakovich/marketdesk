@@ -62,6 +62,7 @@ export interface IMarketplaceAdapter {
   updateListing(
     externalListingId: string,
     changes: Partial<Pick<ListingPublishInput, 'price' | 'description' | 'productName'>>,
+    current: ListingPublishInput,
   ): Promise<void>;
 
   // Remove/unpublish a listing.

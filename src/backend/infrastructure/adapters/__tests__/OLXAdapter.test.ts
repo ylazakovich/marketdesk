@@ -475,12 +475,46 @@ describe('OLXAdapter', () => {
       realConfig,
     );
 
-    await adapter.updateListing('olx-1', { price: 299 });
+    await adapter.updateListing('olx-1', { price: 299 }, publishInput);
 
     expect((captured?.body as Record<string, unknown>).price).toEqual({
       value: 299,
       currency: 'PLN',
       negotiable: true,
+    });
+  });
+
+  it('sends the complete OLX advert payload when updating one field', async () => {
+    let captured: HttpRequestConfig | undefined;
+    const adapter = new OLXAdapter(
+      mockClient((config) => {
+        captured = config;
+        return { status: 204, data: {} };
+      }),
+      fastOptions,
+      realConfig,
+    );
+
+    await adapter.updateListing(
+      'olx-1',
+      { productName: 'Improved Camera Title' },
+      publishInput,
+    );
+
+    expect(captured?.method).toBe('PUT');
+    expect(captured?.body).toEqual({
+      title: 'Improved Camera Title',
+      description: publishInput.description,
+      category_id: 99,
+      advertiser_type: 'private',
+      price: { value: 349.99, currency: 'PLN', negotiable: true },
+      images: [{ url: 'https://img/1.jpg' }, { url: 'https://img/2.jpg' }],
+      location: { city_id: 123, district_id: 456 },
+      contact: { name: 'Seller', phone: '000000000' },
+      attributes: [
+        { code: 'state', value: 'used' },
+        { code: 'delivery', value: 'inpost-s' },
+      ],
     });
   });
 
@@ -494,7 +528,7 @@ describe('OLXAdapter', () => {
     const adapter = new OLXAdapter(http, fastOptions);
 
     await expect(
-      adapter.updateListing('olx-ok', { price: 10 }),
+      adapter.updateListing('olx-ok', { price: 10 }, publishInput),
     ).resolves.toBeUndefined();
     expect(calls).toBe(3);
   });
@@ -505,7 +539,7 @@ describe('OLXAdapter', () => {
     });
     const adapter = new OLXAdapter(http, { ...fastOptions, maxRetries: 1 });
     await expect(
-      adapter.updateListing('olx-1', { price: 10 }),
+      adapter.updateListing('olx-1', { price: 10 }, publishInput),
     ).rejects.toBeInstanceOf(MarketplaceRateLimitError);
   });
 

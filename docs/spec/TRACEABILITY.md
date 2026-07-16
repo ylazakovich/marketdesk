@@ -18,7 +18,7 @@ Status vocabulary:
 | §5 | Global app shell | Partial | `src/frontend/components/layout/AppShell.tsx`, `TopBar.tsx`, `Sidebar.tsx`; contextual single-header shell and brand hierarchy implemented | `TopBar.test.tsx`; typecheck; deployed visual evidence pending | Shell delivery: #171 |
 | §6 | Dashboard | Partial | `src/frontend/pages/DashboardPage.tsx` | Live empty-workspace audit 2026-07-16 | Open gap: #137 |
 | §7 | Products catalogue | Partial | `src/frontend/pages/ProductsPage.tsx` | Live empty-workspace audit 2026-07-16; table unit coverage | Open gap: #172 |
-| §8 | Product creation wizard | Partial | `src/frontend/components/forms/ProductWizardForm.tsx` | `src/frontend/components/forms/ProductWizardForm.test.tsx`; live six-step/validation audit 2026-07-16 | Open gap: #138 |
+| §8 | Product creation wizard | Partial | `src/frontend/components/forms/ProductWizardForm.tsx` | `src/frontend/components/forms/ProductWizardForm.test.tsx`; `src/frontend/components/forms/productWizardDraft.test.ts`; `src/frontend/pages/ProductsPage.test.ts`; live six-step/validation audit 2026-07-16 | Open gap: #138 |
 | §9 | Analytics | Partial | `src/frontend/pages/AnalyticsPage.tsx` | `src/frontend/pages/AnalyticsPage.test.tsx`; live KPI/layout audit 2026-07-16 | Open gap: #173 |
 | §10 | Hermes AI overview | Partial | `src/frontend/pages/HermesActivityPage.tsx` | Live run/empty-state audit 2026-07-16 | Open gap: #139 |
 | §11 | Hermes activity feed | Partial | `src/frontend/components/hermes/HermesEventCard.tsx` | Existing API event tests; populated visual flow not yet verified | Open gap: #139 |

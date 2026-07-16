@@ -40,6 +40,7 @@ import type {
   ProductFieldErrors,
   ProductSubmissionValues,
 } from './productFormModel.js';
+import type { ProductWizardDraftState } from './productWizardDraft.js';
 import {
   DescriptionTagsFields,
   ImagesField,
@@ -50,6 +51,8 @@ import {
 
 export interface ProductWizardFormProps {
   submitting?: boolean;
+  initialDraft?: ProductWizardDraftState | null;
+  onDraftChange?: (draft: ProductWizardDraftState) => void;
   marketplaces?: Marketplace[];
   marketplacesLoading?: boolean;
   marketplacesError?: boolean;
@@ -229,6 +232,8 @@ function fieldSummary(value: ProductFormValues[keyof ProductFormValues]): string
 
 export const ProductWizardForm: React.FC<ProductWizardFormProps> = ({
   submitting = false,
+  initialDraft,
+  onDraftChange,
   marketplaces,
   marketplacesLoading = false,
   marketplacesError = false,
@@ -236,8 +241,16 @@ export const ProductWizardForm: React.FC<ProductWizardFormProps> = ({
   onCancel,
   onGenerateAIDraft,
 }) => {
-  const [activeStep, setActiveStep] = useState(0);
-  const [values, setValues] = useState<ProductFormValues>(() => emptyProductValues());
+  const [activeStep, setActiveStep] = useState(initialDraft?.activeStep ?? 0);
+  const [values, setValues] = useState<ProductFormValues>(() =>
+    initialDraft
+      ? {
+          ...initialDraft.values,
+          tags: [...initialDraft.values.tags],
+          images: [...initialDraft.values.images],
+        }
+      : emptyProductValues()
+  );
   const [errors, setErrors] = useState<ProductFieldErrors>({});
   const [marketplaceError, setMarketplaceError] = useState<string | null>(null);
   const [draft, setDraft] = useState<ProductAIDraft | null>(null);
@@ -246,16 +259,23 @@ export const ProductWizardForm: React.FC<ProductWizardFormProps> = ({
   );
   const [draftError, setDraftError] = useState<string | null>(null);
   const [draftLoading, setDraftLoading] = useState(false);
-  const [targetMarketplace, setTargetMarketplace] = useState<MarketplaceKey | null>(null);
+  const [targetMarketplace, setTargetMarketplace] = useState<MarketplaceKey | null>(
+    initialDraft?.targetMarketplace ?? null
+  );
   const marketplaceOptions = useMemo(
     () => buildWizardMarketplaceOptions(marketplaces),
     [marketplaces]
   );
 
   useEffect(() => {
+    onDraftChange?.({ values, activeStep, targetMarketplace });
+  }, [activeStep, onDraftChange, targetMarketplace, values]);
+
+  useEffect(() => {
     if (
       targetMarketplace &&
-      !marketplaces?.some(
+      marketplaces &&
+      !marketplaces.some(
         (marketplace) => marketplace.key === targetMarketplace && marketplace.connected
       )
     ) {

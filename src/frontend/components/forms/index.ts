@@ -16,3 +16,11 @@ export type {
   ProductSubmissionValues,
   ProductFieldErrors,
 } from './productFormModel.js';
+export {
+  hasMeaningfulProductWizardDraft,
+  productWizardDraftStorageKey,
+  readProductWizardDraft,
+  removeProductWizardDraft,
+  writeProductWizardDraft,
+} from './productWizardDraft.js';
+export type { ProductWizardDraftState } from './productWizardDraft.js';

@@ -1,7 +1,8 @@
 // Products catalogue: server-driven filters/sort (RTK Query) + a client search,
 // paginated table, and a "New product" wizard modal.
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   Autocomplete,
   Box,
   Button,
@@ -16,7 +17,8 @@ import {
 import type { SelectChangeEvent } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useBlocker, useLocation, useNavigate } from 'react-router-dom';
+import type { BlockerFunction } from 'react-router-dom';
 import type { Marketplace, Product, ProductStatus } from '@shared/types';
 import { PRODUCT_STATUS_LIST } from '@shared/constants';
 import {
@@ -31,12 +33,42 @@ import { useAppDispatch, useAppSelector } from '../state/hooks.js';
 import { enqueueToast } from '../state/slices/uiSlice.js';
 import { Card } from '../components/common/Card.js';
 import { Modal } from '../components/common/Modal.js';
+import { ConfirmDialog } from '../components/common/ConfirmDialog.js';
 import { ProductStatusBadge } from '../components/common/Badge.js';
 import { ProductsTable } from '../components/tables/index.js';
-import { ProductWizardForm, verifyWizardMarketplaceReadiness } from '../components/forms/index.js';
-import type { ProductSubmissionValues } from '../components/forms/index.js';
+import {
+  ProductWizardForm,
+  hasMeaningfulProductWizardDraft,
+  productWizardDraftStorageKey,
+  readProductWizardDraft,
+  removeProductWizardDraft,
+  verifyWizardMarketplaceReadiness,
+  writeProductWizardDraft,
+} from '../components/forms/index.js';
+import type {
+  ProductSubmissionValues,
+  ProductWizardDraftState,
+} from '../components/forms/index.js';
 
 const PAGE_SIZE = 20;
+
+export function shouldBlockProductWizardNavigation(
+  wizardOpen: boolean,
+  draftDirty: boolean,
+  navigationAllowed: boolean,
+  currentUrl: string,
+  nextUrl: string
+): boolean {
+  return wizardOpen && draftDirty && !navigationAllowed && currentUrl !== nextUrl;
+}
+
+function browserStorage(): Storage | null {
+  try {
+    return typeof window === 'undefined' ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+}
 
 function errorMessage(err: unknown): string {
   if (err && typeof err === 'object') {
@@ -51,6 +83,7 @@ const ProductsPage: React.FC = () => {
   const location = useLocation();
   const dispatch = useAppDispatch();
   const workspaceId = useAppSelector((s) => s.workspace.id);
+  const userId = useAppSelector((s) => s.auth.user?.id);
   const currency = useAppSelector((s) => s.workspace.currency);
 
   const [statusFilter, setStatusFilter] = useState<ProductStatus[]>([]);
@@ -64,9 +97,57 @@ const ProductsPage: React.FC = () => {
     Math.max(0, Number.parseInt(query.get('page') ?? '1', 10) - 1 || 0)
   );
   const wizardOpen = query.get('newProduct') === '1';
+  const draftKey = useMemo(
+    () => (workspaceId && userId ? productWizardDraftStorageKey(workspaceId, userId) : null),
+    [userId, workspaceId]
+  );
+  const [initialDraft, setInitialDraft] = useState<ProductWizardDraftState | null>(null);
+  const [loadedDraftKey, setLoadedDraftKey] = useState<string | null>(null);
+  const draftLoaded = Boolean(draftKey) && loadedDraftKey === draftKey;
+  const [draftDirty, setDraftDirty] = useState(false);
+  const [draftSaveError, setDraftSaveError] = useState(false);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const allowWizardNavigationRef = useRef(false);
+  const shouldBlockWizardNavigation = useCallback<BlockerFunction>(
+    ({ currentLocation, nextLocation }) =>
+      shouldBlockProductWizardNavigation(
+        wizardOpen,
+        draftDirty,
+        allowWizardNavigationRef.current,
+        `${currentLocation.pathname}${currentLocation.search}${currentLocation.hash}`,
+        `${nextLocation.pathname}${nextLocation.search}${nextLocation.hash}`
+      ),
+    [draftDirty, wizardOpen]
+  );
+  const blocker = useBlocker(shouldBlockWizardNavigation);
 
-  const openWizard = () => navigate('/products?newProduct=1');
-  const closeWizard = () => navigate('/products', { replace: true });
+  const readStoredDraft = useCallback(() => {
+    return draftKey ? readProductWizardDraft(browserStorage(), draftKey) : null;
+  }, [draftKey]);
+
+  const clearStoredDraft = useCallback(() => {
+    return draftKey ? removeProductWizardDraft(browserStorage(), draftKey) : false;
+  }, [draftKey]);
+
+  const openWizard = () => {
+    if (!draftKey) {
+      dispatch(
+        enqueueToast({
+          message: 'Product creation needs an active signed-in workspace.',
+          severity: 'warning',
+        })
+      );
+      return;
+    }
+    allowWizardNavigationRef.current = false;
+    const restored = draftKey ? readStoredDraft() : null;
+    setInitialDraft(restored);
+    setLoadedDraftKey(draftKey);
+    setDraftDirty(Boolean(restored && hasMeaningfulProductWizardDraft(restored)));
+    setDraftSaveError(false);
+    navigate('/products?newProduct=1');
+  };
+  const closeWizard = useCallback(() => navigate('/products', { replace: true }), [navigate]);
 
   const params = useMemo<ProductListParams>(() => {
     const p: ProductListParams = { sort, limit: PAGE_SIZE, offset: page * PAGE_SIZE };
@@ -85,6 +166,99 @@ const ProductsPage: React.FC = () => {
   const [readinessError, setReadinessError] = useState(false);
   const [createProduct, { isLoading: creating }] = useCreateProduct();
   const [generateProductAIDraft] = useGenerateProductAIDraft();
+
+  useEffect(() => {
+    if (blocker.state === 'blocked') setLeaveDialogOpen(true);
+  }, [blocker.state]);
+
+  useEffect(() => {
+    if (wizardOpen && !draftLoaded && draftKey) {
+      const restored = readStoredDraft();
+      setInitialDraft(restored);
+      setDraftDirty(Boolean(restored && hasMeaningfulProductWizardDraft(restored)));
+      setDraftSaveError(false);
+      setLoadedDraftKey(draftKey);
+    } else if (!wizardOpen && loadedDraftKey !== null) {
+      setInitialDraft(null);
+      setDraftDirty(false);
+      setDraftSaveError(false);
+      setLoadedDraftKey(null);
+      setLeaveDialogOpen(false);
+      allowWizardNavigationRef.current = false;
+    }
+  }, [draftKey, draftLoaded, loadedDraftKey, readStoredDraft, wizardOpen]);
+
+  useEffect(() => {
+    if (!wizardOpen || !draftDirty) return undefined;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [draftDirty, wizardOpen]);
+
+  const handleDraftChange = useCallback(
+    (draft: ProductWizardDraftState) => {
+      const meaningful = hasMeaningfulProductWizardDraft(draft);
+      setDraftDirty(meaningful);
+      const storage = browserStorage();
+      if (!draftKey) {
+        setDraftSaveError(meaningful);
+        return;
+      }
+      const saved = meaningful
+        ? writeProductWizardDraft(storage, draftKey, draft)
+        : removeProductWizardDraft(storage, draftKey);
+      setDraftSaveError(!saved);
+    },
+    [draftKey]
+  );
+
+  const completeWizardNavigation = () => {
+    allowWizardNavigationRef.current = true;
+    setLeaveDialogOpen(false);
+    if (blocker.state === 'blocked') blocker.proceed();
+    else closeWizard();
+  };
+
+  const requestWizardClose = () => {
+    if (draftDirty) setLeaveDialogOpen(true);
+    else completeWizardNavigation();
+  };
+
+  const cancelWizardLeave = () => {
+    allowWizardNavigationRef.current = false;
+    if (blocker.state === 'blocked') blocker.reset();
+    setLeaveDialogOpen(false);
+  };
+
+  const keepDraftAndClose = () => {
+    if (draftSaveError) {
+      dispatch(
+        enqueueToast({
+          message: 'Draft is kept for this browser session, but will not survive a reload.',
+          severity: 'warning',
+        })
+      );
+    }
+    completeWizardNavigation();
+  };
+
+  const discardDraftAndClose = () => {
+    if (draftKey && !clearStoredDraft()) {
+      dispatch(
+        enqueueToast({
+          message: 'Draft discarded for this session; an inaccessible stored copy may remain.',
+          severity: 'warning',
+        })
+      );
+    }
+    setInitialDraft(null);
+    setDraftDirty(false);
+    setDraftSaveError(false);
+    completeWizardNavigation();
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -156,8 +330,18 @@ const ProductsPage: React.FC = () => {
     try {
       const { targetMarketplace: _targetMarketplace, ...productValues } = values;
       await createProduct({ ...productValues, workspaceId }).unwrap();
+      if (draftKey && !clearStoredDraft()) {
+        dispatch(
+          enqueueToast({
+            message: 'Product created, but the local wizard draft could not be cleared.',
+            severity: 'warning',
+          })
+        );
+      }
+      setDraftDirty(false);
+      setInitialDraft(null);
       dispatch(enqueueToast({ message: 'Product created.', severity: 'success' }));
-      closeWizard();
+      completeWizardNavigation();
     } catch (err) {
       dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
     }
@@ -289,21 +473,48 @@ const ProductsPage: React.FC = () => {
 
       <Modal
         open={wizardOpen}
-        onClose={closeWizard}
+        onClose={requestWizardClose}
         title="New product"
         subtitle="Add a product to your catalogue in a few steps."
         maxWidth="md"
       >
-        <ProductWizardForm
-          submitting={creating}
-          marketplaces={verifiedMarketplaces}
-          marketplacesLoading={readinessLoading}
-          marketplacesError={readinessError}
-          onSubmit={handleCreate}
-          onGenerateAIDraft={(request) => generateProductAIDraft(request).unwrap()}
-          onCancel={closeWizard}
-        />
+        {!draftKey ? (
+          <Alert severity="warning">
+            Product creation needs an active signed-in workspace. Finish account setup or select a
+            workspace, then try again.
+          </Alert>
+        ) : draftLoaded ? (
+          <ProductWizardForm
+            initialDraft={initialDraft}
+            onDraftChange={handleDraftChange}
+            submitting={creating}
+            marketplaces={verifiedMarketplaces}
+            marketplacesLoading={readinessLoading}
+            marketplacesError={readinessError}
+            onSubmit={handleCreate}
+            onGenerateAIDraft={(request) => generateProductAIDraft(request).unwrap()}
+            onCancel={requestWizardClose}
+          />
+        ) : (
+          <Alert severity="info">Loading your saved product draft…</Alert>
+        )}
       </Modal>
+      <ConfirmDialog
+        open={leaveDialogOpen}
+        title="Leave product creation?"
+        message={
+          draftSaveError
+            ? 'This draft is available for the current browser session, but local storage failed. Reloading or closing the tab may lose it.'
+            : 'Your progress is saved locally. Keep the draft for later or discard it.'
+        }
+        cancelLabel="Keep editing"
+        alternateLabel="Save draft and close"
+        confirmLabel="Discard draft"
+        confirmColor="error"
+        onCancel={cancelWizardLeave}
+        onAlternate={keepDraftAndClose}
+        onConfirm={discardDraftAndClose}
+      />
     </Box>
   );
 };

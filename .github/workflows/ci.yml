@@ -67,6 +67,9 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Verify product contract traceability
+        run: npm run verify:spec
+
       # Lint is reported but non-blocking: the repo has a small number of
       # pre-existing lint errors in files outside this change set. New code is
       # expected to be lint-clean.

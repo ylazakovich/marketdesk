@@ -1,23 +1,28 @@
-# Task and backlog conventions
+# Product recovery work map
 
-GitHub issues are the operational backlog. Use stable references like `GH-160` when linking implementation evidence.
+The live implementation is tracked against the original PRD in [`TRACEABILITY.md`](TRACEABILITY.md). GitHub issues are the executable backlog; this file is only the current map.
+
+## Foundation
+
+- #170 — canonical PRD hierarchy, traceability and closeout gates.
+- #171 — shared application shell, branding and duplicate-header correction.
+
+## Screen parity
+
+- #137 — Dashboard.
+- #172 — Products catalogue.
+- #138 — guided product wizard.
+- #173 — Analytics.
+- #139 — Hermes overview and activity feed.
+- #174 — Marketplaces and brand assets.
+- #140–#149 — Settings shell, persistence and functional sections.
+- #150 — product detail.
+
+## Provider correctness
+
+- #164 and follow-ups — OLX publication quota safety.
+- #169 — semantic category validation and quota-safe recreation guidance.
 
 ## Task closeout
 
-Close a task only with concrete evidence:
-
-- code/docs changed for the requested behavior;
-- targeted tests or checks ran;
-- CodeRabbit/review comments were triaged and fixed when applicable;
-- deployment verification was performed for live-facing changes.
-
-If a task exposes a product decision or provider limitation, leave the task open or document the remaining scope in `OPEN_QUESTIONS.md` instead of marking it done by proximity.
-
-## Required cycle
-
-1. Idea / intake.
-2. Documentation/spec update when scope or process changes.
-3. Development / implementation.
-4. Testing aligned with the test pyramid.
-5. CodeRabbit / review comment fixes.
-6. Delivery to server / deployment verification when live-facing.
+Do not close an issue because a route, shell, placeholder or disabled control exists. Close only after its own acceptance criteria, targeted tests, review findings and deployed evidence are complete, and update `TRACEABILITY.md` in the same PR.

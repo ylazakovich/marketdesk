@@ -1,13 +1,13 @@
 # MarketDesk - Multi-Marketplace Product Management Platform
 
-A comprehensive platform for managing products and listings across multiple e-commerce marketplaces. Built with TypeScript, Node.js, React, and PostgreSQL.
+A workspace-scoped platform for managing products, listings, marketplace state, analytics, and Hermes-assisted decisions. OLX is the only validated live marketplace integration today; other channels remain explicit roadmap surfaces.
 
 ## Overview
 
 MarketDesk is an integrated product and listing management system designed to simplify multi-marketplace operations. It provides:
 
 - **Product Management**: Create and manage products with detailed attributes and pricing
-- **Multi-Marketplace Listings**: Sync and manage listings across Amazon, eBay, Shopify, AliExpress, and more
+- **Marketplace Listings**: Publish and synchronize OLX listings behind guarded provider contracts; additional channels are roadmap work
 - **Inventory Tracking**: Real-time inventory management with history tracking
 - **Price Management**: Dynamic pricing with history and optimization capabilities
 - **Event Processing**: Real-time event handling with the Hermes event system
@@ -73,7 +73,7 @@ MarketDesk is an integrated product and listing management system designed to si
 │       ├── constants/           # Constants used across app
 │       └── utils/               # Shared utility functions
 ├── docs/
-│   ├── spec/                    # SDD source of truth and delivery workflow
+│   ├── spec/                    # Maturity, traceability and delivery workflow
 │   └── design/                  # Static PRD/design prototype and screenshots
 ├── docker-compose.yml           # Docker Compose configuration
 ├── Dockerfile                   # Docker build configuration
@@ -100,6 +100,8 @@ Static design artifacts live under `docs/design/` and are excluded from Docker b
   - [Analytics](docs/design/screenshots/analytics.png)
   - [Dark theme](docs/design/screenshots/dark.png)
 - `docs/design/_ds/`, `doc-page.js`, `support.js` — local runtime/design-system assets required by the HTML docs
+
+Read [`docs/spec/README.md`](docs/spec/README.md) for the authoritative source hierarchy. The original PRD remains the product behavior and acceptance contract; [`docs/spec/PRODUCT.md`](docs/spec/PRODUCT.md) records current maturity and approved deviations, and [`docs/spec/TRACEABILITY.md`](docs/spec/TRACEABILITY.md) maps every PRD section to implementation evidence and active issues.
 
 Preview the HTML files by opening them directly in a browser from the repository checkout.
 

@@ -47,6 +47,10 @@ set `DB_SSL_MODE=verify-full`; MarketDesk then enables TLS with server-certifica
 verification (`rejectUnauthorized: true`). Modes that enable TLS without certificate
 verification are intentionally unsupported. `DB_SSL_MODE` is authoritative; TLS query
 parameters in `DATABASE_URL` are ignored so they cannot silently weaken this setting.
+For an external endpoint, also set its full `DATABASE_URL`; Compose preserves that value.
+When `DATABASE_URL` is empty, the app uses the individual `DB_HOST`, `DB_PORT`, `DB_USER`,
+`DB_PASSWORD`, and `DB_NAME` settings, whose Compose defaults target the bundled `postgres`
+service.
 Database TLS is independent of the public Caddy/Cloudflare HTTPS configuration described
 below.
 

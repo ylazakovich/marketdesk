@@ -70,6 +70,9 @@ jobs:
       - name: Verify product contract traceability
         run: npm run verify:spec
 
+      - name: Verify Docker Compose database configuration
+        run: npm run verify:compose-db
+
       # Lint is reported but non-blocking: the repo has a small number of
       # pre-existing lint errors in files outside this change set. New code is
       # expected to be lint-clean.

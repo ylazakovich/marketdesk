@@ -43,4 +43,20 @@ describe('safeErrorDetails', () => {
       message: 'Unknown startup error',
     });
   });
+
+  it('redacts configured secrets from every emitted string field', () => {
+    const secret = 'configured-startup-secret';
+    const error = Object.assign(new Error(`message=${secret}`), {
+      name: `name-${secret}`,
+      code: `code-${secret}`,
+      syscall: `syscall-${secret}`,
+      address: `postgresql://user:${secret}@db.example.com/app`,
+      port: `port-${secret}`,
+    });
+
+    const serialized = JSON.stringify(safeErrorDetails(error, [secret]));
+    expect(serialized).not.toContain(secret);
+    expect(serialized).not.toContain('postgresql://');
+    expect(serialized).toContain('[redacted]');
+  });
 });

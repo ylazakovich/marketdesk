@@ -62,13 +62,15 @@ services:
       APP_NAME: ${APP_NAME:-hermes-marketdesk}
       APP_PORT: ${APP_PORT:-3000}
       LOG_LEVEL: ${LOG_LEVEL:-debug}
-      DATABASE_URL: postgresql://${DB_USER:-marketdesk}:${DB_PASSWORD:?DB_PASSWORD must be set}@postgres:5432/${DB_NAME:-marketdesk}
+      # Leave DATABASE_URL empty to use the individual internal-Compose fields below,
+      # or set it explicitly for a managed/external PostgreSQL endpoint.
+      DATABASE_URL: ${DATABASE_URL:-}
       # The Compose PostgreSQL service is plaintext inside the private Docker network.
       DB_SSL_MODE: ${DB_SSL_MODE:?DB_SSL_MODE must be set (use disable for internal Compose PostgreSQL)}
-      DB_HOST: postgres
-      DB_PORT: 5432
+      DB_HOST: ${DB_HOST:-postgres}
+      DB_PORT: ${DB_PORT:-5432}
       DB_USER: ${DB_USER:-marketdesk}
-      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD must be set}
+      DB_PASSWORD: ${DB_PASSWORD:-}
       DB_NAME: ${DB_NAME:-marketdesk}
       REDIS_URL: redis://:${REDIS_PASSWORD:-}@redis:6379
       REDIS_HOST: redis

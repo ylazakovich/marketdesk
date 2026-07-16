@@ -423,6 +423,8 @@ See `.env.example` for all available configuration options.
 - `DB_SSL_MODE` - PostgreSQL transport mode: `disable` for local/internal Compose,
   or `verify-full` for verified TLS. Production requires an explicit value; this
   setting is authoritative over any TLS query parameters in `DATABASE_URL`.
+  Compose preserves an explicitly configured external `DATABASE_URL`; when it is
+  empty, the app uses the individual `DB_*` settings and defaults to the bundled service.
 - `REDIS_URL` - Redis connection string
 - `JWT_SECRET` - Secret key for JWT signing
 

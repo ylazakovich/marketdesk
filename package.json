@@ -16,6 +16,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,json}\"",
     "type-check": "tsc --noEmit",
     "verify:spec": "node scripts/verify-spec-traceability.mjs",
+    "verify:compose-db": "node scripts/verify-compose-database-config.mjs",
     "db:migrate": "node --loader ts-node/esm src/backend/persistence/migrate.ts",
     "db:seed": "node --loader ts-node/esm src/backend/persistence/seed.ts",
     "test": "jest",

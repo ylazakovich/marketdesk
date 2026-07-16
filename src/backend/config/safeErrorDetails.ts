@@ -31,14 +31,22 @@ export function safeErrorDetails(
     port?: unknown;
   };
   const details: SafeErrorDetails = {
-    name: error.name,
+    name: redact(error.name, sensitiveValues),
     message: redact(error.message, sensitiveValues),
   };
-  if (typeof systemError.code === 'string') details.code = systemError.code;
-  if (typeof systemError.syscall === 'string') details.syscall = systemError.syscall;
-  if (typeof systemError.address === 'string') details.address = systemError.address;
+  if (typeof systemError.code === 'string') {
+    details.code = redact(systemError.code, sensitiveValues);
+  }
+  if (typeof systemError.syscall === 'string') {
+    details.syscall = redact(systemError.syscall, sensitiveValues);
+  }
+  if (typeof systemError.address === 'string') {
+    details.address = redact(systemError.address, sensitiveValues);
+  }
   if (typeof systemError.port === 'number' || typeof systemError.port === 'string') {
-    details.port = systemError.port;
+    details.port = typeof systemError.port === 'string'
+      ? redact(systemError.port, sensitiveValues)
+      : systemError.port;
   }
   return details;
 }

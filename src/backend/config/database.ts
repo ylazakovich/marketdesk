@@ -1,5 +1,5 @@
-import { Pool, PoolClient } from 'pg';
-import { env, isProduction } from './env.js';
+import { Pool, PoolClient, type PoolConfig } from 'pg';
+import { env, type DatabaseSslMode } from './env.js';
 import pino from 'pino';
 
 const logger = pino({
@@ -8,22 +8,49 @@ const logger = pino({
 
 let pool: Pool | null = null;
 
+export function databaseSslConfig(mode: DatabaseSslMode): PoolConfig['ssl'] {
+  return mode === 'verify-full' ? { rejectUnauthorized: true } : false;
+}
+
+export function connectionStringWithoutSslOptions(connectionString: string): string {
+  const parsed = new URL(connectionString);
+  // node-postgres lets TLS query parameters override the top-level `ssl` option.
+  // Remove every such escape hatch so DB_SSL_MODE remains authoritative.
+  for (const parameter of [
+    'ssl',
+    'sslmode',
+    'sslcert',
+    'sslkey',
+    'sslrootcert',
+    'sslnegotiation',
+    'uselibpqcompat',
+  ]) {
+    parsed.searchParams.delete(parameter);
+  }
+  return parsed.toString();
+}
+
 export function createPool(): Pool {
   if (pool) {
     return pool;
   }
 
-  const connectionString = env.database.url ||
-    `postgresql://${env.database.user}:${env.database.password}@${env.database.host}:${env.database.port}/${env.database.name}`;
-
   pool = new Pool({
-    connectionString,
+    ...(env.database.url
+      ? { connectionString: connectionStringWithoutSslOptions(env.database.url) }
+      : {
+          host: env.database.host,
+          port: env.database.port,
+          user: env.database.user,
+          password: env.database.password,
+          database: env.database.name,
+        }),
     min: env.database.poolMin,
     max: env.database.poolMax,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 5000,
     application_name: env.appName,
-    ssl: isProduction ? { rejectUnauthorized: true } : false,
+    ssl: databaseSslConfig(env.database.sslMode),
   });
 
   pool.on('error', (err: Error) => {

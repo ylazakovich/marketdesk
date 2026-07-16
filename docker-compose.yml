@@ -63,6 +63,8 @@ services:
       APP_PORT: ${APP_PORT:-3000}
       LOG_LEVEL: ${LOG_LEVEL:-debug}
       DATABASE_URL: postgresql://${DB_USER:-marketdesk}:${DB_PASSWORD:?DB_PASSWORD must be set}@postgres:5432/${DB_NAME:-marketdesk}
+      # The Compose PostgreSQL service is plaintext inside the private Docker network.
+      DB_SSL_MODE: ${DB_SSL_MODE:?DB_SSL_MODE must be set (use disable for internal Compose PostgreSQL)}
       DB_HOST: postgres
       DB_PORT: 5432
       DB_USER: ${DB_USER:-marketdesk}

@@ -420,6 +420,9 @@ See `.env.example` for all available configuration options.
 **Critical Variables**:
 
 - `DATABASE_URL` - PostgreSQL connection string
+- `DB_SSL_MODE` - PostgreSQL transport mode: `disable` for local/internal Compose,
+  or `verify-full` for verified TLS. Production requires an explicit value; this
+  setting is authoritative over any TLS query parameters in `DATABASE_URL`.
 - `REDIS_URL` - Redis connection string
 - `JWT_SECRET` - Secret key for JWT signing
 

@@ -13,6 +13,7 @@ import { createRedisClient, closeRedis } from './config/redis.js';
 import { buildApp, createCorsOptions, HELMET_OPTIONS } from './presentation/http/app.js';
 import { HermesLiveUpdates } from './presentation/websocket/HermesLiveUpdates.js';
 import { buildContainer, type AppContainer } from './config/di/index.js';
+import { safeErrorDetails } from './config/safeErrorDetails.js';
 
 const logger = pino({
   level: env.logLevel,
@@ -25,6 +26,21 @@ const logger = pino({
     }
   } : undefined
 });
+
+const startupSensitiveValues = [
+  env.database.url,
+  env.database.password,
+  env.redis.url,
+  env.redis.password,
+  env.jwt.secret,
+  env.jwt.refreshSecret,
+  env.hermes.apiKey,
+  env.hermes.webhookSecret,
+  env.marketplaces.olx.clientSecret,
+  env.marketplaces.olx.accessToken,
+  env.marketplaces.olx.refreshToken,
+  env.marketplaceCredentialsKey,
+];
 
 // Composition seam. The DI container (config/di) constructs the full object graph
 // — repositories, infrastructure services, ports and application services — and
@@ -59,7 +75,10 @@ const startServer = async () => {
       // serving a crippled health-only process. In dev/test we degrade so the
       // process stays inspectable.
       if (env.nodeEnv === 'production') {
-        logger.error({ err: wiringError }, 'Failed to wire application (fatal)');
+        logger.error(
+          { error: safeErrorDetails(wiringError, startupSensitiveValues) },
+          'Failed to wire application (fatal)',
+        );
         throw wiringError;
       }
       logger.warn(
@@ -201,7 +220,10 @@ const startServer = async () => {
     process.on('SIGTERM', () => void shutdown('SIGTERM'));
     process.on('SIGINT', () => void shutdown('SIGINT'));
   } catch (error) {
-    logger.error({ error }, 'Failed to start server');
+    logger.error(
+      { error: safeErrorDetails(error, startupSensitiveValues) },
+      'Failed to start server',
+    );
     process.exit(1);
   }
 };

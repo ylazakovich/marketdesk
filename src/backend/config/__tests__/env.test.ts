@@ -1,7 +1,32 @@
 // S1: the JWT secret resolver must fail-closed in production and return a
 // clearly-marked dev-only value outside production.
 
-import { positiveInt, resolveJwtSecret } from '../env';
+import { positiveInt, resolveDatabaseSslMode, resolveJwtSecret } from '../env';
+
+describe('resolveDatabaseSslMode', () => {
+  it('allows production to explicitly disable TLS for internal Compose PostgreSQL', () => {
+    expect(resolveDatabaseSslMode('disable', true)).toBe('disable');
+  });
+
+  it('enables verified TLS explicitly in production', () => {
+    expect(resolveDatabaseSslMode('verify-full', true)).toBe('verify-full');
+  });
+
+  it.each([undefined, '', '   '])('rejects a missing production mode: %p', (value) => {
+    expect(() => resolveDatabaseSslMode(value, true)).toThrow(/DB_SSL_MODE/);
+  });
+
+  it.each(['require', 'verify-ca', 'true', 'DISABLE'])(
+    'rejects invalid mode %s',
+    (value) => {
+      expect(() => resolveDatabaseSslMode(value, true)).toThrow(/DB_SSL_MODE/);
+    },
+  );
+
+  it('defaults to plaintext outside production for ergonomic local and test use', () => {
+    expect(resolveDatabaseSslMode(undefined, false)).toBe('disable');
+  });
+});
 
 describe('positiveInt', () => {
   it('returns a configured positive integer or the fallback', () => {

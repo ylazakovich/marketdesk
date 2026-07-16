@@ -22,6 +22,7 @@ import type { IdGenerator } from '../ports/IdGenerator';
 import type { PublishListingDTO } from '../dto/PublishListingDTO';
 import type { MarketplaceAccountRepository } from '../services/MarketplaceOAuthService';
 import type { OlxPublicationQuotaService } from '../services/OlxPublicationQuotaService';
+import { evaluateOlxCategory } from '../../domain/services/OlxCategoryGuard';
 
 export interface PublishEligibility {
   canPublish: boolean;
@@ -101,6 +102,13 @@ export class PublishListingUseCase {
 
     const operationId = this.idGenerator();
     if (marketplace.key === 'olx') {
+      const categoryDecision = evaluateOlxCategory(product, listing.marketplaceCategory);
+      if (!categoryDecision.allowed) {
+        return Err(new GuardrailViolationError(
+          categoryDecision.message ?? 'OLX category validation blocks publication',
+          { categoryDecision, marketplaceCategory: listing.marketplaceCategory },
+        ));
+      }
       if (!this.olxQuota) {
         return Err(
           new GuardrailViolationError(
@@ -145,6 +153,7 @@ export class PublishListingUseCase {
           price: listing.price.amount,
           currency: listing.price.currency,
           category: product.category,
+          marketplaceCategory: listing.marketplaceCategory,
           condition: product.condition,
           imageUrls: [...product.images],
         },

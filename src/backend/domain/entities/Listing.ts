@@ -7,7 +7,7 @@ import { Result, Ok, Err } from '../shared/Result';
 import { ValidationError, InvalidStateError } from '../shared/DomainError';
 import { Money } from '../valueObjects/Money';
 import { canTransition } from '../valueObjects/ListingStatus';
-import type { ListingStatus } from '../../../shared/types';
+import type { ListingStatus, MarketplaceCategoryMetadata } from '../../../shared/types';
 import type { Product } from './Product';
 import type { Marketplace } from './Marketplace';
 
@@ -20,6 +20,7 @@ export interface CreateListingProps {
   externalUrl?: string | null;
   status?: ListingStatus;
   remoteStatus?: string | null;
+  marketplaceCategory?: MarketplaceCategoryMetadata | null;
   views?: number | null;
   watchers?: number | null;
   messages?: number | null;
@@ -41,6 +42,7 @@ export class Listing {
     private _externalUrl: string | null,
     private _status: ListingStatus,
     private _remoteStatus: string | null,
+    private _marketplaceCategory: MarketplaceCategoryMetadata | null,
     private _views: number | null,
     private _watchers: number | null,
     private _messages: number | null,
@@ -77,6 +79,7 @@ export class Listing {
         props.externalUrl ?? null,
         props.status ?? 'draft',
         props.remoteStatus ?? null,
+        props.marketplaceCategory ?? null,
         props.views ?? null,
         props.watchers ?? null,
         props.messages ?? null,
@@ -100,6 +103,7 @@ export class Listing {
       props.externalUrl,
       props.status,
       props.remoteStatus,
+      props.marketplaceCategory,
       props.views,
       props.watchers,
       props.messages,
@@ -121,6 +125,9 @@ export class Listing {
   }
   get remoteStatus(): string | null {
     return this._remoteStatus;
+  }
+  get marketplaceCategory(): MarketplaceCategoryMetadata | null {
+    return this._marketplaceCategory;
   }
   get marketplaceListingId(): string | null {
     return this._marketplaceListingId;
@@ -255,6 +262,11 @@ export class Listing {
 
   recordExternalUrl(url: string | null): void {
     this._externalUrl = url;
+    this.touch();
+  }
+
+  recordMarketplaceCategory(category: MarketplaceCategoryMetadata | null): void {
+    this._marketplaceCategory = category ? { ...category, path: [...category.path] } : null;
     this.touch();
   }
 

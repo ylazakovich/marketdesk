@@ -14,11 +14,20 @@ import type { PublishListingJob } from '../ports/IJobQueue';
 import type { MarketplaceAccountRepository } from '../services/MarketplaceOAuthService';
 import type { OlxPublicationQuotaService } from '../services/OlxPublicationQuotaService';
 import { GuardrailViolationError } from '../../domain/shared/DomainError';
+import type { MarketplaceCategoryMetadata } from '../../../shared/types';
+
+const exactCategory: MarketplaceCategoryMetadata = {
+  providerCategoryId: '4000', name: 'Lamps', path: ['Home', 'Lighting', 'Lamps'],
+  source: 'provider_taxonomy', confidence: 0.95, isLeaf: true,
+  taxonomyVerifiedAt: '2099-01-01T00:00:00.000Z',
+  taxonomyStaleAt: '2099-02-01T00:00:00.000Z',
+};
 
 function setup(
   connected: boolean,
   oauthAccount: 'connected' | 'missing' | 'legacy' = 'legacy',
   withQuotaService = true,
+  options: { productName?: string; productDescription?: string; category?: MarketplaceCategoryMetadata | null } = {},
 ) {
   const productRepo = new InMemoryProductRepository();
   const listingRepo = new InMemoryListingRepository();
@@ -73,8 +82,8 @@ function setup(
       id: 'prod-1',
       workspaceId: 'ws-1',
       sku: 'SKU-1',
-      name: 'Lamp',
-      description: 'A beautiful vintage brass lamp in excellent condition.',
+      name: options.productName ?? 'Lamp',
+      description: options.productDescription ?? 'A beautiful vintage brass lamp in excellent condition.',
       costPrice: money(50),
       sellingPrice: money(100),
       condition: 'good',
@@ -91,6 +100,7 @@ function setup(
       productId: 'prod-1',
       marketplaceId: 'mp-1',
       price: money(100),
+      marketplaceCategory: options.category === undefined ? exactCategory : options.category,
     })
   );
   productRepo.items.set(product.id, product);
@@ -136,6 +146,7 @@ describe('PublishListingUseCase', () => {
     });
     expect(publishQueue.jobs[0].options).toEqual({ jobId: 'publish:rec-1' });
     expect(publishQueue.jobs[0].data.input.price).toBe(100);
+    expect(publishQueue.jobs[0].data.input.marketplaceCategory).toEqual(exactCategory);
     expect(activityLog.entries.map((e) => e.action)).toContain('listing.publish_requested');
   });
 
@@ -184,6 +195,41 @@ describe('PublishListingUseCase', () => {
 
     expect(result.isErr()).toBe(true);
     if (result.isErr()) expect(result.error.code).toBe('GUARDRAIL_VIOLATION');
+    expect(publishQueue.jobs).toHaveLength(0);
+  });
+
+  it('blocks an obvious semantic mismatch before quota authorization or queueing', async () => {
+    const headphones = {
+      ...exactCategory,
+      providerCategoryId: '456',
+      name: 'Wireless headphones',
+      path: ['Electronics', 'Audio equipment', 'Headphones', 'Wireless headphones'],
+    };
+    const { useCase, publishQueue, quotaService } = setup(true, 'legacy', true, {
+      productName: 'AOPEN QH11 projector',
+      productDescription: 'LED HD 720p HDMI projector.',
+      category: headphones,
+    });
+    const authorize = jest.spyOn(quotaService, 'authorize');
+
+    const result = await useCase.execute({ listingId: 'lst-1' });
+
+    expect(result.isErr()).toBe(true);
+    expect(authorize).not.toHaveBeenCalled();
+    expect(publishQueue.jobs).toHaveLength(0);
+  });
+
+  it.each([
+    ['missing', null],
+    ['stale', { ...exactCategory, taxonomyStaleAt: '2000-01-01T00:00:00.000Z' }],
+  ] as const)('fails closed for %s exact category metadata', async (_label, category) => {
+    const { useCase, publishQueue, quotaService } = setup(true, 'legacy', true, { category });
+    const authorize = jest.spyOn(quotaService, 'authorize');
+
+    const result = await useCase.execute({ listingId: 'lst-1' });
+
+    expect(result.isErr()).toBe(true);
+    expect(authorize).not.toHaveBeenCalled();
     expect(publishQueue.jobs).toHaveLength(0);
   });
 

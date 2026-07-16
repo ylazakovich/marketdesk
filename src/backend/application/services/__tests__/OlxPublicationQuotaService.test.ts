@@ -175,6 +175,11 @@ function setup() {
   }));
   const listing = unwrap(Listing.create({
     id: 'listing-1', productId: product.id, marketplaceId: marketplace.id, price: money(200),
+    marketplaceCategory: {
+      providerCategoryId: '2000', name: 'Cameras', path: ['Electronics', 'Cameras'],
+      source: 'provider_taxonomy', confidence: 1, isLeaf: true,
+      taxonomyVerifiedAt: '2026-07-14T00:00:00.000Z', taxonomyStaleAt: '2026-07-20T00:00:00.000Z',
+    },
   }));
   const service = new OlxPublicationQuotaService(
     marketplaceRepo,
@@ -230,18 +235,34 @@ describe('OlxPublicationQuotaService', () => {
     const missingAccountMarketplace = unwrap(Marketplace.create({
       id: 'mp-missing', workspaceId: 'ws-1', key: 'olx', name: 'OLX', connected: true,
     }));
-    const unknownCategoryProduct = unwrap(Product.create({
-      id: 'product-unknown-category', workspaceId: 'ws-1', sku: 'SKU-2', name: 'Table',
-      description: 'A table with enough detail for a safe OLX publication.',
-      costPrice: money(100), sellingPrice: money(200), condition: 'good', category: 'furniture',
+    const unknownCategoryListing = unwrap(Listing.create({
+      id: 'listing-no-category', productId: product.id, marketplaceId: marketplace.id, price: money(200),
     }));
 
     await expect(service.preview({
       marketplace: missingAccountMarketplace, product, listing,
     })).resolves.toMatchObject({ reason: 'marketplace_account_unknown', requiresOverride: false });
     await expect(service.preview({
-      marketplace, product: unknownCategoryProduct, listing,
+      marketplace, product, listing: unknownCategoryListing,
     })).resolves.toMatchObject({ reason: 'olx_subcategory_unknown', requiresOverride: false });
+  });
+
+  it('blocks recreate against exhausted exact-subcategory quota without restoring a unit for deletion', async () => {
+    const { service, quotaRepo, activityLog, marketplace, product, listing } = setup();
+    await quotaRepo.save(quota(1));
+
+    const decision = await service.authorize({
+      operationId: 'recreate-1', mode: 'recreate', marketplace, product, listing, actorId: 'user-1',
+    });
+
+    expect(decision).toMatchObject({
+      subcategoryId: '2000', status: 'exhausted', decision: 'block', consumedUnit: false,
+    });
+    expect(quotaRepo.quotas[0].consumed).toBe(1);
+    expect(activityLog.entries.at(-1)).toMatchObject({
+      action: 'olx.quota_publish_blocked',
+      metadata: expect.objectContaining({ mode: 'recreate', subcategoryId: '2000', consumedUnit: false }),
+    });
   });
 
   it('serializes concurrent attempts so only one consumes the final free unit', async () => {

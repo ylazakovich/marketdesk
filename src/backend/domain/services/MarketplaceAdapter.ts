@@ -2,7 +2,7 @@
 // (OLXAdapter, AllegroAdapter, ...) are implemented in infrastructure (Group 3B).
 // The domain stays completely agnostic to marketplace specifics.
 
-import type { MarketplaceKey, ListingStatus } from '../../../shared/types';
+import type { MarketplaceKey, ListingStatus, MarketplaceCategoryMetadata } from '../../../shared/types';
 
 export interface ListingPublishInput {
   productName: string;
@@ -10,6 +10,7 @@ export interface ListingPublishInput {
   price: number;
   currency: string;
   category: string;
+  marketplaceCategory?: MarketplaceCategoryMetadata | null;
   condition: string;
   imageUrls: string[];
 }
@@ -30,6 +31,7 @@ export interface SyncedListing {
   views?: number | null;
   watchers?: number | null;
   messages?: number | null;
+  marketplaceCategory?: MarketplaceCategoryMetadata | null;
 }
 
 export interface ImportedMarketplaceListing {
@@ -42,6 +44,7 @@ export interface ImportedMarketplaceListing {
   status: ListingStatus;
   remoteStatus?: string | null;
   category?: string | null;
+  marketplaceCategory?: MarketplaceCategoryMetadata | null;
   imageUrls: string[];
   remoteUpdatedAt?: Date | null;
   metrics?: { views?: number; watchers?: number; messages?: number };

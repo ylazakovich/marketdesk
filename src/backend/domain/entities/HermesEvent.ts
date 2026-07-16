@@ -153,6 +153,9 @@ export class HermesEvent {
     if (type === 'create_listing' && change.kind !== 'create_listing') {
       return Err(new ValidationError('create_listing requires a create_listing change'));
     }
+    if (type === 'olx_category_mismatch' && change.kind !== 'category_recreation') {
+      return Err(new ValidationError('olx_category_mismatch requires a category_recreation change'));
+    }
 
     return Ok(true);
   }

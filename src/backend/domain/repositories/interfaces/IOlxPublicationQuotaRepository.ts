@@ -15,7 +15,7 @@ export interface OlxQuotaLookup {
 export interface AuthorizeOlxPublicationInput extends OlxQuotaLookup {
   operationId: string;
   listingId: string;
-  mode: 'publish' | 'relist';
+  mode: 'publish' | 'relist' | 'recreate';
   overrideConfirmed: boolean;
   overrideReason?: string;
   actorId?: string;

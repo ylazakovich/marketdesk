@@ -96,6 +96,7 @@ export function presentListing(listing: Listing, identity: ListingIdentity = {})
     price: listing.price.amount,
     status: listing.status,
     remoteStatus: listing.remoteStatus ?? undefined,
+    marketplaceCategory: listing.marketplaceCategory ?? undefined,
     remoteStatusLabel: remoteStatusLabel(listing.remoteStatus),
     isRemotePending: isPendingRemoteStatus(listing.remoteStatus),
     views: listing.views,

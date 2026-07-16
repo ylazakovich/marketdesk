@@ -359,6 +359,38 @@ describe('ApproveHermesEventUseCase', () => {
     });
   });
 
+  it('refuses silent combined category correction and leaves both intents pending without queueing', async () => {
+    const { useCase, eventRepo, publishQueue, activityLog } = setup();
+    const category = {
+      providerCategoryId: 'projectors', name: 'Projectors', path: ['Electronics', 'Projectors'],
+      source: 'provider_taxonomy' as const, confidence: 0.98, isLeaf: true,
+      taxonomyVerifiedAt: '2099-01-01T00:00:00.000Z', taxonomyStaleAt: '2099-02-01T00:00:00.000Z',
+    };
+    const event = unwrap(HermesEvent.create({
+      id: 'evt-category', workspaceId: 'ws-1', productId: 'prod-1',
+      type: 'olx_category_mismatch', severity: 'critical', title: 'Category mismatch',
+      proposedChange: {
+        kind: 'category_recreation', listingId: 'lst-1',
+        currentCategory: { ...category, providerCategoryId: 'headphones', name: 'Headphones', path: ['Electronics', 'Headphones'] },
+        proposedCategory: category,
+        operations: [
+          { kind: 'delist', intentId: 'delist-1', status: 'pending_review', providerSideEffectAllowed: false, quotaUnitsRestored: 0 },
+          { kind: 'recreate', intentId: 'recreate-1', status: 'blocked_pending_quota_review', providerSideEffectAllowed: false, quotaGuardRequired: true },
+        ],
+      },
+    }));
+    await eventRepo.save(event);
+
+    const result = await useCase.execute({ eventId: event.id, workspaceId: 'ws-1', actorId: 'user-1' });
+
+    expect(result.isErr()).toBe(true);
+    expect((await eventRepo.findById(event.id))?.status).toBe('pending_review');
+    expect(publishQueue.jobs).toHaveLength(0);
+    expect(activityLog.entries).toEqual([
+      expect.objectContaining({ action: 'olx.category_recreation_combined_approval_refused' }),
+    ]);
+  });
+
   it('rejects approving an event that is not pending_review', async () => {
     const { useCase, eventRepo } = setup();
 

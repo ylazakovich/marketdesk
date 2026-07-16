@@ -51,6 +51,7 @@ export const HERMES_TYPE_LABELS: Record<HermesEventType, string> = {
   suggested_more_photos: 'Suggested more photos',
   create_listing: 'Create listing',
   update_description: 'Update description',
+  olx_category_mismatch: 'OLX category mismatch',
   relist: 'Relist',
 };
 

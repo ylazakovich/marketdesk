@@ -19,6 +19,8 @@ import { NotFoundError } from '../../../domain/shared/DomainError';
 import { presentListing } from '../../../application/dto/presenters';
 import { evaluatePublishEligibility } from '../../../application/usecases/PublishListingUseCase';
 import type { OlxPublicationQuotaService } from '../../../application/services/OlxPublicationQuotaService';
+import { evaluateOlxCategory } from '../../../domain/services/OlxCategoryGuard';
+import type { MarketplaceCategoryMetadata } from '../../../../shared/types';
 import { ok, paginated } from '../formatters/ResponseFormatter';
 
 
@@ -58,6 +60,10 @@ export class ListingController {
     if (!marketplace) warnings.push(`Marketplace not found: ${listing.marketplaceId}`);
     if (product && marketplace) {
       warnings.push(...evaluatePublishEligibility(listing, product, marketplace).warnings);
+      if (marketplace.key === 'olx') {
+        const categoryDecision = evaluateOlxCategory(product, listing.marketplaceCategory);
+        if (!categoryDecision.allowed && categoryDecision.message) warnings.push(categoryDecision.message);
+      }
     }
 
     let quotaDecision;
@@ -90,14 +96,25 @@ export class ListingController {
             price: listing.price.amount,
             currency: listing.price.currency,
             category: product.category,
+            marketplaceCategory: listing.marketplaceCategory,
             condition: product.condition,
             imageCount: product.images.length,
           }
         : null,
       warnings,
       quotaDecision,
+      marketplaceCategory: listing.marketplaceCategory,
     };
   }
+
+  setMarketplaceCategory = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const listingId = routeParam(req.params.id);
+    const listing = await this.listingRepo.findByIdForWorkspace(listingId, req.user!.workspaceId!);
+    if (!listing) return next(new NotFoundError(`Listing not found: ${listingId}`));
+    listing.recordMarketplaceCategory(req.body as MarketplaceCategoryMetadata);
+    await this.listingRepo.save(listing);
+    ok(res, presentListing(listing));
+  };
 
   list = async (req: Request, res: Response): Promise<void> => {
     const limit = req.query.limit ? Number(req.query.limit) : undefined;

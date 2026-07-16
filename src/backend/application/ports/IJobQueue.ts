@@ -4,7 +4,7 @@
 // contracts) so the application layer never imports infrastructure job types; the
 // wiring layer maps these to the structurally-identical infrastructure payloads.
 
-import type { MarketplaceKey } from '../../../shared/types';
+import type { MarketplaceKey, MarketplaceCategoryMetadata } from '../../../shared/types';
 
 export interface JobEnqueueOptions {
   // Optional delay before the job becomes available, in milliseconds.
@@ -26,6 +26,7 @@ export interface ListingPublishJobInput {
   price: number;
   currency: string;
   category: string;
+  marketplaceCategory?: MarketplaceCategoryMetadata | null;
   condition: string;
   imageUrls: string[];
 }

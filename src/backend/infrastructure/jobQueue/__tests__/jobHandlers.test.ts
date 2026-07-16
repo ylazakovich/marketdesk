@@ -230,6 +230,15 @@ describe('SyncMarketplaceHandler', () => {
         views: 42,
         watchers: 3,
         messages: 2,
+        marketplaceCategory: {
+          providerCategoryId: '2000',
+          name: 'Projectors',
+          path: ['Electronics', 'TV and video', 'Projectors'],
+          source: 'provider_taxonomy',
+          confidence: 1,
+          isLeaf: true,
+          taxonomyCheckedAt: new Date('2026-07-16T12:00:00.000Z'),
+        },
       },
     ];
     const adapter = fakeAdapter({ sync: jest.fn(async () => synced) });
@@ -279,6 +288,7 @@ describe('SyncMarketplaceHandler', () => {
     expect(saved[0].views).toBe(42);
     expect(saved[0].watchers).toBe(3);
     expect(saved[0].externalUrl).toBe('https://www.olx.pl/d/oferta/ext-1');
+    expect(saved[0].marketplaceCategory).toEqual(synced[0].marketplaceCategory);
     expect(saved[0].lastSyncAt).not.toBeNull();
     expect(marketplaceStore.save).toHaveBeenCalled();
     expect(marketplace.errorCount).toBe(0); // reset on success

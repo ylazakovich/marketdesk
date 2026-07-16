@@ -17,6 +17,7 @@ export const ListingMapper = {
       externalUrl: row.external_url,
       status: row.status as ListingStatus,
       remoteStatus: row.remote_status,
+      marketplaceCategory: row.marketplace_category,
       views: row.views,
       watchers: row.watchers,
       messages: row.messages,

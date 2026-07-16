@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS olx_publication_operations (
   override_reason TEXT,
   actor_id VARCHAR(100),
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT olx_publication_operations_mode_valid CHECK (mode IN ('publish', 'relist')),
+  CONSTRAINT olx_publication_operations_mode_valid CHECK (mode IN ('publish', 'relist', 'recreate')),
   CONSTRAINT olx_publication_operations_decision_valid CHECK (decision IN ('allow', 'block', 'override')),
   CONSTRAINT olx_publication_operations_status_valid
     CHECK (quota_status IN ('available', 'exhausted', 'stale', 'unverified', 'unknown')),
@@ -184,6 +184,7 @@ CREATE TABLE IF NOT EXISTS listings (
   price DECIMAL(10, 2) NOT NULL,
   status VARCHAR(50) DEFAULT 'draft',
   remote_status VARCHAR(100),
+  marketplace_category JSONB,
   views INT DEFAULT 0,
   watchers INT DEFAULT 0,
   messages INT DEFAULT 0,

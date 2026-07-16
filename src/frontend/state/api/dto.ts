@@ -11,6 +11,7 @@ import type {
   HermesEventStatus,
   HermesSeverity,
   SyncMode,
+  MarketplaceCategoryMetadata,
 } from '@shared/types';
 
 // ----------------------------------------------------------------------------
@@ -81,10 +82,18 @@ export interface PublishListingPreview {
     price: number;
     currency: string;
     category: string;
+    marketplaceCategory?: MarketplaceCategoryMetadata | null;
     condition: Product['condition'];
     imageCount: number;
   } | null;
   warnings: string[];
+  marketplaceCategory?: MarketplaceCategoryMetadata | null;
+  quotaDecision?: {
+    status: string;
+    decision: string;
+    reason: string;
+    subcategoryId?: string;
+  };
 }
 
 // Canonical route: PATCH /listings/:id with body { price, reason? }.

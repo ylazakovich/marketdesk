@@ -71,6 +71,27 @@ export class ApproveHermesEventUseCase {
       );
     }
 
+    if (event.proposedChange?.kind === 'category_recreation') {
+      await this.activityLog.record({
+        id: this.idGenerator(),
+        workspaceId: event.workspaceId,
+        entityType: 'hermes_event',
+        entityId: event.id,
+        actorType: 'user',
+        actorId: input.actorId,
+        action: 'olx.category_recreation_combined_approval_refused',
+        metadata: {
+          listingId: event.proposedChange.listingId,
+          operations: event.proposedChange.operations,
+          reason: 'delist_and_recreate_require_separate_reviewed_execution',
+        },
+        createdAt: new Date(),
+      });
+      return Err(new InvalidStateError(
+        'Category correction cannot be approved as one operation; delist and quota-guarded recreate remain separate pending-review intents',
+      ));
+    }
+
     const approved = event.approve();
     if (approved.isErr()) return approved;
     await this.eventRepo.save(event);
@@ -164,6 +185,10 @@ export class ApproveHermesEventUseCase {
             'create_listing events cannot be applied automatically; create the listing via the publish flow'
           )
         );
+      case 'category_recreation':
+        return Err(new InvalidStateError(
+          'Category correction cannot be applied as one operation; review and execute the audited delist and quota-guarded recreate intents separately',
+        ));
       default:
         return Ok({ marketplaceUpdates: [] });
     }
@@ -250,6 +275,7 @@ export class ApproveHermesEventUseCase {
             price: listing.price.amount,
             currency: listing.price.currency,
             category: product.category,
+            marketplaceCategory: listing.marketplaceCategory,
             condition: product.condition,
             imageUrls: [...product.images],
           },
@@ -362,6 +388,7 @@ export class ApproveHermesEventUseCase {
             price: listing.price.amount,
             currency: listing.price.currency,
             category: product.category,
+            marketplaceCategory: listing.marketplaceCategory,
             condition: product.condition,
             imageUrls: [...product.images],
           },

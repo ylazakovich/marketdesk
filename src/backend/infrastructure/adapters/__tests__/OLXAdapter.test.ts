@@ -18,6 +18,11 @@ const publishInput: ListingPublishInput = {
   price: 349.99,
   currency: 'PLN',
   category: 'electronics',
+  marketplaceCategory: {
+    providerCategoryId: '99', name: 'Cameras', path: ['Electronics', 'Photography', 'Cameras'],
+    source: 'provider_taxonomy', confidence: 1, isLeaf: true,
+    taxonomyVerifiedAt: '2099-01-01T00:00:00.000Z', taxonomyStaleAt: '2099-02-01T00:00:00.000Z',
+  },
   condition: 'good',
   imageUrls: ['https://img/1.jpg', 'https://img/2.jpg'],
 };
@@ -94,7 +99,17 @@ describe('OLXAdapter', () => {
       views: null,
       watchers: null,
       messages: null,
+      marketplaceCategory: null,
     });
+  });
+
+  it('refuses real publish when only the broad category map is available', async () => {
+    const http = mockClient(() => ({ status: 201, data: { data: { id: 1, status: 'active' } } }));
+    const adapter = new OLXAdapter(http, fastOptions, realConfig);
+
+    await expect(adapter.publish({ ...publishInput, marketplaceCategory: null }))
+      .rejects.toThrow('category id is required');
+    expect(http.request).not.toHaveBeenCalled();
   });
 
   it.each<[string, string]>([
@@ -395,7 +410,7 @@ describe('OLXAdapter', () => {
       { requirePublishDetails: true },
     );
 
-    await expect(adapter.publish(publishInput)).rejects.toThrow('category id');
+    await expect(adapter.publish({ ...publishInput, marketplaceCategory: null })).rejects.toThrow('category id');
     expect(request).not.toHaveBeenCalled();
   });
 

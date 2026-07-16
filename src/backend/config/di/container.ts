@@ -242,7 +242,6 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
       baseUrl: env.marketplaces.olx.apiBaseUrl,
       requirePublishDetails: env.marketplaces.olx.adapterMode === 'real',
       categoryIds: env.marketplaces.olx.categoryIds,
-      defaultCategoryId: env.marketplaces.olx.defaultCategoryId,
       cityId: env.marketplaces.olx.cityId,
       districtId: env.marketplaces.olx.districtId,
       contactName: env.marketplaces.olx.contactName,
@@ -309,9 +308,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     {
       resolve: (domainCategory) => {
         const normalized = domainCategory.trim().toLowerCase();
-        const categoryId =
-          env.marketplaces.olx.categoryIds[normalized] ??
-          env.marketplaces.olx.defaultCategoryId;
+        const categoryId = env.marketplaces.olx.categoryIds[normalized];
         return categoryId === undefined ? null : String(categoryId);
       },
     },
@@ -433,7 +430,8 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
           listingRepo: new ListingRepository(pool, client),
           activityLog: new ActivityLogRepository(pool, client),
         })
-      )
+      ),
+    eventRepo,
   );
 
   // 9. Register job handlers now that their collaborators exist. The publish

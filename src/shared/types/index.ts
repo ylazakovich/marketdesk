@@ -20,6 +20,22 @@ export type ProductCondition =
 
 export type ListingStatus = 'live' | 'draft' | 'expired' | 'error';
 
+export type MarketplaceCategorySource =
+  | 'provider_taxonomy'
+  | 'remote_import'
+  | 'user_confirmed';
+
+export interface MarketplaceCategoryMetadata {
+  providerCategoryId: string;
+  name: string;
+  path: string[];
+  source: MarketplaceCategorySource;
+  confidence: number;
+  isLeaf: boolean;
+  taxonomyVerifiedAt: string;
+  taxonomyStaleAt: string;
+}
+
 export type AutonomyLevel = 'suggest_only' | 'balanced' | 'full_auto';
 
 export type HermesSeverity = 'info' | 'success' | 'warning' | 'critical';
@@ -48,6 +64,7 @@ export type HermesEventType =
   | 'suggested_more_photos'
   | 'create_listing'
   | 'update_description'
+  | 'olx_category_mismatch'
   | 'relist';
 
 export type ChangedBy = 'user' | 'hermes';
@@ -92,12 +109,30 @@ export interface CreateListingChangePayload {
   marketplaceKey: MarketplaceKey;
 }
 
+export interface CategoryRecreationChangePayload {
+  kind: 'category_recreation';
+  listingId: string;
+  currentCategory: MarketplaceCategoryMetadata;
+  proposedCategory: MarketplaceCategoryMetadata;
+  operations: readonly [
+    {
+      kind: 'delist'; intentId: string; status: 'pending_review';
+      providerSideEffectAllowed: false; quotaUnitsRestored: 0;
+    },
+    {
+      kind: 'recreate'; intentId: string; status: 'blocked_pending_quota_review';
+      providerSideEffectAllowed: false; quotaGuardRequired: true;
+    }
+  ];
+}
+
 export type ProposedChange =
   | PriceChangePayload
   | TitleChangePayload
   | DescriptionChangePayload
   | RelistChangePayload
   | CreateListingChangePayload
+  | CategoryRecreationChangePayload
   | null;
 
 // ============================================================================
@@ -224,6 +259,7 @@ export interface Listing {
   price: number;
   status: ListingStatus;
   remoteStatus?: string;
+  marketplaceCategory?: MarketplaceCategoryMetadata;
   remoteStatusLabel?: string;
   isRemotePending?: boolean;
   views: number | null;

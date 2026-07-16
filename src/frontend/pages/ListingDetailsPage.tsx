@@ -573,10 +573,22 @@ const ListingDetailsPage: React.FC = () => {
             {publishCandidate?.preview.marketplaceKey?.toUpperCase() ?? 'marketplace'}?
           </Typography>
           {publishCandidate?.preview.payload && (
-            <Typography variant="body2" color="text.secondary">
-              Price: {publishCandidate.preview.payload.price}{' '}
-              {publishCandidate.preview.payload.currency}
-            </Typography>
+            <>
+              <Typography variant="body2" color="text.secondary">
+                Price: {publishCandidate.preview.payload.price}{' '}
+                {publishCandidate.preview.payload.currency}
+              </Typography>
+              {publishCandidate.preview.marketplaceCategory && (
+                <Stack spacing={0.25}>
+                  <Typography variant="body2">
+                    Provider category ID: {publishCandidate.preview.marketplaceCategory.providerCategoryId}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Full category path: {publishCandidate.preview.marketplaceCategory.path.join(' → ')}
+                  </Typography>
+                </Stack>
+              )}
+            </>
           )}
         </Stack>
       </Modal>

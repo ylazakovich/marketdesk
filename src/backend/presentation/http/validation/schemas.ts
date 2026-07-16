@@ -109,6 +109,20 @@ export const publishListingSchema = z.object({
     .optional(),
 });
 
+export const marketplaceCategorySchema = z.object({
+  providerCategoryId: z.string().trim().min(1).max(100),
+  name: z.string().trim().min(1).max(255),
+  path: z.array(z.string().trim().min(1).max(255)).min(1),
+  source: z.enum(['provider_taxonomy', 'remote_import', 'user_confirmed']),
+  confidence: z.number().min(0).max(1),
+  isLeaf: z.literal(true),
+  taxonomyVerifiedAt: z.iso.datetime(),
+  taxonomyStaleAt: z.iso.datetime(),
+}).refine((value) => new Date(value.taxonomyVerifiedAt) < new Date(value.taxonomyStaleAt), {
+  message: 'taxonomyStaleAt must be after taxonomyVerifiedAt',
+  path: ['taxonomyStaleAt'],
+});
+
 export const setOlxPublicationQuotaSchema = z.object({
   subcategoryId: z.string().trim().min(1).max(100),
   cycleStartedAt: z.iso.datetime(),

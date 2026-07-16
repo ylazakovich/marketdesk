@@ -380,6 +380,11 @@ async function seedPreviewListing(listingRepo: InMemoryListingRepository): Promi
     productId: 'p-real',
     marketplaceId: 'marketplace-olx',
     price: price.value,
+    marketplaceCategory: {
+      providerCategoryId: '2000', name: 'Widgets', path: ['Home', 'Tools', 'Widgets'],
+      source: 'user_confirmed', confidence: 1, isLeaf: true,
+      taxonomyVerifiedAt: '2026-07-15T00:00:00.000Z', taxonomyStaleAt: '2099-01-01T00:00:00.000Z',
+    },
   });
   if (listing.isErr()) throw listing.error;
   await listingRepo.save(listing.value);
@@ -784,6 +789,10 @@ describe('Presentation API', () => {
       });
       expect(res.body.data.payload.productName).toBe('Real widget');
       expect(res.body.data.payload.price).toBe(20);
+      expect(res.body.data.marketplaceCategory).toEqual(expect.objectContaining({
+        providerCategoryId: '2000', path: ['Home', 'Tools', 'Widgets'],
+      }));
+      expect(res.body.data.payload.marketplaceCategory).toEqual(res.body.data.marketplaceCategory);
       expect(before?.status).toBe('draft');
       expect(after?.status).toBe('draft');
       expect(after?.marketplaceListingId).toBeNull();

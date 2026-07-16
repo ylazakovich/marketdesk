@@ -166,7 +166,7 @@ export class OlxPublicationQuotaService {
     if (!account || account.status !== 'connected') {
       return this.unknown('marketplace_account_unknown', undefined, undefined, false);
     }
-    const subcategoryId = this.subcategories.resolve(input.product.category);
+    const subcategoryId = input.listing.marketplaceCategory?.providerCategoryId ?? null;
     if (!subcategoryId) {
       return this.unknown('olx_subcategory_unknown', account.id, undefined, false);
     }
@@ -195,7 +195,7 @@ export class OlxPublicationQuotaService {
 
   async authorize(input: {
     operationId: string;
-    mode: 'publish' | 'relist';
+    mode: 'publish' | 'relist' | 'recreate';
     listing: Listing;
     product: Product;
     marketplace: Marketplace;
@@ -204,7 +204,7 @@ export class OlxPublicationQuotaService {
   }): Promise<OlxQuotaDecisionView> {
     if (input.marketplace.key !== 'olx') return this.notApplicable();
     const account = await this.accountRepo.findByMarketplaceId(input.marketplace.id);
-    const subcategoryId = this.subcategories.resolve(input.product.category);
+    const subcategoryId = input.listing.marketplaceCategory?.providerCategoryId ?? null;
     if (!account || account.status !== 'connected' || !subcategoryId) {
       const decision = this.unknown(
         !account || account.status !== 'connected'
@@ -337,7 +337,7 @@ export class OlxPublicationQuotaService {
   private async auditDecision(
     input: {
       operationId: string;
-      mode: 'publish' | 'relist';
+      mode: 'publish' | 'relist' | 'recreate';
       listing: Listing;
       product: Product;
       marketplace: Marketplace;

@@ -53,7 +53,11 @@ export function statusForError(error: unknown): number {
 
 export function toErrorBody(error: unknown): ErrorBody {
   if (error instanceof DomainError) {
-    return { code: error.code, message: error.message };
+    return {
+      code: error.code,
+      message: error.message,
+      ...(error.details ? { details: error.details } : {}),
+    };
   }
   // Never leak internal error details/stack traces in production.
   const message =

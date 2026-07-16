@@ -35,6 +35,7 @@ import { AuthController } from './controllers/AuthController';
 import type { MarketplaceOAuthService } from '../../application/services/MarketplaceOAuthService';
 import type { MarketplaceSyncScheduler } from '../../application/services/MarketplaceSyncScheduler';
 import type { MarketplaceImportService } from '../../application/services/MarketplaceImportService';
+import type { OlxPublicationQuotaService } from '../../application/services/OlxPublicationQuotaService';
 import { createApiRouter } from './routes';
 import { createErrorHandler, type ErrorLogger } from './middleware/ErrorHandlingMiddleware';
 
@@ -51,6 +52,7 @@ export interface AppDeps {
   marketplaceOAuthService: MarketplaceOAuthService;
   marketplaceSyncScheduler: MarketplaceSyncScheduler;
   marketplaceImportService: MarketplaceImportService;
+  olxPublicationQuotaService?: OlxPublicationQuotaService;
   marketplaceOAuthReturnUrl: string;
   workspaceRepo: IWorkspaceRepository;
   authUserStore: IAuthUserStore;
@@ -160,6 +162,7 @@ export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
       idGenerator: deps.idGenerator,
       productRepo: deps.productRepo,
       marketplaceRepo: deps.marketplaceRepo,
+      olxQuotaService: deps.olxPublicationQuotaService,
     }),
     marketplaces: new MarketplaceController(
       deps.marketplaceRepo,
@@ -167,6 +170,7 @@ export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
       deps.marketplaceOAuthService,
       deps.marketplaceSyncScheduler,
       deps.marketplaceImportService,
+      deps.olxPublicationQuotaService,
       deps.marketplaceOAuthReturnUrl,
       deps.logger,
     ),

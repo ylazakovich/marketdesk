@@ -203,6 +203,10 @@ async function buildE2E(): Promise<E2EContext> {
     publishQueue,
     activityLog,
     idGenerator,
+    undefined,
+    {
+      authorize: async () => ({ decision: 'allow' }),
+    } as any,
   );
   const syncMarketplaceUC = new SyncMarketplaceUseCase(
     marketplaceRepo,

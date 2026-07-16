@@ -25,6 +25,11 @@ export function createListingRoutes(
     validateBody(publishListingSchema),
     asyncHandler(controller.publish),
   );
-  router.post('/:id/relist', sensitiveLimiter, asyncHandler(controller.relist));
+  router.post(
+    '/:id/relist',
+    sensitiveLimiter,
+    validateBody(publishListingSchema),
+    asyncHandler(controller.relist),
+  );
   return router;
 }

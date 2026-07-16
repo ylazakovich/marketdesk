@@ -8,9 +8,11 @@
 //     emits a domain event.
 
 import { Result, Ok, Err } from '../../domain/shared/Result';
-import { NotFoundError, InvalidStateError } from '../../domain/shared/DomainError';
+import { GuardrailViolationError, NotFoundError, InvalidStateError } from '../../domain/shared/DomainError';
 import { Money } from '../../domain/valueObjects/Money';
 import type { HermesEvent } from '../../domain/entities/HermesEvent';
+import type { Listing } from '../../domain/entities/Listing';
+import type { Marketplace } from '../../domain/entities/Marketplace';
 import type { Product } from '../../domain/entities/Product';
 import type { ProposedChange } from '../../../shared/types';
 import type { IEventRepository } from '../../domain/repositories/interfaces/IEventRepository';
@@ -24,6 +26,7 @@ import type { IJobQueue, PublishListingJob, ListingUpdateJobChanges } from '../p
 import type { IdGenerator } from '../ports/IdGenerator';
 import type { ApproveEventDTO } from '../dto/ApproveEventDTO';
 import type { MarketplaceAccountRepository } from '../services/MarketplaceOAuthService';
+import type { OlxPublicationQuotaService } from '../services/OlxPublicationQuotaService';
 
 interface MarketplaceUpdateOperation {
   operationId: string;
@@ -49,7 +52,8 @@ export class ApproveHermesEventUseCase {
     private readonly publishQueue: IJobQueue<PublishListingJob>,
     private readonly eventPublisher: IEventPublisher,
     private readonly idGenerator: IdGenerator,
-    private readonly marketplaceAccountRepo?: MarketplaceAccountRepository
+    private readonly marketplaceAccountRepo?: MarketplaceAccountRepository,
+    private readonly olxQuota?: OlxPublicationQuotaService,
   ) {}
 
   async execute(input: ApproveEventDTO): Promise<Result<HermesEvent>> {
@@ -67,7 +71,7 @@ export class ApproveHermesEventUseCase {
       );
     }
 
-    const applied = await this.applyChange(event);
+    const applied = await this.applyChange(event, input.actorId);
     if (applied.isErr()) return applied;
 
     const approved = event.approve();
@@ -107,7 +111,10 @@ export class ApproveHermesEventUseCase {
     return Ok(event);
   }
 
-  private async applyChange(event: HermesEvent): Promise<Result<ApplyChangeOutcome>> {
+  private async applyChange(
+    event: HermesEvent,
+    actorId?: string,
+  ): Promise<Result<ApplyChangeOutcome>> {
     const change = event.proposedChange;
     if (change === null) return Ok({ marketplaceUpdates: [] });
 
@@ -132,7 +139,7 @@ export class ApproveHermesEventUseCase {
       }
       case 'relist':
         // Enqueues an actual republish job per referenced listing (real action).
-        return this.applyRelist(change.listingIds);
+        return this.applyRelist(change.listingIds, actorId);
       case 'create_listing':
         // There is no synchronous listing-creation flow wired, so approving a
         // create_listing event cannot actually create the listing. Reject rather
@@ -187,9 +194,17 @@ export class ApproveHermesEventUseCase {
     return this.enqueueMarketplaceUpdates(product, { price: change.to });
   }
 
-  private async applyRelist(listingIds: string[]): Promise<Result<ApplyChangeOutcome>> {
-    const operations: MarketplaceUpdateOperation[] = [];
-    let enqueued = 0;
+  private async applyRelist(
+    listingIds: string[],
+    actorId?: string,
+  ): Promise<Result<ApplyChangeOutcome>> {
+    const candidates: Array<{
+      operation: MarketplaceUpdateOperation;
+      job: PublishListingJob;
+      listing: Listing;
+      product: Product;
+      marketplace: Marketplace;
+    }> = [];
     for (const listingId of listingIds) {
       const listing = await this.listingRepo.findById(listingId);
       if (!listing) continue;
@@ -203,8 +218,12 @@ export class ApproveHermesEventUseCase {
       }
 
       const operationId = this.idGenerator();
-      await this.publishQueue.enqueue(
-        {
+      candidates.push({
+        operation: { operationId, listingId: listing.id, marketplaceId: marketplace.id },
+        listing,
+        product,
+        marketplace,
+        job: {
           operationId,
           mode: 'relist',
           listingUpdatedAt: listing.updatedAt.toISOString(),
@@ -221,15 +240,70 @@ export class ApproveHermesEventUseCase {
             imageUrls: [...product.images],
           },
         },
-        { jobId: `publish:${operationId}` }
-      );
-      operations.push({ operationId, listingId: listing.id, marketplaceId: marketplace.id });
-      enqueued++;
+      });
     }
-    if (enqueued === 0 && listingIds.length > 0) {
+    if (candidates.length === 0 && listingIds.length > 0) {
       return Err(new InvalidStateError('relist event references no valid listings to publish'));
     }
-    return Ok({ marketplaceUpdates: operations });
+
+    const hasOlxCandidate = candidates.some(({ marketplace }) => marketplace.key === 'olx');
+    const olxQuota = this.olxQuota;
+    if (hasOlxCandidate && !olxQuota) {
+      return Err(
+        new GuardrailViolationError(
+          'OLX publication quota guard is unavailable; relist fails closed',
+          {
+            quotaDecision: {
+              applicable: true,
+              marketplaceKey: 'olx',
+              status: 'unknown',
+              decision: 'block',
+              reason: 'quota_guard_unavailable',
+              requiresOverride: true,
+            },
+          },
+        ),
+      );
+    }
+
+    const authorizedCandidates: typeof candidates = [];
+    const blockedCandidates: Array<{
+      listingId: string;
+      decision: Awaited<ReturnType<OlxPublicationQuotaService['authorize']>>;
+    }> = [];
+    for (const candidate of candidates) {
+      const { operation, listing, product, marketplace } = candidate;
+      if (marketplace.key === 'olx' && olxQuota) {
+        const quotaDecision = await olxQuota.authorize({
+          operationId: operation.operationId,
+          mode: 'relist',
+          listing,
+          product,
+          marketplace,
+          actorId,
+        });
+        if (quotaDecision.decision === 'block') {
+          blockedCandidates.push({ listingId: listing.id, decision: quotaDecision });
+          continue;
+        }
+      }
+      authorizedCandidates.push(candidate);
+    }
+
+    if (authorizedCandidates.length === 0 && blockedCandidates.length > 0) {
+      return Err(olxQuota!.guardError(blockedCandidates[0].decision));
+    }
+
+    for (const { operation, job } of authorizedCandidates) {
+      await this.publishQueue.enqueue(job, { jobId: `publish:${operation.operationId}` });
+    }
+    return Ok({
+      marketplaceUpdates: authorizedCandidates.map(({ operation }) => operation),
+      skippedLiveListings: blockedCandidates.map(({ listingId, decision }) => ({
+        listingId,
+        reason: decision.reason,
+      })),
+    });
   }
 
   private async enqueueMarketplaceUpdates(

@@ -21,6 +21,7 @@ import type { IJobQueue, PublishListingJob } from '../ports/IJobQueue';
 import type { IdGenerator } from '../ports/IdGenerator';
 import type { PublishListingDTO } from '../dto/PublishListingDTO';
 import type { MarketplaceAccountRepository } from '../services/MarketplaceOAuthService';
+import type { OlxPublicationQuotaService } from '../services/OlxPublicationQuotaService';
 
 export interface PublishEligibility {
   canPublish: boolean;
@@ -62,7 +63,8 @@ export class PublishListingUseCase {
     private readonly publishQueue: IJobQueue<PublishListingJob>,
     private readonly activityLog: IActivityLogRepository,
     private readonly idGenerator: IdGenerator,
-    private readonly marketplaceAccountRepo?: MarketplaceAccountRepository
+    private readonly marketplaceAccountRepo?: MarketplaceAccountRepository,
+    private readonly olxQuota?: OlxPublicationQuotaService,
   ) {}
 
   async execute(input: PublishListingDTO): Promise<Result<Listing>> {
@@ -98,6 +100,37 @@ export class PublishListingUseCase {
     }
 
     const operationId = this.idGenerator();
+    if (marketplace.key === 'olx') {
+      if (!this.olxQuota) {
+        return Err(
+          new GuardrailViolationError(
+            'OLX publication quota guard is unavailable; publication fails closed',
+            {
+              quotaDecision: {
+                applicable: true,
+                marketplaceKey: 'olx',
+                status: 'unknown',
+                decision: 'block',
+                reason: 'quota_guard_unavailable',
+                requiresOverride: true,
+              },
+            },
+          ),
+        );
+      }
+      const quotaDecision = await this.olxQuota.authorize({
+        operationId,
+        mode: input.mode ?? 'publish',
+        listing,
+        product,
+        marketplace,
+        actorId: input.actorId,
+        override: input.quotaOverride,
+      });
+      if (quotaDecision.decision === 'block') {
+        return Err(this.olxQuota.guardError(quotaDecision));
+      }
+    }
     await this.publishQueue.enqueue(
       {
         operationId,

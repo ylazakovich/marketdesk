@@ -30,6 +30,7 @@ import { WorkspaceRepository } from '../../infrastructure/persistence/repositori
 import { ActivityLogRepository } from '../../infrastructure/persistence/repositories/ActivityLogRepository';
 import { AuthUserRepository } from '../../infrastructure/persistence/repositories/AuthUserRepository';
 import { PriceHistoryRepository } from '../../infrastructure/persistence/repositories/PriceHistoryRepository';
+import { OlxPublicationQuotaRepository } from '../../infrastructure/persistence/repositories/OlxPublicationQuotaRepository';
 
 async function withPoolTransaction<T>(
   pool: Pool,
@@ -107,6 +108,7 @@ import { AnalyticsApplicationService } from '../../application/services/Analytic
 import { MarketplaceOAuthService } from '../../application/services/MarketplaceOAuthService';
 import { MarketplaceSyncScheduler } from '../../application/services/MarketplaceSyncScheduler';
 import { MarketplaceImportService } from '../../application/services/MarketplaceImportService';
+import { OlxPublicationQuotaService } from '../../application/services/OlxPublicationQuotaService';
 import type { IdGenerator } from '../../application/ports/IdGenerator';
 import type {
   IJobQueue,
@@ -272,6 +274,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
   const activityLogRepo = new ActivityLogRepository(pool);
   const authUserStore = new AuthUserRepository(pool);
   const priceHistoryRepo = new PriceHistoryRepository(pool);
+  const olxPublicationQuotaRepo = new OlxPublicationQuotaRepository(pool);
   const marketplaceOAuthService = new MarketplaceOAuthService({
     marketplaceRepo,
     accountRepo: marketplaceAccountRepo,
@@ -297,6 +300,22 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     idGenerator,
     stateGenerator: () => randomBytes(32).toString('base64url'),
   });
+  const olxPublicationQuotaService = new OlxPublicationQuotaService(
+    marketplaceRepo,
+    marketplaceAccountRepo,
+    olxPublicationQuotaRepo,
+    activityLogRepo,
+    idGenerator,
+    {
+      resolve: (domainCategory) => {
+        const normalized = domainCategory.trim().toLowerCase();
+        const categoryId =
+          env.marketplaces.olx.categoryIds[normalized] ??
+          env.marketplaces.olx.defaultCategoryId;
+        return categoryId === undefined ? null : String(categoryId);
+      },
+    },
+  );
 
   // 5. Job queues (application IJobQueue ports). Handlers are registered below,
   //    once the services they depend on exist.
@@ -343,7 +362,8 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     publishQueue,
     activityLogRepo,
     idGenerator,
-    marketplaceAccountRepo
+    marketplaceAccountRepo,
+    olxPublicationQuotaService,
   );
   const syncMarketplaceUC = new SyncMarketplaceUseCase(marketplaceRepo, listingRepo, syncQueue);
   const runHermesUC = new RunHermesUseCase(hermesEngine, workspaceRepo);
@@ -357,7 +377,8 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     publishQueue,
     eventPublisher,
     idGenerator,
-    marketplaceAccountRepo
+    marketplaceAccountRepo,
+    olxPublicationQuotaService,
   );
   const dismissEventUC = new DismissHermesEventUseCase(
     eventRepo,
@@ -489,6 +510,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     marketplaceOAuthService,
     marketplaceSyncScheduler,
     marketplaceImportService,
+    olxPublicationQuotaService,
     marketplaceOAuthReturnUrl: env.marketplaces.olx.oauthSuccessUrl,
     workspaceRepo,
     authUserStore,

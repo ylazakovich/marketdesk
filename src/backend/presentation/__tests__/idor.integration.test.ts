@@ -195,6 +195,10 @@ async function build(): Promise<Ctx> {
     publishQueue,
     activityLog,
     idGenerator,
+    undefined,
+    {
+      authorize: async () => ({ decision: 'allow' }),
+    } as any,
   );
   const syncMarketplaceUC = new SyncMarketplaceUseCase(
     marketplaceRepo,

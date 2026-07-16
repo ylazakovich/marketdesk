@@ -26,6 +26,7 @@ import type { HermesApplicationService } from '../../application/services/Hermes
 import type { AnalyticsApplicationService } from '../../application/services/AnalyticsApplicationService';
 import type { MarketplaceOAuthService } from '../../application/services/MarketplaceOAuthService';
 import type { MarketplaceImportService } from '../../application/services/MarketplaceImportService';
+import type { OlxPublicationQuotaService } from '../../application/services/OlxPublicationQuotaService';
 import type { IProductRepository } from '../../domain/repositories/interfaces/IProductRepository';
 import type { IListingRepository } from '../../domain/repositories/interfaces/IListingRepository';
 import type { IMarketplaceRepository } from '../../domain/repositories/interfaces/IMarketplaceRepository';
@@ -249,6 +250,51 @@ function stubMarketplaceImportService(): MarketplaceImportService {
   } as unknown as MarketplaceImportService;
 }
 
+function stubOlxPublicationQuotaService(): OlxPublicationQuotaService {
+  const quota = {
+    id: 'quota-1',
+    workspaceId: 'ws-1',
+    marketplaceId: 'marketplace-olx',
+    marketplaceAccountId: 'account-1',
+    subcategoryId: '2000',
+    cycleStartedAt: '2026-07-01T00:00:00.000Z',
+    cycleEndsAt: '2026-08-01T00:00:00.000Z',
+    publicationLimit: 2,
+    consumed: 1,
+    remaining: 1,
+    source: 'operator' as const,
+    confidence: 'verified' as const,
+    verifiedAt: '2026-07-14T00:00:00.000Z',
+    staleAt: '2026-07-20T00:00:00.000Z',
+    isStale: false,
+    status: 'available' as const,
+  };
+  return {
+    async list() { return [quota]; },
+    async set(input) {
+      return {
+        ...quota,
+        workspaceId: input.workspaceId,
+        marketplaceId: input.marketplaceId,
+        actorId: input.actorId,
+      };
+    },
+    async preview() {
+      return {
+        applicable: true,
+        marketplaceKey: 'olx' as const,
+        marketplaceAccountId: 'account-1',
+        subcategoryId: '2000',
+        status: 'available' as const,
+        decision: 'allow' as const,
+        reason: 'free_unit_available',
+        requiresOverride: false,
+        quota,
+      };
+    },
+  } as unknown as OlxPublicationQuotaService;
+}
+
 async function buildTestApp() {
   const authUserStore = new InMemoryAuthStore();
   const productRepo = new InMemoryProductRepository();
@@ -275,6 +321,7 @@ async function buildTestApp() {
     marketplaceOAuthService: stubMarketplaceOAuthService(),
     marketplaceSyncScheduler: { reconcile: async () => ({ mode: 'manual', scheduled: false }) },
     marketplaceImportService: stubMarketplaceImportService(),
+    olxPublicationQuotaService: stubOlxPublicationQuotaService(),
     marketplaceOAuthReturnUrl: 'http://localhost:5173/marketplaces',
     workspaceRepo: workspaceRepo as IWorkspaceRepository,
     authUserStore,
@@ -636,6 +683,37 @@ describe('Presentation API', () => {
         listingId: 'listing-imported',
       });
     });
+    it('reads and validates authenticated OLX quota operator contracts', async () => {
+      const { app } = await buildTestApp();
+      const read = await auth(request(app).get('/api/marketplaces/marketplace-olx/quotas'));
+      const update = await auth(request(app).put('/api/marketplaces/marketplace-olx/quotas')).send({
+        workspaceId: 'ws-attacker',
+        marketplaceId: 'marketplace-attacker',
+        actorId: 'user-attacker',
+        subcategoryId: '2000',
+        cycleStartedAt: '2026-07-01T00:00:00.000Z',
+        cycleEndsAt: '2026-08-01T00:00:00.000Z',
+        publicationLimit: 2,
+        consumed: 1,
+        source: 'operator',
+        confidence: 'verified',
+        verifiedAt: '2026-07-14T00:00:00.000Z',
+        staleAt: '2026-07-20T00:00:00.000Z',
+      });
+
+      expect(read.status).toBe(200);
+      expect(read.body.data[0]).toMatchObject({ subcategoryId: '2000', remaining: 1 });
+      expect(update.status).toBe(200);
+      expect(update.body.data).toMatchObject({
+        publicationLimit: 2,
+        consumed: 1,
+        source: 'operator',
+        confidence: 'verified',
+        workspaceId: 'ws-1',
+        marketplaceId: 'marketplace-olx',
+        actorId: 'u-1',
+      });
+    });
   });
 
   describe('listings', () => {
@@ -650,6 +728,19 @@ describe('Presentation API', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data.dryRun).toBe(true);
       expect(res.body.data.canPublish).toBe(true);
+      expect(res.body.data.quotaDecision).toMatchObject({
+        status: 'available',
+        decision: 'allow',
+        subcategoryId: '2000',
+        quota: {
+          publicationLimit: 2,
+          consumed: 1,
+          remaining: 1,
+          source: 'operator',
+          confidence: 'verified',
+          isStale: false,
+        },
+      });
       expect(res.body.data.payload.productName).toBe('Real widget');
       expect(res.body.data.payload.price).toBe(20);
       expect(before?.status).toBe('draft');
@@ -689,6 +780,18 @@ describe('Presentation API', () => {
       expect(res.body.data.warnings[0]).toContain('not connected');
       expect(after?.status).toBe('draft');
       expect(after?.marketplaceListingId).toBeNull();
+    });
+
+    it('rejects a non-explicit quota override at the HTTP boundary', async () => {
+      const { app, listingRepo } = await buildTestApp();
+      await seedPreviewListing(listingRepo);
+
+      const res = await auth(request(app).post('/api/listings/listing-preview/publish')).send({
+        quotaOverride: { confirmed: false, reason: 'This must not bypass the quota guard' },
+      });
+
+      expect(res.status).toBe(400);
+      expect(res.body.error.code).toBe('VALIDATION_ERROR');
     });
   });
 

@@ -17,6 +17,7 @@ interface OlxEnvelope<T> { data: T }
 interface OlxResolvedPath {
   ids: string[];
   names: string[];
+  validatedAtMs: number;
 }
 
 interface OlxDetailPath {
@@ -27,6 +28,7 @@ interface OlxDetailPath {
 interface OlxValidatedGraph {
   byId: Map<string, OlxCategoryNode>;
   parentsWithChildren: Set<string>;
+  validatedAtMs: number;
 }
 
 export interface OlxTrustedTaxonomyResolver {
@@ -86,7 +88,7 @@ export class OlxTaxonomyResolver implements OlxTrustedTaxonomyResolver {
     if (path.length === 0 || path[path.length - 1] !== name) {
       throw new Error('OLX taxonomy did not return a complete category path');
     }
-    const verifiedAt = this.now();
+    const verifiedAt = new Date(resolvedPath.validatedAtMs);
     if (!Number.isFinite(verifiedAt.getTime())) throw new Error('Server taxonomy verification clock is invalid');
     return {
       providerCategoryId: id,
@@ -192,7 +194,7 @@ export class OlxTaxonomyResolver implements OlxTrustedTaxonomyResolver {
       current = byId.get(parentId);
       if (!current) return null;
     }
-    return names.length > 1 ? { ids, names } : null;
+    return names.length > 1 ? { ids, names, validatedAtMs: graph.validatedAtMs } : null;
   }
 
   private async validatedFlatGraph(): Promise<OlxValidatedGraph | null> {
@@ -233,7 +235,7 @@ export class OlxTaxonomyResolver implements OlxTrustedTaxonomyResolver {
       parentsWithChildren.add(parentId);
     }
     for (const [nodeId, node] of byId) {
-      if (this.leafStatus(node) !== !parentsWithChildren.has(nodeId)) return null;
+      if (this.leafStatus(node) === true && parentsWithChildren.has(nodeId)) return null;
       const visited = new Set<string>();
       let current: OlxCategoryNode | undefined = node;
       let depth = 0;
@@ -249,7 +251,9 @@ export class OlxTaxonomyResolver implements OlxTrustedTaxonomyResolver {
         if (!current) return null;
       }
     }
-    return { byId, parentsWithChildren };
+    const validatedAtMs = this.now().getTime();
+    if (!Number.isFinite(validatedAtMs)) return null;
+    return { byId, parentsWithChildren, validatedAtMs };
   }
 
   private canonicalCategoryId(value: unknown): string | null {

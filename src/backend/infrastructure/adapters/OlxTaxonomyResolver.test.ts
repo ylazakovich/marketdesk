@@ -227,6 +227,29 @@ describe('OlxTaxonomyResolver', () => {
     });
   });
 
+  it('accepts an unrelated explicit non-leaf node without an observed child edge', async () => {
+    const request = jest.fn(async ({ url }: { url: string }) => ({
+      status: 200,
+      data: url.endsWith('/categories/1984')
+        ? { id: 1984, name: 'Projektory', is_leaf: true }
+        : { data: [
+            { id: 99, name: 'Elektronika', parent_id: 0, is_leaf: false },
+            { id: 1984, name: 'Projektory', parent_id: 99, is_leaf: true },
+            { id: 3000, name: 'Empty branch', parent_id: 0, is_leaf: false, children: [] },
+          ] },
+    }));
+    const resolver = new OlxTaxonomyResolver(
+      { request: request as MarketplaceHttpClient['request'] },
+      undefined,
+      () => now,
+    );
+
+    await expect(resolver.verify('1984')).resolves.toMatchObject({
+      path: ['Elektronika', 'Projektory'],
+      isLeaf: true,
+    });
+  });
+
   it('coalesces concurrent full-taxonomy requests and reuses the validated graph', async () => {
     let detailCalls = 0;
     let graphCalls = 0;
@@ -253,6 +276,34 @@ describe('OlxTaxonomyResolver', () => {
 
     expect(detailCalls).toBe(6);
     expect(graphCalls).toBe(1);
+  });
+
+  it('preserves the graph evidence timestamp when serving a cache hit', async () => {
+    let serverNow = new Date('2026-07-16T12:00:00.000Z');
+    let graphCalls = 0;
+    const request = jest.fn(async ({ url }: { url: string }) => {
+      if (url.endsWith('/categories/1984')) {
+        return { status: 200, data: { id: 1984, name: 'Projektory', is_leaf: true } };
+      }
+      graphCalls += 1;
+      return { status: 200, data: { data: [
+        { id: 99, name: 'Elektronika', parent_id: 0, is_leaf: false },
+        { id: 1984, name: 'Projektory', parent_id: 99, is_leaf: true },
+      ] } };
+    });
+    const resolver = new OlxTaxonomyResolver(
+      { request: request as MarketplaceHttpClient['request'] },
+      undefined,
+      () => serverNow,
+    );
+
+    const first = await resolver.verify('1984');
+    serverNow = new Date('2026-07-16T12:04:59.000Z');
+    const cached = await resolver.verify('1984');
+
+    expect(graphCalls).toBe(1);
+    expect(cached.taxonomyVerifiedAt).toBe(first.taxonomyVerifiedAt);
+    expect(cached.taxonomyStaleAt).toBe(first.taxonomyStaleAt);
   });
 
   it.each([

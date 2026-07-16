@@ -6,8 +6,6 @@ import {
   Button,
   ButtonBase,
   Chip,
-  IconButton,
-  InputAdornment,
   Divider,
   FormControlLabel,
   MenuItem,
@@ -18,8 +16,6 @@ import {
   Typography,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import AddIcon from '@mui/icons-material/Add';
-import SearchIcon from '@mui/icons-material/Search';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import NotificationsIcon from '@mui/icons-material/NotificationsNone';
 import StorefrontIcon from '@mui/icons-material/StorefrontOutlined';
@@ -30,14 +26,12 @@ import SecurityIcon from '@mui/icons-material/SecurityOutlined';
 import TuneIcon from '@mui/icons-material/TuneOutlined';
 import type { AutonomyLevel, Workspace } from '@shared/types';
 import { AUTONOMY_LEVEL_LIST } from '@shared/constants';
-import { useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../state/hooks.js';
 import { setWorkspace, setAutonomyLevel } from '../state/slices/workspaceSlice.js';
 import type { WorkspaceState } from '../state/slices/workspaceSlice.js';
-import { setThemeMode, enqueueToast, toggleTheme } from '../state/slices/uiSlice.js';
+import { setThemeMode, enqueueToast } from '../state/slices/uiSlice.js';
 import { useUpdateWorkspace } from '../services/hooks/index.js';
 import { AUTONOMY_LABELS, AUTONOMY_DESCRIPTIONS } from '../utils/labels.js';
-import { PageHeader } from '../components/common/PageHeader.js';
 import { Card } from '../components/common/Card.js';
 
 const CURRENCIES = ['PLN', 'EUR', 'USD', 'GBP', 'CZK', 'UAH'];
@@ -91,7 +85,6 @@ function toWorkspaceState(ws: Workspace): WorkspaceState {
 
 const SettingsPage: React.FC = () => {
   const dispatch = useAppDispatch();
-  const navigate = useNavigate();
   const workspace = useAppSelector((s) => s.workspace);
   const themeMode = useAppSelector((s) => s.ui.themeMode);
 
@@ -99,10 +92,8 @@ const SettingsPage: React.FC = () => {
   const [name, setName] = useState(workspace.name);
   const [currency, setCurrency] = useState(workspace.currency);
   const [timezone, setTimezone] = useState(workspace.timezone);
-  const [settingsSearch, setSettingsSearch] = useState('');
 
   const [updateWorkspace, { isLoading: saving }] = useUpdateWorkspace();
-
   const dirty =
     name !== workspace.name || currency !== workspace.currency || timezone !== workspace.timezone;
 
@@ -254,52 +245,8 @@ const SettingsPage: React.FC = () => {
   };
 
   const activeMeta = settingsSections.find((section) => section.id === activeSection) ?? settingsSections[0];
-  const handleSettingsSearch = (event: React.FormEvent) => {
-    event.preventDefault();
-    const query = settingsSearch.trim().toLowerCase();
-    const match = settingsSections.find(
-      (section) =>
-        section.label.toLowerCase().includes(query) || section.caption.toLowerCase().includes(query),
-    );
-    if (match) setActiveSection(match.id);
-  };
-
   return (
     <Box>
-      <PageHeader
-        title="Settings"
-        subtitle="Workspace and account preferences"
-        actions={
-          <Stack component="form" direction="row" spacing={1} onSubmit={handleSettingsSearch} flexWrap="wrap" useFlexGap>
-            <TextField
-              size="small"
-              placeholder="Search settings"
-              aria-label="Search settings"
-              value={settingsSearch}
-              onChange={(event) => setSettingsSearch(event.target.value)}
-              slotProps={{
-                input: {
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon fontSize="small" />
-                    </InputAdornment>
-                  ),
-                },
-              }}
-            />
-            <IconButton type="button" onClick={() => dispatch(toggleTheme())} aria-label="Toggle theme">
-              <PaletteIcon />
-            </IconButton>
-            <IconButton type="button" onClick={() => setActiveSection('notifications')} aria-label="Open notifications settings">
-              <NotificationsIcon />
-            </IconButton>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/products?newProduct=1')}>
-              New product
-            </Button>
-          </Stack>
-        }
-      />
-
       <Box
         sx={{
           display: 'grid',

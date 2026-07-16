@@ -3,7 +3,6 @@
 import type { SvgIconComponent } from '@mui/icons-material';
 import DashboardIcon from '@mui/icons-material/SpaceDashboard';
 import InventoryIcon from '@mui/icons-material/Inventory2';
-import StorefrontIcon from '@mui/icons-material/Storefront';
 import InsightsIcon from '@mui/icons-material/Insights';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import HubIcon from '@mui/icons-material/Hub';
@@ -15,13 +14,13 @@ export interface NavItem {
   icon: SvgIconComponent;
 }
 
-// Order matches the sidebar. Paths map 1:1 to the routes wired in App.tsx.
+// Order matches PRD §4. Listings remain routable for deep links but are managed
+// contextually under Products rather than occupying a second primary destination.
 export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Dashboard', path: '/', icon: DashboardIcon },
   { label: 'Products', path: '/products', icon: InventoryIcon },
-  { label: 'Listings', path: '/listings', icon: StorefrontIcon },
   { label: 'Analytics', path: '/analytics', icon: InsightsIcon },
-  { label: 'Hermes', path: '/hermes', icon: AutoAwesomeIcon },
+  { label: 'Hermes AI', path: '/hermes', icon: AutoAwesomeIcon },
   { label: 'Marketplaces', path: '/marketplaces', icon: HubIcon },
   { label: 'Settings', path: '/settings', icon: SettingsIcon },
 ];

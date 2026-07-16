@@ -39,7 +39,6 @@ import { useAppDispatch } from '../state/hooks.js';
 import { enqueueToast } from '../state/slices/uiSlice.js';
 import { formatDateTime } from '../utils/formatters.js';
 import { SYNC_MODE_LABELS } from '../utils/labels.js';
-import { PageHeader } from '../components/common/PageHeader.js';
 import { Card } from '../components/common/Card.js';
 import { EmptyState } from '../components/common/EmptyState.js';
 import { ErrorRetry } from '../components/common/ErrorRetry.js';
@@ -425,15 +424,11 @@ const MarketplacesPage: React.FC = () => {
 
   return (
     <Box>
-      <PageHeader
-        title="Marketplaces"
-        subtitle="Connect and sync your channels."
-        actions={
-          <Button variant="outlined" startIcon={<SyncIcon />} onClick={() => refetch()}>
-            Refresh
-          </Button>
-        }
-      />
+      <Stack direction="row" justifyContent="flex-end" sx={{ mb: 2.5 }}>
+        <Button variant="outlined" startIcon={<SyncIcon />} onClick={() => refetch()}>
+          Refresh
+        </Button>
+      </Stack>
 
       {isError ? (
         <ErrorRetry error={error} onRetry={refetch} />

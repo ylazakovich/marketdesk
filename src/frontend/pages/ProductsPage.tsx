@@ -23,7 +23,6 @@ import { useCreateProduct, useGenerateProductAIDraft, useProducts } from '../ser
 import type { ProductListParams } from '../state/api/index.js';
 import { useAppDispatch, useAppSelector } from '../state/hooks.js';
 import { enqueueToast } from '../state/slices/uiSlice.js';
-import { PageHeader } from '../components/common/PageHeader.js';
 import { Card } from '../components/common/Card.js';
 import { Modal } from '../components/common/Modal.js';
 import { ProductStatusBadge } from '../components/common/Badge.js';
@@ -106,11 +105,6 @@ const ProductsPage: React.FC = () => {
 
   return (
     <Box>
-      <PageHeader
-        title="Products"
-        subtitle="Manage your catalogue across every marketplace."
-      />
-
       <Card sx={{ mb: 2.5 }} contentSx={{ p: 2 }}>
         <Stack
           direction={{ xs: 'column', md: 'row' }}

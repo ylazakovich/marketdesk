@@ -1,26 +1,29 @@
-// Sidebar navigation. Permanent (collapsible mini) on desktop, temporary
-// drawer on mobile. Settings and account controls stay pinned at the bottom.
+// Sidebar navigation. Permanent and collapsible on desktop, temporary on mobile.
+// Brand identity, Settings, workspace/account, and sign-out stay in stable locations.
 import React from 'react';
 import {
   Avatar,
   Box,
-  Button,
   Drawer,
+  IconButton,
   List,
   ListItemButton,
   ListItemIcon,
   ListItemText,
   Stack,
-  Toolbar,
   Tooltip,
   Typography,
   useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
+import MenuOpenRoundedIcon from '@mui/icons-material/MenuOpenRounded';
+import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
+import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAppDispatch, useAppSelector } from '../../state/hooks.js';
-import { setMobileSidebarOpen } from '../../state/slices/uiSlice.js';
+import { setMobileSidebarOpen, toggleSidebar } from '../../state/slices/uiSlice.js';
 import { logout } from '../../state/slices/authSlice.js';
 import {
   NAV_ITEMS,
@@ -45,13 +48,12 @@ export const Sidebar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // On mobile the drawer always shows full labels; collapse only applies to desktop.
   const showLabels = isMobile || !collapsed;
   const width = showLabels ? SIDEBAR_WIDTH : SIDEBAR_COLLAPSED_WIDTH;
   const primaryItems = NAV_ITEMS.filter((item) => item.path !== '/settings');
   const settingsItem = NAV_ITEMS.find((item) => item.path === '/settings');
   const userLabel = user?.email ?? 'Account';
-  const avatarLetter = (user?.email ?? 'U').charAt(0).toUpperCase();
+  const avatarLetter = (user?.email ?? workspaceName ?? 'U').charAt(0).toUpperCase();
 
   const handleNavigate = (path: string) => {
     navigate(path);
@@ -86,9 +88,7 @@ export const Sidebar: React.FC = () => {
         {showLabels && (
           <ListItemText
             primary={item.label}
-            slotProps={{
-              primary: { variant: 'body2', sx: { fontWeight: active ? 700 : 500 } },
-            }}
+            slotProps={{ primary: { variant: 'body2', sx: { fontWeight: active ? 700 : 500 } } }}
           />
         )}
       </ListItemButton>
@@ -104,86 +104,137 @@ export const Sidebar: React.FC = () => {
 
   const content = (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <Toolbar sx={{ px: 2.5, gap: 1.25, minHeight: 64 }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1.25}
+        sx={{ px: showLabels ? 2 : 1.5, minHeight: 72 }}
+      >
         <Box
+          aria-hidden="true"
           sx={{
-            width: 32,
-            height: 32,
-            borderRadius: 2,
+            width: 36,
+            height: 36,
+            borderRadius: 2.25,
             display: 'grid',
             placeItems: 'center',
             color: 'primary.contrastText',
             background: (t) =>
               `linear-gradient(135deg, ${t.palette.primary.light}, ${t.palette.primary.dark})`,
-            fontWeight: 800,
             flexShrink: 0,
           }}
         >
-          M
+          <StorefrontRoundedIcon fontSize="small" />
         </Box>
         {showLabels && (
-          <Box sx={{ minWidth: 0 }}>
-            <Typography variant="h6" noWrap sx={{ fontWeight: 800, lineHeight: 1.2 }}>
-              {APP_NAME}
+          <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+            <Typography
+              variant="overline"
+              color="primary.main"
+              noWrap
+              sx={{
+                display: 'block',
+                fontSize: 9,
+                lineHeight: 1.1,
+                fontWeight: 800,
+                letterSpacing: 1.2,
+              }}
+            >
+              Marketplace OS
             </Typography>
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {workspaceName || 'Workspace loading'}
+            <Typography variant="h6" noWrap sx={{ fontWeight: 800, lineHeight: 1.25 }}>
+              {APP_NAME}
             </Typography>
           </Box>
         )}
-      </Toolbar>
+        {!isMobile && (
+          <Tooltip title={collapsed ? 'Expand navigation' : 'Collapse navigation'}>
+            <IconButton
+              size="small"
+              onClick={() => dispatch(toggleSidebar())}
+              aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+              sx={{ ml: showLabels ? 0 : 'auto' }}
+            >
+              {collapsed ? <ChevronRightRoundedIcon /> : <MenuOpenRoundedIcon />}
+            </IconButton>
+          </Tooltip>
+        )}
+      </Stack>
 
-      <List sx={{ px: 1.5, py: 1, flexGrow: 1 }}>
+      <List component="nav" aria-label="Primary navigation" sx={{ px: 1.5, py: 1, flexGrow: 1 }}>
         {primaryItems.map(renderNavItem)}
       </List>
 
       <Stack spacing={1} sx={{ px: 1.5, pb: 1.5 }}>
         {settingsItem && renderNavItem(settingsItem)}
         {showLabels ? (
-          <Box
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1}
             sx={{
-              p: 1.25,
+              p: 1,
               borderRadius: 2.5,
               bgcolor: 'action.hover',
               border: (t) => `1px solid ${t.palette.divider}`,
             }}
           >
-            <Stack direction="row" spacing={1.25} alignItems="center" sx={{ mb: 1 }}>
-              <Avatar sx={{ width: 34, height: 34, bgcolor: 'primary.main', fontSize: 14 }}>
-                {avatarLetter}
-              </Avatar>
-              <Box sx={{ minWidth: 0 }}>
+            <Avatar
+              sx={{ width: 34, height: 34, bgcolor: 'primary.main', fontSize: 14, flexShrink: 0 }}
+            >
+              {avatarLetter}
+            </Avatar>
+            <Box
+              component="button"
+              type="button"
+              onClick={() => handleNavigate('/settings')}
+              sx={{
+                minWidth: 0,
+                flexGrow: 1,
+                p: 0,
+                border: 0,
+                bgcolor: 'transparent',
+                color: 'inherit',
+                textAlign: 'left',
+                cursor: 'pointer',
+              }}
+            >
+              <Tooltip title={workspaceName || 'Workspace loading'} placement="top-start">
                 <Typography variant="body2" sx={{ fontWeight: 800 }} noWrap>
                   {workspaceName || 'Workspace loading'}
                 </Typography>
-                <Typography variant="caption" color="text.secondary" noWrap>
+              </Tooltip>
+              <Tooltip title={userLabel} placement="top-start">
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  noWrap
+                  sx={{ display: 'block' }}
+                >
                   {userLabel}
                 </Typography>
-              </Box>
-            </Stack>
-            <Stack direction="row" spacing={1}>
-              <Button size="small" variant="outlined" onClick={() => handleNavigate('/settings')} sx={{ flex: 1, textTransform: 'none' }}>
-                Profile
-              </Button>
-              <Tooltip title="Sign out">
-                <Button
-                  size="small"
-                  variant="text"
-                  color="inherit"
-                  onClick={() => {
-                    if (isMobile) dispatch(setMobileSidebarOpen(false));
-                    dispatch(logout());
-                  }}
-                  aria-label="Sign out"
-                >
-                  <LogoutIcon fontSize="small" />
-                </Button>
               </Tooltip>
-            </Stack>
-          </Box>
+            </Box>
+            <KeyboardArrowDownRoundedIcon color="disabled" fontSize="small" />
+            <Tooltip title="Sign out">
+              <IconButton
+                size="small"
+                onClick={() => {
+                  if (isMobile) dispatch(setMobileSidebarOpen(false));
+                  dispatch(logout());
+                }}
+                aria-label="Sign out"
+              >
+                <LogoutIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Stack>
         ) : (
-          <Tooltip title={userLabel} placement="right">
-            <ListItemButton onClick={() => handleNavigate('/settings')} sx={{ justifyContent: 'center', px: 1 }}>
+          <Tooltip title={`${workspaceName || 'Workspace'} · ${userLabel}`} placement="right">
+            <ListItemButton
+              onClick={() => handleNavigate('/settings')}
+              sx={{ justifyContent: 'center', px: 1 }}
+            >
               <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 14 }}>
                 {avatarLetter}
               </Avatar>
@@ -221,6 +272,8 @@ export const Sidebar: React.FC = () => {
         }),
         '& .MuiDrawer-paper': {
           width,
+          position: 'sticky',
+          height: '100vh',
           boxSizing: 'border-box',
           overflowX: 'hidden',
           transition: theme.transitions.create('width', {

@@ -11,7 +11,6 @@ import type { ListingListParams } from '../state/api/index.js';
 import { useMarketplaceLookup } from '../hooks/useMarketplaceLookup.js';
 import { useAppDispatch, useAppSelector } from '../state/hooks.js';
 import { enqueueToast } from '../state/slices/uiSlice.js';
-import { PageHeader } from '../components/common/PageHeader.js';
 import { Card } from '../components/common/Card.js';
 import { ListingStatusBadge } from '../components/common/Badge.js';
 import { ListingsTable } from '../components/tables/index.js';
@@ -57,37 +56,33 @@ const ListingsPage: React.FC = () => {
 
   return (
     <Box>
-      <PageHeader
-        title="Listings"
-        subtitle="Every live and draft listing across your connected marketplaces."
-        actions={
-          <Select
-            size="small"
-            multiple
-            displayEmpty
-            value={statusFilter}
-            onChange={handleStatusChange}
-            renderValue={(selected) =>
-              selected.length === 0 ? (
-                'All statuses'
-              ) : (
-                <Stack direction="row" spacing={0.5} flexWrap="wrap">
-                  {selected.map((s) => (
-                    <ListingStatusBadge key={s} status={s} />
-                  ))}
-                </Stack>
-              )
-            }
-            sx={{ minWidth: 200 }}
-          >
-            {LISTING_STATUS_LIST.map((s) => (
-              <MenuItem key={s} value={s}>
-                <ListingStatusBadge status={s} />
-              </MenuItem>
-            ))}
-          </Select>
-        }
-      />
+      <Stack direction="row" justifyContent="flex-end" sx={{ mb: 2.5 }}>
+        <Select
+          size="small"
+          multiple
+          displayEmpty
+          value={statusFilter}
+          onChange={handleStatusChange}
+          renderValue={(selected) =>
+            selected.length === 0 ? (
+              'All statuses'
+            ) : (
+              <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                {selected.map((s) => (
+                  <ListingStatusBadge key={s} status={s} />
+                ))}
+              </Stack>
+            )
+          }
+          sx={{ minWidth: 200 }}
+        >
+          {LISTING_STATUS_LIST.map((s) => (
+            <MenuItem key={s} value={s}>
+              <ListingStatusBadge status={s} />
+            </MenuItem>
+          ))}
+        </Select>
+      </Stack>
 
       <Card disablePadding>
         <ListingsTable

@@ -10,7 +10,6 @@ import { useAnalyticsListings, useAnalyticsOverview } from '../services/hooks/in
 import type { AnalyticsQueryParams } from '../state/api/index.js';
 import { useAppSelector } from '../state/hooks.js';
 import { formatCurrency, formatNumber } from '../utils/formatters.js';
-import { PageHeader } from '../components/common/PageHeader.js';
 import { Card } from '../components/common/Card.js';
 import { StatCard } from '../components/common/StatCard.js';
 import { RevenueChart, ViewsChart, ConversionChart } from '../components/charts/index.js';
@@ -82,18 +81,14 @@ const AnalyticsPage: React.FC = () => {
 
   return (
     <Box>
-      <PageHeader
-        title="Analytics"
-        subtitle="Performance across marketplaces."
-        actions={
-          <AnalyticsDateRangeControls
-            from={from}
-            to={to}
-            onFromChange={setFrom}
-            onToChange={setTo}
-          />
-        }
-      />
+      <Stack direction="row" justifyContent="flex-end" sx={{ mb: 2.5 }}>
+        <AnalyticsDateRangeControls
+          from={from}
+          to={to}
+          onFromChange={setFrom}
+          onToChange={setTo}
+        />
+      </Stack>
 
       <Box
         sx={{

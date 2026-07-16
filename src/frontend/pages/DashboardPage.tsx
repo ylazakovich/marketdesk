@@ -1,12 +1,11 @@
 // Workspace overview: KPI tiles, revenue trend, marketplace summary, quick
 // actions, recent Hermes activity, and products needing attention.
-import React, { useState } from 'react';
-import { Box, Button, Chip, Stack, TextField, Typography } from '@mui/material';
+import React from 'react';
+import { Box, Button, Chip, Stack, Typography } from '@mui/material';
 import PaidIcon from '@mui/icons-material/PaidOutlined';
 import StorefrontIcon from '@mui/icons-material/StorefrontOutlined';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import VisibilityIcon from '@mui/icons-material/VisibilityOutlined';
-import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
 import SyncIcon from '@mui/icons-material/Sync';
 import AnalyticsIcon from '@mui/icons-material/InsightsOutlined';
@@ -20,7 +19,6 @@ import {
 } from '../services/hooks/index.js';
 import { useAppSelector } from '../state/hooks.js';
 import { formatCurrency, formatNumber } from '../utils/formatters.js';
-import { PageHeader } from '../components/common/PageHeader.js';
 import { StatCard } from '../components/common/StatCard.js';
 import { Card } from '../components/common/Card.js';
 import { EmptyState } from '../components/common/EmptyState.js';
@@ -53,7 +51,6 @@ const DashboardPage: React.FC = () => {
   const marketplaces = useMarketplaces();
 
   const ov = overview.data;
-  const [globalSearch, setGlobalSearch] = useState('');
   const marketplaceRows = marketplaces.data ?? [];
   const connectedMarketplaces = marketplaceRows.filter((m) => m.connected).length;
   const totalCapacity = marketplaceRows.reduce((sum, m) => sum + (m.capacity ?? 0), 0);
@@ -62,13 +59,6 @@ const DashboardPage: React.FC = () => {
     typeof cur === 'number' && typeof prev === 'number' && prev !== 0
       ? ((cur - prev) / prev) * 100
       : undefined;
-
-  const handleGlobalSearch = (event: React.FormEvent) => {
-    event.preventDefault();
-    const query = globalSearch.trim();
-    navigate(query ? `/products?search=${encodeURIComponent(query)}` : '/products');
-  };
-
   const marketplaceError = marketplaces.error
     ? marketplaces.error instanceof Error
       ? marketplaces.error.message
@@ -77,40 +67,6 @@ const DashboardPage: React.FC = () => {
 
   return (
     <Box>
-      <PageHeader
-        title="Dashboard"
-        subtitle="Monitor products, marketplaces, and Hermes work from one command center."
-        actions={
-          <Stack
-            component="form"
-            direction={{ xs: 'column', sm: 'row' }}
-            spacing={1}
-            onSubmit={handleGlobalSearch}
-            sx={{ width: { xs: '100%', sm: 'auto' } }}
-          >
-            <TextField
-              size="small"
-              placeholder="Search products, listings, events..."
-              aria-label="Global search"
-              value={globalSearch}
-              onChange={(event) => setGlobalSearch(event.target.value)}
-              slotProps={{
-                input: {
-                  startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} fontSize="small" />,
-                },
-              }}
-              sx={{ minWidth: { xs: '100%', sm: 320 } }}
-            />
-            <Button type="submit" variant="outlined" sx={{ textTransform: 'none' }}>
-              Search
-            </Button>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/products?newProduct=1')}>
-              New product
-            </Button>
-          </Stack>
-        }
-      />
-
       <Box
         sx={{
           display: 'grid',

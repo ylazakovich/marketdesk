@@ -11,7 +11,6 @@ import { useHermesEvents, useRunHermes } from '../services/hooks/index.js';
 import type { HermesEventListParams } from '../state/api/index.js';
 import { useAppDispatch } from '../state/hooks.js';
 import { enqueueToast } from '../state/slices/uiSlice.js';
-import { PageHeader } from '../components/common/PageHeader.js';
 import { Card } from '../components/common/Card.js';
 import { EmptyState } from '../components/common/EmptyState.js';
 import { ErrorRetry } from '../components/common/ErrorRetry.js';
@@ -97,11 +96,6 @@ const HermesActivityPage: React.FC = () => {
 
   return (
     <Box>
-      <PageHeader
-        title="Hermes AI"
-        subtitle="Everything your AI agent did across monitored listings."
-      />
-
       <Card
         sx={{ mb: 2.5, background: (t) => `linear-gradient(135deg, ${t.palette.primary.dark}, ${t.palette.primary.main})`, color: 'primary.contrastText' }}
         contentSx={{ p: 3 }}

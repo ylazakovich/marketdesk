@@ -397,7 +397,7 @@ class ProductService {
 
 // Application Service (ProductApplicationService)
 class ProductApplicationService {
-  createProduct(dto: CreateProductDTO): Promise<Result<Product>> {
+  async createProduct(dto: CreateProductDTO): Promise<Result<Product>> {
     // 1. Fetch context
     const workspace = await this.workspaceRepo.getById(dto.workspaceId);
     

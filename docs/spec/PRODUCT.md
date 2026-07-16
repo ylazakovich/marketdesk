@@ -28,9 +28,9 @@ When sources conflict, do not guess. Open or update an issue, record the approve
 
 | Area | Decision | Product consequence | Evidence |
 | --- | --- | --- | --- |
-| Marketplace availability | OLX only is operational today. | Keep non-OLX channels visible only as explicit roadmap/unavailable cards; no fake connect buttons or fabricated metrics. | #174 |
-| Provider lifecycle | Marketplace state is provider truth, separate from local draft/live state. | Unknown or moderation states must not be shown as active. | Architecture amendments; existing OLX status work |
-| Dangerous automation | Publication, relist, category changes and quota overrides remain guarded. | Full-auto mode cannot bypass marketplace quota/category safety. | OLX quota/category issues |
+| Marketplace availability | OLX only is operational today. | Keep non-OLX channels visible only as explicit roadmap/unavailable cards; no fake connect buttons or fabricated metrics. | PRD §12 · `TRACEABILITY.md` §12 · [#174](https://github.com/ylazakovich/hermes-marketdesk/issues/174) |
+| Provider lifecycle | Marketplace state is provider truth, separate from local draft/live state. | Unknown or moderation states must not be shown as active. | PRD §12 · `TRACEABILITY.md` §12 · `ARCHITECTURE_AMENDMENTS.md` · [PR #162](https://github.com/ylazakovich/hermes-marketdesk/pull/162) |
+| Dangerous automation | Publication, relist, category changes and quota overrides remain guarded. | Full-auto mode cannot bypass marketplace quota/category safety. | PRD §10/§13 · `TRACEABILITY.md` §10/§13 · [#164](https://github.com/ylazakovich/hermes-marketdesk/issues/164) · [#169](https://github.com/ylazakovich/hermes-marketdesk/issues/169) |
 
 Add future deviations only after an explicit product decision. Include the issue/ADR and the affected PRD section.
 

@@ -25,4 +25,4 @@ The live implementation is tracked against the original PRD in [`TRACEABILITY.md
 
 ## Task closeout
 
-Do not close an issue because a route, shell, placeholder or disabled control exists. Close only after its own acceptance criteria, targeted tests, review findings and deployed evidence are complete, and update `TRACEABILITY.md` in the same PR.
+Do not close an issue because a route, shell, placeholder or disabled control exists. Every issue requires its own acceptance criteria, targeted checks/tests, resolved review findings, and a `TRACEABILITY.md` update in the same PR. Live-facing runtime changes additionally require deployed visual or functional evidence; documentation-only and CI/automation work instead require appropriate document review and CI output.

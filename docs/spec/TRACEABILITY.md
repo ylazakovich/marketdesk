@@ -9,26 +9,26 @@ Status vocabulary:
 - **Not implemented** — only a placeholder/mock exists or the capability is absent.
 - **Docs only** — a product statement, not a runtime capability.
 
-| PRD section | Contract | Status | Implementation / evidence | Active issue |
-| --- | --- | --- | --- | --- |
-| §1 | Product summary | Docs only | `docs/spec/PRODUCT.md` | #170 |
-| §2 | Target users | Docs only | Canonical PRD personas | #170 |
-| §3 | Product goals | Partial | Core workspace/product/listing flows exist; unified multi-channel outcome is OLX-only | #170, #174 |
-| §4 | Information architecture | Partial | `src/frontend/App.tsx`, `src/frontend/utils/constants.ts`; extra top-level Listings route needs decision | #171 |
-| §5 | Global app shell | Partial | `AppShell.tsx`, `TopBar.tsx`, `Sidebar.tsx`; deployed blank/duplicate header and brand gaps | #171 |
-| §6 | Dashboard | Partial | `DashboardPage.tsx`; command-center blocks exist but visual/behavior acceptance remains open | #137 |
-| §7 | Products catalogue | Partial | `ProductsPage.tsx`; catalogue exists without complete tabs, server controls, card view or bulk flows | #172 |
-| §8 | Product creation wizard | Partial | `ProductWizardForm.tsx`; six steps exist without required upload/reorder/guidance/publish behavior | #138 |
-| §9 | Analytics | Partial | `AnalyticsPage.tsx`; current KPI and report composition differs materially from contract | #173 |
-| §10 | Hermes AI overview | Partial | `HermesActivityPage.tsx`; hero/tabs exist, configuration and truthful metrics remain incomplete | #139 |
-| §11 | Hermes activity feed | Partial | `HermesEventCard.tsx`; review actions exist, icon/status anatomy and populated-flow acceptance remain open | #139 |
-| §12 | Marketplaces | Partial | `MarketplacesPage.tsx`; OLX works, summary/grid/brand/roadmap surfaces are incomplete | #174 |
-| §13 | Settings | Partial | `SettingsPage.tsx`; shell exists, several sections are placeholders or read-only | #140–#149 |
-| §14 | Global interactions | Partial | Toasts/modals exist; global search, command palette, notifications, undo and autosave are incomplete | #171, #138 |
-| §15 | Responsive behavior | Partial | MUI breakpoints exist; no current deployed visual evidence across required widths | #171 and per-screen issues |
-| §16 | Accessibility | Partial | MUI semantics provide a baseline; keyboard/focus/contrast acceptance is not systematically covered | #171 and per-screen issues |
-| §17 | Dark theme | Partial | Theme toggle works; per-screen parity and persistence remain incomplete | #146 and per-screen issues |
-| §18 | Delivery and assets | Partial | HTML companion/screenshots are versioned; application brand/marketplace assets and visual regression evidence are incomplete | #171, #174 |
+| PRD section | Contract | Status | Implementation evidence | Tests / verification evidence | Acceptance state / tracking |
+| --- | --- | --- | --- | --- | --- |
+| §1 | Product summary | Docs only | `docs/spec/PRODUCT.md` | `npm run verify:spec` | Delivered by #175; closes #170 |
+| §2 | Target users | Docs only | `docs/design/MarketDesk PRD.dc.html` personas | `npm run verify:spec` | Delivered by #175; closes #170 |
+| §3 | Product goals | Partial | `src/backend/presentation/http/controllers`, `src/frontend/pages` | `src/backend/presentation/__tests__/api.integration.test.ts`; live QA audit 2026-07-16 | Open gaps: #170, #174 |
+| §4 | Information architecture | Partial | `src/frontend/App.tsx`, `src/frontend/utils/constants.ts` | Live QA route/navigation audit 2026-07-16 | Open gap: #171 |
+| §5 | Global app shell | Partial | `src/frontend/components/layout/AppShell.tsx`, `TopBar.tsx`, `Sidebar.tsx` | Live light/dark QA audit 2026-07-16 | Open gap: #171 |
+| §6 | Dashboard | Partial | `src/frontend/pages/DashboardPage.tsx` | Live empty-workspace audit 2026-07-16 | Open gap: #137 |
+| §7 | Products catalogue | Partial | `src/frontend/pages/ProductsPage.tsx` | Live empty-workspace audit 2026-07-16; table unit coverage | Open gap: #172 |
+| §8 | Product creation wizard | Partial | `src/frontend/components/forms/ProductWizardForm.tsx` | Live six-step/validation audit 2026-07-16 | Open gap: #138 |
+| §9 | Analytics | Partial | `src/frontend/pages/AnalyticsPage.tsx` | `src/frontend/pages/AnalyticsPage.test.tsx`; live KPI/layout audit 2026-07-16 | Open gap: #173 |
+| §10 | Hermes AI overview | Partial | `src/frontend/pages/HermesActivityPage.tsx` | Live run/empty-state audit 2026-07-16 | Open gap: #139 |
+| §11 | Hermes activity feed | Partial | `src/frontend/components/hermes/HermesEventCard.tsx` | Existing API event tests; populated visual flow not yet verified | Open gap: #139 |
+| §12 | Marketplaces | Partial | `src/frontend/pages/MarketplacesPage.tsx`, `src/backend/infrastructure/adapters/OLXAdapter.ts` | `src/frontend/pages/MarketplacesPage.test.tsx`; live OLX-only audit 2026-07-16 | Open gap: #174 |
+| §13 | Settings | Partial | `src/frontend/pages/SettingsPage.tsx` | `src/frontend/pages/SettingsPage.test.tsx`; live section audit 2026-07-16 | Open gaps: #140–#149 |
+| §14 | Global interactions | Partial | `src/frontend/components/common`, `src/frontend/state/slices/uiSlice.ts` | Existing component tests; live toast/theme audit 2026-07-16 | Open gaps: #171, #138 |
+| §15 | Responsive behavior | Partial | MUI breakpoints across `src/frontend` | No complete required-width visual evidence yet | Open per-screen gaps: #137–#150, #171–#174 |
+| §16 | Accessibility | Partial | MUI semantics and accessible labels across `src/frontend` | No systematic keyboard/focus/contrast acceptance run yet | Open per-screen gaps: #137–#150, #171–#174 |
+| §17 | Dark theme | Partial | `src/frontend/theme`, `src/frontend/state/slices/uiSlice.ts` | Live dark-theme audit 2026-07-16; persistence code review | Open gap: #146 and per-screen issues |
+| §18 | Delivery and assets | Partial | `docs/design`, `docs/design/screenshots` | `npm run verify:spec`; curated screenshots present | Open gaps: #171, #174 |
 
 ## Screen acceptance map
 

@@ -12,6 +12,8 @@ import type {
   HermesSeverity,
   SyncMode,
   MarketplaceCategoryMetadata,
+  CategoryRecreationOperationAction,
+  CategoryRecreationOperationStatus,
 } from '@shared/types';
 
 // ----------------------------------------------------------------------------
@@ -248,6 +250,22 @@ export interface HermesRunInput {
 // POST /hermes/run responds with the array of generated events (HermesEventView[]).
 
 export type HermesEventResolution = HermesEvent;
+
+/** Contract expected from separately durable and audited category operations. */
+export interface CategoryRecreationOperationCommand {
+  action: CategoryRecreationOperationAction;
+  operation: 'delist' | 'recreate';
+  confirmation:
+    | { kind: 'delist'; deletionDoesNotRestoreQuota: true }
+    | { kind: 'recreate'; newPublicationConsumesQuota: true; paidRiskAccepted: true };
+}
+
+export interface CategoryRecreationOperationResolution {
+  intentId: string;
+  operation: 'delist' | 'recreate';
+  status: CategoryRecreationOperationStatus;
+  event: HermesEvent;
+}
 
 // ----------------------------------------------------------------------------
 // Analytics (no shared entity — response shapes defined here)

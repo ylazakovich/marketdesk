@@ -133,6 +133,52 @@ const DetailRow: React.FC<{ label: string; children: React.ReactNode; strong?: b
   </Box>
 );
 
+export const PublishPreviewReview: React.FC<{ preview: PublishListingPreview }> = ({ preview }) => {
+  const category = preview.marketplaceCategory ?? preview.payload?.marketplaceCategory;
+
+  return (
+    <Stack spacing={1.25}>
+      <Typography variant="body2">
+        {preview.canPublish
+          ? `Review the exact provider category before queueing ${preview.payload?.productName ?? 'this listing'} for publication.`
+          : 'Publication is blocked. Review the exact provider category and every blocker below; confirmation cannot override these checks.'}
+      </Typography>
+      {preview.payload && (
+        <Typography variant="body2" color="text.secondary">
+          Price: {preview.payload.price} {preview.payload.currency}
+        </Typography>
+      )}
+      {category ? (
+        <Stack spacing={0.25}>
+          <Typography variant="body2">
+            Provider category ID: <strong>{category.providerCategoryId}</strong>
+          </Typography>
+          <Typography variant="body2">
+            Full category path: <strong>{category.path.join(' → ')}</strong>
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Confidence: {category.confidence} · Taxonomy verified: {formatDateTime(category.taxonomyVerifiedAt)} · Stale after: {formatDateTime(category.taxonomyStaleAt)}
+          </Typography>
+        </Stack>
+      ) : (
+        <Alert severity="error">No exact provider category ID/path was returned.</Alert>
+      )}
+      {preview.warnings.length > 0 && (
+        <Alert severity={preview.canPublish ? 'warning' : 'error'}>
+          <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
+            {preview.canPublish ? 'Warnings to confirm' : 'Blocking reasons'}
+          </Typography>
+          <Box component="ul" sx={{ my: 0, pl: 2.5 }}>
+            {preview.warnings.map((warning) => (
+              <li key={warning}><Typography variant="body2">{warning}</Typography></li>
+            ))}
+          </Box>
+        </Alert>
+      )}
+    </Stack>
+  );
+};
+
 const ListingDetailsPage: React.FC = () => {
   const { productId = '' } = useParams();
   const navigate = useNavigate();
@@ -233,10 +279,6 @@ const ListingDetailsPage: React.FC = () => {
   const handlePublish = async (listing: Listing) => {
     try {
       const preview = await publishListingPreview(listing.id).unwrap();
-      if (!preview.canPublish) {
-        dispatch(enqueueToast({ message: preview.warnings.join('; '), severity: 'warning' }));
-        return;
-      }
       setPublishCandidate({ listing, preview });
     } catch (err) {
       dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
@@ -247,7 +289,7 @@ const ListingDetailsPage: React.FC = () => {
     if (!publishCandidate) return;
     try {
       await publishListing({ id: publishCandidate.listing.id }).unwrap();
-      dispatch(enqueueToast({ message: 'Listing published.', severity: 'success' }));
+      dispatch(enqueueToast({ message: 'Publication was accepted and queued.', severity: 'success' }));
       setPublishCandidate(null);
     } catch (err) {
       dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
@@ -470,16 +512,16 @@ const ListingDetailsPage: React.FC = () => {
                     key={event.id}
                     event={event}
                     onResolved={refreshAfterRecommendation}
-                    approveLabel="Apply"
-                    successMessage={
-                      primaryListing?.status === 'live' && primaryListing.marketplaceListingId
-                        ? 'Suggestion applied. Connected live listings update in the background.'
-                        : 'Suggestion applied to the product.'
-                    }
+                    approveLabel={event.proposedChange?.kind === 'category_recreation' ? undefined : 'Apply'}
+                    successMessage={event.proposedChange?.kind === 'category_recreation'
+                      ? undefined
+                      : primaryListing?.status === 'live' && primaryListing.marketplaceListingId
+                        ? 'Suggestion applied locally. Connected live listing updates were queued.'
+                        : 'Suggestion applied to the product.'}
                   />
                 ))}
                 <Typography variant="caption" color="text.secondary">
-                  Applying updates the product immediately. Connected live listings are then updated through the marketplace job queue.
+                  Standard suggestions may update the product locally and queue connected marketplace updates. Category correction always uses separate audited delist and recreate reviews.
                 </Typography>
               </Stack>
             )}
@@ -553,44 +595,25 @@ const ListingDetailsPage: React.FC = () => {
       <Modal
         open={Boolean(publishCandidate)}
         onClose={() => setPublishCandidate(null)}
-        title="Confirm publish"
+        title={publishCandidate?.preview.canPublish ? 'Confirm publication request' : 'Publication review'}
         subtitle={publishCandidate?.preview.marketplaceKey?.toUpperCase() ?? 'Marketplace'}
         maxWidth="xs"
         actions={
           <Stack direction="row" spacing={1}>
             <Button variant="outlined" onClick={() => setPublishCandidate(null)}>
-              Cancel
+              Close
             </Button>
-            <Button variant="contained" onClick={handleConfirmPublish}>
-              Publish
+            <Button
+              variant="contained"
+              disabled={!publishCandidate?.preview.canPublish}
+              onClick={handleConfirmPublish}
+            >
+              Confirm category and queue publish
             </Button>
           </Stack>
         }
       >
-        <Stack spacing={1}>
-          <Typography variant="body2">
-            Publish {publishCandidate?.preview.payload?.productName ?? 'listing'} to{' '}
-            {publishCandidate?.preview.marketplaceKey?.toUpperCase() ?? 'marketplace'}?
-          </Typography>
-          {publishCandidate?.preview.payload && (
-            <>
-              <Typography variant="body2" color="text.secondary">
-                Price: {publishCandidate.preview.payload.price}{' '}
-                {publishCandidate.preview.payload.currency}
-              </Typography>
-              {publishCandidate.preview.marketplaceCategory && (
-                <Stack spacing={0.25}>
-                  <Typography variant="body2">
-                    Provider category ID: {publishCandidate.preview.marketplaceCategory.providerCategoryId}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Full category path: {publishCandidate.preview.marketplaceCategory.path.join(' → ')}
-                  </Typography>
-                </Stack>
-              )}
-            </>
-          )}
-        </Stack>
+        {publishCandidate && <PublishPreviewReview preview={publishCandidate.preview} />}
       </Modal>
 
       <Modal

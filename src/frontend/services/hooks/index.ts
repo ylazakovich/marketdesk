@@ -35,6 +35,7 @@ import {
   useGetHermesEventQuery,
   useApproveHermesEventMutation,
   useDismissHermesEventMutation,
+  useExecuteCategoryRecreationOperationMutation,
   useRunHermesMutation,
   useGetAnalyticsOverviewQuery,
   useGetAnalyticsRevenueQuery,
@@ -114,6 +115,7 @@ export function useHermesEvents(
 export const useHermesEvent = useGetHermesEventQuery;
 export const useApproveHermesEvent = useApproveHermesEventMutation;
 export const useDismissHermesEvent = useDismissHermesEventMutation;
+export const useExecuteCategoryRecreationOperation = useExecuteCategoryRecreationOperationMutation;
 export const useRunHermes = useRunHermesMutation;
 
 // ---- Analytics ----

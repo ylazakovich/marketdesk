@@ -109,6 +109,38 @@ export interface CreateListingChangePayload {
   marketplaceKey: MarketplaceKey;
 }
 
+export type CategoryRecreationOperationStatus =
+  | 'pending_review'
+  | 'blocked_pending_quota_review'
+  | 'approved'
+  | 'queued'
+  | 'running'
+  | 'succeeded'
+  | 'failed';
+
+/**
+ * Server-authorized operation capability. The UI never invents an execution
+ * route: an action is enabled only when the authenticated API includes one of
+ * these relative links in the event representation.
+ */
+export type CategoryRecreationOperationAction = {
+  [Action in 'approve' | 'execute' | 'retry']: {
+    kind: Action;
+    method: 'POST';
+    href: `/hermes/category-recreation-operations/${string}/${Action}`;
+    label?: string;
+  };
+}['approve' | 'execute' | 'retry'];
+
+export interface CategoryRecreationQuotaReview {
+  status: 'available' | 'unknown' | 'stale' | 'exhausted' | 'paid_risk';
+  cycleStartedAt?: string;
+  cycleEndsAt?: string;
+  remaining?: number | null;
+  paidRisk: boolean;
+  reason?: string;
+}
+
 export interface CategoryRecreationChangePayload {
   kind: 'category_recreation';
   listingId: string;
@@ -117,12 +149,17 @@ export interface CategoryRecreationChangePayload {
   proposedCategory: MarketplaceCategoryMetadata | null;
   operations: readonly [
     {
-      kind: 'delist'; intentId: string; status: 'pending_review';
-      providerSideEffectAllowed: false; quotaUnitsRestored: 0;
+      kind: 'delist'; intentId: string; status: CategoryRecreationOperationStatus;
+      providerSideEffectAllowed: boolean; quotaUnitsRestored: 0;
+      availableActions?: CategoryRecreationOperationAction[];
+      failureReason?: string;
     },
     {
-      kind: 'recreate'; intentId: string; status: 'blocked_pending_quota_review';
-      providerSideEffectAllowed: false; quotaGuardRequired: true;
+      kind: 'recreate'; intentId: string; status: CategoryRecreationOperationStatus;
+      providerSideEffectAllowed: boolean; quotaGuardRequired: true;
+      quota?: CategoryRecreationQuotaReview;
+      availableActions?: CategoryRecreationOperationAction[];
+      failureReason?: string;
     }
   ];
 }

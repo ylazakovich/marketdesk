@@ -1,11 +1,15 @@
 import type { HermesEvent, Listing, Marketplace } from '@shared/types';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import {
   mainPreviewImageSx,
+  PublishPreviewReview,
   remoteMarketplaceChipColor,
   remoteMarketplacePresentation,
   selectPrimaryListing,
   selectProductRecommendations,
 } from './ListingDetailsPage';
+import type { PublishListingPreview } from '../state/api/dto';
 
 const listing: Listing = {
   id: 'listing-1',
@@ -46,6 +50,47 @@ function event(
 }
 
 describe('ListingDetailsPage presentation', () => {
+  it.each([
+    ['low-confidence', 'Category confidence 0.42 is below the required threshold'],
+    ['stale', 'OLX taxonomy verification is stale'],
+  ])('keeps exact category identity and the %s blocker visible in publish review', (_case, reason) => {
+    const preview: PublishListingPreview = {
+      dryRun: true,
+      canPublish: false,
+      listingId: 'listing-projector',
+      status: 'draft',
+      marketplaceKey: 'olx',
+      payload: {
+        productName: 'AOPEN QH11 projector',
+        description: 'HD projector',
+        price: 299,
+        currency: 'PLN',
+        category: 'electronics',
+        marketplaceCategory: null,
+        condition: 'used',
+        imageCount: 2,
+      },
+      marketplaceCategory: {
+        providerCategoryId: 'projectors-91',
+        name: 'Projectors',
+        path: ['Electronics', 'TV and video', 'Projectors'],
+        source: 'provider_taxonomy',
+        confidence: 0.42,
+        isLeaf: true,
+        taxonomyVerifiedAt: '2026-06-01T00:00:00.000Z',
+        taxonomyStaleAt: '2026-06-02T00:00:00.000Z',
+      },
+      warnings: [reason],
+    };
+
+    const html = renderToStaticMarkup(<PublishPreviewReview preview={preview} />);
+
+    expect(html).toContain('projectors-91');
+    expect(html).toContain('Electronics → TV and video → Projectors');
+    expect(html).toContain(reason);
+    expect(html).toContain('Publication is blocked');
+  });
+
   it('centers the full-size preview without stretching it across both axes', () => {
     expect(mainPreviewImageSx).toMatchObject({
       display: 'block',

@@ -36,7 +36,7 @@ export const ApprovalButtons: React.FC<ApprovalButtonsProps> = ({
   size = 'small',
   onResolved,
   approveLabel = 'Approve',
-  successMessage = 'Suggestion approved and applied.',
+  successMessage = 'Suggestion approval recorded.',
 }) => {
   const dispatch = useAppDispatch();
   const [approve, { isLoading: approving }] = useApproveHermesEvent();
@@ -103,7 +103,7 @@ export const ApprovalButtons: React.FC<ApprovalButtonsProps> = ({
       <ConfirmDialog
         open={confirmOpen}
         title="Approve critical change?"
-        message="This is a high-impact change flagged as critical. Approving will apply it immediately across the affected listings."
+        message="This is a high-impact change. Approval records your explicit decision; depending on the change, MarketDesk may update local data and queue separate marketplace work. It does not prove the provider has completed that work."
         confirmLabel="Approve change"
         confirmColor="error"
         loading={approving}

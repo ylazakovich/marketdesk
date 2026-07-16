@@ -61,10 +61,10 @@ export const listingsApi = baseApi.injectEndpoints({
     }),
 
     // POST /listings/:id/relist — republish an expired/errored listing (202).
-    relistListing: builder.mutation<Listing, string>({
-      query: (id) => ({ url: `/listings/${id}/relist`, method: 'POST' }),
+    relistListing: builder.mutation<Listing, PublishListingInput>({
+      query: ({ id, ...body }) => ({ url: `/listings/${id}/relist`, method: 'POST', body }),
       transformResponse: (res: ApiResponse<Listing>) => unwrap(res),
-      invalidatesTags: (result, _error, id) => [
+      invalidatesTags: (result, _error, { id }) => [
         { type: 'Listing', id },
         { type: 'Listing', id: 'LIST' },
         ...(result ? [{ type: 'Product' as const, id: result.productId }] : []),

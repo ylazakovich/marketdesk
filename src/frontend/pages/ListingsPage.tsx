@@ -6,26 +6,16 @@ import type { SelectChangeEvent } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import type { Listing, ListingStatus } from '@shared/types';
 import { LISTING_STATUS_LIST } from '@shared/constants';
-import { useListings, useRelistListing } from '../services/hooks/index.js';
+import { useListings } from '../services/hooks/index.js';
 import type { ListingListParams } from '../state/api/index.js';
 import { useMarketplaceLookup } from '../hooks/useMarketplaceLookup.js';
-import { useAppDispatch, useAppSelector } from '../state/hooks.js';
-import { enqueueToast } from '../state/slices/uiSlice.js';
+import { useAppSelector } from '../state/hooks.js';
 import { Card } from '../components/common/Card.js';
 import { ListingStatusBadge } from '../components/common/Badge.js';
 import { ListingsTable } from '../components/tables/index.js';
 
-function errorMessage(err: unknown): string {
-  if (err && typeof err === 'object') {
-    const e = err as { data?: { error?: { message?: string } }; message?: string };
-    return e.data?.error?.message ?? e.message ?? 'Request failed';
-  }
-  return 'Request failed';
-}
-
 const ListingsPage: React.FC = () => {
   const navigate = useNavigate();
-  const dispatch = useAppDispatch();
   const currency = useAppSelector((s) => s.workspace.currency);
   const { resolveMarketplaceName } = useMarketplaceLookup();
 
@@ -38,20 +28,17 @@ const ListingsPage: React.FC = () => {
   }, [statusFilter]);
 
   const { data, isLoading, isFetching, isError, error, refetch } = useListings(params);
-  const [relistListing] = useRelistListing();
+
 
   const handleStatusChange = (e: SelectChangeEvent<ListingStatus[]>) => {
     const value = e.target.value;
     setStatusFilter(typeof value === 'string' ? (value.split(',') as ListingStatus[]) : value);
   };
 
-  const handleRelist = async (listing: Listing) => {
-    try {
-      await relistListing(listing.id).unwrap();
-      dispatch(enqueueToast({ message: 'Listing relisted.', severity: 'success' }));
-    } catch (err) {
-      dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
-    }
+  const handleRelist = (listing: Listing) => {
+    navigate(`/products/${listing.productId}`, {
+      state: { publicationReview: { listingId: listing.id, mode: 'relist' } },
+    });
   };
 
   return (

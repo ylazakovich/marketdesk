@@ -28,6 +28,14 @@ function routeParam(value: string | string[] | undefined): string {
   return Array.isArray(value) ? (value[0] ?? '') : (value ?? '');
 }
 
+const OVERRIDEABLE_OLX_QUOTA_REASONS = new Set([
+  'quota_unknown',
+  'quota_exhausted',
+  'quota_stale',
+  'quota_unverified',
+  'outside_cycle',
+]);
+
 export interface ListingControllerDeps {
   priceHistoryReader?: IPriceHistoryReader;
   priceHistoryRecorder?: IPriceHistoryRecorder;
@@ -67,6 +75,7 @@ export class ListingController {
       }
     }
 
+    const nonQuotaWarningCount = warnings.length;
     let quotaDecision;
     if (product && marketplace && marketplace.key === 'olx') {
       quotaDecision = this.deps.olxQuotaService
@@ -87,6 +96,15 @@ export class ListingController {
     return {
       dryRun: true,
       canPublish: warnings.length === 0,
+      quotaOverrideEligibility: {
+        eligible:
+          nonQuotaWarningCount === 0 &&
+          Boolean(this.deps.olxQuotaService) &&
+          quotaDecision?.decision === 'block' &&
+          quotaDecision.requiresOverride === true &&
+          OVERRIDEABLE_OLX_QUOTA_REASONS.has(quotaDecision.reason),
+        reason: quotaDecision?.decision === 'block' ? quotaDecision.reason : null,
+      },
       listingId: listing.id,
       status: listing.status,
       marketplaceKey: marketplace?.key,

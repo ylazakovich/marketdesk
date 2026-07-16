@@ -178,6 +178,28 @@ describe('PublishListingUseCase', () => {
     expect(publishQueue.jobs).toHaveLength(0);
   });
 
+  it('forwards an operation-scoped override and queues exactly one publication', async () => {
+    const { useCase, publishQueue, quotaService } = setup(true);
+    const authorize = jest.spyOn(quotaService, 'authorize').mockResolvedValueOnce({
+      applicable: true, marketplaceKey: 'olx', status: 'unknown', decision: 'override',
+      reason: 'operator_override:Accept possible OLX publication fee', requiresOverride: false,
+    });
+
+    const result = await useCase.execute({
+      listingId: 'lst-1',
+      actorId: 'user-1',
+      quotaOverride: { confirmed: true, reason: 'Accept possible OLX publication fee' },
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(authorize).toHaveBeenCalledWith(expect.objectContaining({
+      operationId: 'rec-1',
+      actorId: 'user-1',
+      override: { confirmed: true, reason: 'Accept possible OLX publication fee' },
+    }));
+    expect(publishQueue.jobs).toHaveLength(1);
+  });
+
   it('fails closed without enqueueing when the OLX quota service is unavailable', async () => {
     const { useCase, publishQueue } = setup(true, 'legacy', false);
 
@@ -212,7 +234,10 @@ describe('PublishListingUseCase', () => {
     });
     const authorize = jest.spyOn(quotaService, 'authorize');
 
-    const result = await useCase.execute({ listingId: 'lst-1' });
+    const result = await useCase.execute({
+      listingId: 'lst-1',
+      quotaOverride: { confirmed: true, reason: 'Accept possible OLX publication fee' },
+    });
 
     expect(result.isErr()).toBe(true);
     expect(authorize).not.toHaveBeenCalled();

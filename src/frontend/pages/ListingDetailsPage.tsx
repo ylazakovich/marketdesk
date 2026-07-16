@@ -1,13 +1,24 @@
 // Product / listing detail: gallery, attributes, per-marketplace listings,
 // price editing (PricingForm), publish + relist actions, and price history.
-import React, { useState } from 'react';
-import { Alert, Box, Button, Chip, Divider, Stack, Typography } from '@mui/material';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  Chip,
+  Divider,
+  FormControlLabel,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import EditIcon from '@mui/icons-material/EditOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { HermesEvent, Listing, Marketplace } from '@shared/types';
-import type { PublishListingPreview } from '../state/api/dto.js';
+import type { PublishListingInput, PublishListingPreview } from '../state/api/dto.js';
 import {
   useProduct,
   useProductListings,
@@ -46,6 +57,28 @@ export const mainPreviewImageSx = {
   objectFit: 'contain',
   margin: 'auto',
 } as const;
+
+export const MIN_QUOTA_OVERRIDE_REASON_LENGTH = 10;
+export const MAX_QUOTA_OVERRIDE_REASON_LENGTH = 500;
+
+export function buildPublishListingInput(
+  listingId: string,
+  preview: PublishListingPreview,
+  quotaOverrideAccepted: boolean,
+  quotaOverrideReason: string,
+): PublishListingInput | null {
+  if (preview.canPublish) return { id: listingId };
+  const reason = quotaOverrideReason.trim();
+  if (
+    !preview.quotaOverrideEligibility.eligible ||
+    !quotaOverrideAccepted ||
+    reason.length < MIN_QUOTA_OVERRIDE_REASON_LENGTH ||
+    reason.length > MAX_QUOTA_OVERRIDE_REASON_LENGTH
+  ) {
+    return null;
+  }
+  return { id: listingId, quotaOverride: { confirmed: true, reason } };
+}
 
 export function remoteMarketplaceChipColor(
   listing: Listing | undefined,
@@ -141,7 +174,9 @@ export const PublishPreviewReview: React.FC<{ preview: PublishListingPreview }> 
       <Typography variant="body2">
         {preview.canPublish
           ? `Review the exact provider category before queueing ${preview.payload?.productName ?? 'this listing'} for publication.`
-          : 'Publication is blocked. Review the exact provider category and every blocker below; confirmation cannot override these checks.'}
+          : preview.quotaOverrideEligibility.eligible
+            ? 'The exact provider category passed validation, but OLX free-publication quota could not be confirmed. An explicit operation-scoped fee-risk confirmation is required.'
+            : 'Publication is blocked. Review the exact provider category and every blocker below; confirmation cannot override these checks.'}
       </Typography>
       {preview.payload && (
         <Typography variant="body2" color="text.secondary">
@@ -164,9 +199,13 @@ export const PublishPreviewReview: React.FC<{ preview: PublishListingPreview }> 
         <Alert severity="error">No exact provider category ID/path was returned.</Alert>
       )}
       {preview.warnings.length > 0 && (
-        <Alert severity={preview.canPublish ? 'warning' : 'error'}>
+        <Alert severity={preview.canPublish || preview.quotaOverrideEligibility.eligible ? 'warning' : 'error'}>
           <Typography variant="body2" sx={{ fontWeight: 700, mb: 0.5 }}>
-            {preview.canPublish ? 'Warnings to confirm' : 'Blocking reasons'}
+            {preview.canPublish
+              ? 'Warnings to confirm'
+              : preview.quotaOverrideEligibility.eligible
+                ? 'Quota confirmation required'
+                : 'Blocking reasons'}
           </Typography>
           <Box component="ul" sx={{ my: 0, pl: 2.5 }}>
             {preview.warnings.map((warning) => (
@@ -182,6 +221,7 @@ export const PublishPreviewReview: React.FC<{ preview: PublishListingPreview }> 
 const ListingDetailsPage: React.FC = () => {
   const { productId = '' } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useAppDispatch();
   const currency = useAppSelector((s) => s.workspace.currency);
 
@@ -195,9 +235,9 @@ const ListingDetailsPage: React.FC = () => {
 
   const [updateProduct, { isLoading: updating }] = useUpdateProduct();
   const [updateListing, { isLoading: pricing }] = useUpdateListing();
-  const [relistListing] = useRelistListing();
+  const [relistListing, { isLoading: relisting }] = useRelistListing();
   const [publishListingPreview] = usePublishListingPreview();
-  const [publishListing] = usePublishListing();
+  const [publishListing, { isLoading: publishing }] = usePublishListing();
   const [createListing, { isLoading: creatingListing }] = useCreateProductListing();
 
   const [editOpen, setEditOpen] = useState(false);
@@ -205,8 +245,12 @@ const ListingDetailsPage: React.FC = () => {
   const [publishCandidate, setPublishCandidate] = useState<{
     listing: Listing;
     preview: PublishListingPreview;
+    mode: 'publish' | 'relist';
   } | null>(null);
+  const [quotaOverrideAccepted, setQuotaOverrideAccepted] = useState(false);
+  const [quotaOverrideReason, setQuotaOverrideReason] = useState('');
   const [activeImage, setActiveImage] = useState(0);
+  const consumedNavigationReview = useRef<string | null>(null);
 
   const listingItems = listings.data ?? [];
   const listingMarketplaceIds = new Set(listingItems.map((listing) => listing.marketplaceId));
@@ -269,8 +313,10 @@ const ListingDetailsPage: React.FC = () => {
 
   const handleRelist = async (listing: Listing) => {
     try {
-      await relistListing(listing.id).unwrap();
-      dispatch(enqueueToast({ message: 'Listing relisted.', severity: 'success' }));
+      const preview = await publishListingPreview(listing.id).unwrap();
+      setQuotaOverrideAccepted(false);
+      setQuotaOverrideReason('');
+      setPublishCandidate({ listing, preview, mode: 'relist' });
     } catch (err) {
       dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
     }
@@ -279,7 +325,9 @@ const ListingDetailsPage: React.FC = () => {
   const handlePublish = async (listing: Listing) => {
     try {
       const preview = await publishListingPreview(listing.id).unwrap();
-      setPublishCandidate({ listing, preview });
+      setQuotaOverrideAccepted(false);
+      setQuotaOverrideReason('');
+      setPublishCandidate({ listing, preview, mode: 'publish' });
     } catch (err) {
       dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
     }
@@ -287,14 +335,72 @@ const ListingDetailsPage: React.FC = () => {
 
   const handleConfirmPublish = async () => {
     if (!publishCandidate) return;
+    const input = buildPublishListingInput(
+      publishCandidate.listing.id,
+      publishCandidate.preview,
+      quotaOverrideAccepted,
+      quotaOverrideReason,
+    );
+    if (!input) return;
     try {
-      await publishListing({ id: publishCandidate.listing.id }).unwrap();
-      dispatch(enqueueToast({ message: 'Publication was accepted and queued.', severity: 'success' }));
+      if (publishCandidate.mode === 'relist') {
+        await relistListing(input).unwrap();
+      } else {
+        await publishListing(input).unwrap();
+      }
+      dispatch(enqueueToast({
+        message: publishCandidate.mode === 'relist'
+          ? 'Republication was accepted and queued.'
+          : 'Publication was accepted and queued.',
+        severity: 'success',
+      }));
       setPublishCandidate(null);
+      setQuotaOverrideAccepted(false);
+      setQuotaOverrideReason('');
     } catch (err) {
       dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
     }
   };
+
+  useEffect(() => {
+    const review = (location.state as {
+      publicationReview?: { listingId: string; mode: 'relist' };
+    } | null)?.publicationReview;
+    if (!review) {
+      consumedNavigationReview.current = null;
+      return;
+    }
+    const reviewKey = `${review.mode}:${review.listingId}`;
+    if (consumedNavigationReview.current === reviewKey || listings.isLoading) return;
+    consumedNavigationReview.current = reviewKey;
+    navigate(location.pathname, { replace: true, state: null });
+    const listing = listingItems.find((item) => item.id === review.listingId);
+    if (!listing) {
+      dispatch(enqueueToast({
+        message: 'Listing is no longer available for review.',
+        severity: 'error',
+      }));
+      return;
+    }
+    void publishListingPreview(listing.id)
+      .unwrap()
+      .then((preview) => {
+        setQuotaOverrideAccepted(false);
+        setQuotaOverrideReason('');
+        setPublishCandidate({ listing, preview, mode: 'relist' });
+      })
+      .catch((err) => {
+        dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
+      });
+  }, [
+    dispatch,
+    listingItems,
+    listings.isLoading,
+    location.pathname,
+    location.state,
+    navigate,
+    publishListingPreview,
+  ]);
 
   if (product.isError) {
     return (
@@ -594,26 +700,86 @@ const ListingDetailsPage: React.FC = () => {
 
       <Modal
         open={Boolean(publishCandidate)}
-        onClose={() => setPublishCandidate(null)}
-        title={publishCandidate?.preview.canPublish ? 'Confirm publication request' : 'Publication review'}
+        onClose={() => {
+          setPublishCandidate(null);
+          setQuotaOverrideAccepted(false);
+          setQuotaOverrideReason('');
+        }}
+        title={
+          publishCandidate?.preview.canPublish
+            ? 'Confirm publication request'
+            : publishCandidate?.preview.quotaOverrideEligibility.eligible
+              ? 'Confirm possible OLX fee'
+              : 'Publication review'
+        }
         subtitle={publishCandidate?.preview.marketplaceKey?.toUpperCase() ?? 'Marketplace'}
         maxWidth="xs"
         actions={
           <Stack direction="row" spacing={1}>
-            <Button variant="outlined" onClick={() => setPublishCandidate(null)}>
+            <Button variant="outlined" onClick={() => {
+              setPublishCandidate(null);
+              setQuotaOverrideAccepted(false);
+              setQuotaOverrideReason('');
+            }}>
               Close
             </Button>
             <Button
               variant="contained"
-              disabled={!publishCandidate?.preview.canPublish}
+              disabled={
+                publishing ||
+                relisting ||
+                !publishCandidate ||
+                buildPublishListingInput(
+                  publishCandidate.listing.id,
+                  publishCandidate.preview,
+                  quotaOverrideAccepted,
+                  quotaOverrideReason,
+                ) === null
+              }
               onClick={handleConfirmPublish}
             >
-              Confirm category and queue publish
+              {publishCandidate?.preview.quotaOverrideEligibility.eligible
+                ? publishCandidate.mode === 'relist'
+                  ? 'Accept fee risk and queue relist'
+                  : 'Accept fee risk and queue publish'
+                : publishCandidate?.mode === 'relist'
+                  ? 'Confirm category and queue relist'
+                  : 'Confirm category and queue publish'}
             </Button>
           </Stack>
         }
       >
-        {publishCandidate && <PublishPreviewReview preview={publishCandidate.preview} />}
+        {publishCandidate && (
+          <Stack spacing={2}>
+            <PublishPreviewReview preview={publishCandidate.preview} />
+            {publishCandidate.preview.quotaOverrideEligibility.eligible && (
+              <Stack spacing={1}>
+                <Alert severity="warning">
+                  OLX may charge for this publication. This confirmation applies only to this single request.
+                </Alert>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={quotaOverrideAccepted}
+                      onChange={(event) => setQuotaOverrideAccepted(event.target.checked)}
+                    />
+                  }
+                  label="I accept the possible OLX publication fee"
+                />
+                <TextField
+                  label="Reason for quota override"
+                  value={quotaOverrideReason}
+                  onChange={(event) => setQuotaOverrideReason(event.target.value)}
+                  required
+                  multiline
+                  minRows={2}
+                  inputProps={{ maxLength: MAX_QUOTA_OVERRIDE_REASON_LENGTH }}
+                  helperText={`${MIN_QUOTA_OVERRIDE_REASON_LENGTH}–${MAX_QUOTA_OVERRIDE_REASON_LENGTH} characters. Saved in the audit log.`}
+                />
+              </Stack>
+            )}
+          </Stack>
+        )}
       </Modal>
 
       <Modal

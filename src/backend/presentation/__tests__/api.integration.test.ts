@@ -33,7 +33,7 @@ import type { IListingRepository } from '../../domain/repositories/interfaces/IL
 import type { IMarketplaceRepository } from '../../domain/repositories/interfaces/IMarketplaceRepository';
 import type { IWorkspaceRepository } from '../../domain/repositories/interfaces/IWorkspaceRepository';
 import type { ProductView, HermesEventView } from '../../application/dto/presenters';
-import { HERMES_EVENT_STATUSES } from '../../../shared/types';
+import { HERMES_EVENT_STATUSES, type MarketplaceCategoryMetadata } from '../../../shared/types';
 import {
   InMemoryProductRepository,
   InMemoryListingRepository,
@@ -305,6 +305,23 @@ function stubOlxPublicationQuotaService(): OlxPublicationQuotaService {
   } as unknown as OlxPublicationQuotaService;
 }
 
+function stubUnknownOlxPublicationQuotaService(): OlxPublicationQuotaService {
+  return {
+    async preview() {
+      return {
+        applicable: true,
+        marketplaceKey: 'olx' as const,
+        marketplaceAccountId: 'account-1',
+        subcategoryId: '2000',
+        status: 'unknown' as const,
+        decision: 'block' as const,
+        reason: 'quota_unknown',
+        requiresOverride: true,
+      };
+    },
+  } as unknown as OlxPublicationQuotaService;
+}
+
 function stubCategoryCorrectionOperationService(): CategoryCorrectionOperationService {
   const base = {
     id: 'recreate-1', workspaceId: 'ws-1', recommendationEventId: 'e1', listingId: 'listing-1',
@@ -325,7 +342,10 @@ function stubCategoryCorrectionOperationService(): CategoryCorrectionOperationSe
   } as unknown as CategoryCorrectionOperationService;
 }
 
-async function buildTestApp() {
+async function buildTestApp(options: {
+  olxPublicationQuotaService?: OlxPublicationQuotaService;
+  disableOlxPublicationQuotaService?: boolean;
+} = {}) {
   const authUserStore = new InMemoryAuthStore();
   const productRepo = new InMemoryProductRepository();
   const listingRepo = new InMemoryListingRepository();
@@ -351,7 +371,9 @@ async function buildTestApp() {
     marketplaceOAuthService: stubMarketplaceOAuthService(),
     marketplaceSyncScheduler: { reconcile: async () => ({ mode: 'manual', scheduled: false }) },
     marketplaceImportService: stubMarketplaceImportService(),
-    olxPublicationQuotaService: stubOlxPublicationQuotaService(),
+    olxPublicationQuotaService: options.disableOlxPublicationQuotaService
+      ? undefined
+      : options.olxPublicationQuotaService ?? stubOlxPublicationQuotaService(),
     categoryCorrectionOperationService: stubCategoryCorrectionOperationService(),
     marketplaceOAuthReturnUrl: 'http://localhost:5173/marketplaces',
     workspaceRepo: workspaceRepo as IWorkspaceRepository,
@@ -394,7 +416,10 @@ async function buildTestApp() {
   };
 }
 
-async function seedPreviewListing(listingRepo: InMemoryListingRepository): Promise<void> {
+async function seedPreviewListing(
+  listingRepo: InMemoryListingRepository,
+  category?: MarketplaceCategoryMetadata | null,
+): Promise<void> {
   const price = Money.of(20, 'PLN');
   if (price.isErr()) throw new Error('money fixture failed');
   const listing = Listing.create({
@@ -402,12 +427,12 @@ async function seedPreviewListing(listingRepo: InMemoryListingRepository): Promi
     productId: 'p-real',
     marketplaceId: 'marketplace-olx',
     price: price.value,
-    marketplaceCategory: {
+    marketplaceCategory: category === undefined ? {
       providerCategoryId: '2000', name: 'Widgets', path: ['Home', 'Tools', 'Widgets'],
       source: 'provider_taxonomy', confidence: 1, isLeaf: true,
       taxonomyVerifiedAt: new Date(Date.now() - 60_000).toISOString(),
       taxonomyStaleAt: new Date(Date.now() + 23 * 60 * 60 * 1000).toISOString(),
-    },
+    } : category,
   });
   if (listing.isErr()) throw listing.error;
   await listingRepo.save(listing.value);
@@ -797,6 +822,7 @@ describe('Presentation API', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data.dryRun).toBe(true);
       expect(res.body.data.canPublish).toBe(true);
+      expect(res.body.data.quotaOverrideEligibility).toEqual({ eligible: false, reason: null });
       expect(res.body.data.quotaDecision).toMatchObject({
         status: 'available',
         decision: 'allow',
@@ -855,12 +881,91 @@ describe('Presentation API', () => {
       expect(after?.marketplaceListingId).toBeNull();
     });
 
-    it('rejects a non-explicit quota override at the HTTP boundary', async () => {
+    it('exposes quota override eligibility only when quota is the sole blocker', async () => {
+      const { app, listingRepo } = await buildTestApp({
+        olxPublicationQuotaService: stubUnknownOlxPublicationQuotaService(),
+      });
+      await seedPreviewListing(listingRepo);
+
+      const res = await auth(request(app).post('/api/listings/listing-preview/publish-preview')).send({});
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.canPublish).toBe(false);
+      expect(res.body.data.warnings).toEqual(['OLX quota blocks publication: quota_unknown']);
+      expect(res.body.data.quotaOverrideEligibility).toEqual({
+        eligible: true,
+        reason: 'quota_unknown',
+      });
+    });
+
+    it('does not expose quota override eligibility when another publish blocker exists', async () => {
+      const { app, listingRepo, marketplaceRepo } = await buildTestApp({
+        olxPublicationQuotaService: stubUnknownOlxPublicationQuotaService(),
+      });
+      await seedPreviewListing(listingRepo);
+      const marketplace = await marketplaceRepo.findById('marketplace-olx');
+      marketplace?.disconnect();
+
+      const res = await auth(request(app).post('/api/listings/listing-preview/publish-preview')).send({});
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.canPublish).toBe(false);
+      expect(res.body.data.warnings).toEqual(expect.arrayContaining([
+        expect.stringContaining('not connected'),
+        'OLX quota blocks publication: quota_unknown',
+      ]));
+      expect(res.body.data.quotaOverrideEligibility).toEqual({
+        eligible: false,
+        reason: 'quota_unknown',
+      });
+    });
+
+    it('does not expose quota override eligibility when exact category metadata is missing', async () => {
+      const { app, listingRepo } = await buildTestApp({
+        olxPublicationQuotaService: stubUnknownOlxPublicationQuotaService(),
+      });
+      await seedPreviewListing(listingRepo, null);
+
+      const res = await auth(request(app).post('/api/listings/listing-preview/publish-preview')).send({});
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.canPublish).toBe(false);
+      expect(res.body.data.warnings).toEqual(expect.arrayContaining([
+        'Select an exact OLX leaf category before publishing',
+        'OLX quota blocks publication: quota_unknown',
+      ]));
+      expect(res.body.data.quotaOverrideEligibility).toEqual({
+        eligible: false,
+        reason: 'quota_unknown',
+      });
+    });
+
+    it('does not expose an override when the quota guard itself is unavailable', async () => {
+      const { app, listingRepo } = await buildTestApp({ disableOlxPublicationQuotaService: true });
+      await seedPreviewListing(listingRepo);
+
+      const res = await auth(request(app).post('/api/listings/listing-preview/publish-preview')).send({});
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.canPublish).toBe(false);
+      expect(res.body.data.quotaOverrideEligibility).toEqual({
+        eligible: false,
+        reason: 'quota_guard_unavailable',
+      });
+    });
+
+    it.each([
+      ['confirmation is false', { confirmed: false, reason: 'This must not bypass the quota guard' }],
+      ['reason is missing', { confirmed: true }],
+      ['reason is blank', { confirmed: true, reason: '   ' }],
+      ['reason is too short', { confirmed: true, reason: 'too short' }],
+      ['reason is too long', { confirmed: true, reason: 'x'.repeat(501) }],
+    ])('rejects quota override when %s', async (_case, quotaOverride) => {
       const { app, listingRepo } = await buildTestApp();
       await seedPreviewListing(listingRepo);
 
       const res = await auth(request(app).post('/api/listings/listing-preview/publish')).send({
-        quotaOverride: { confirmed: false, reason: 'This must not bypass the quota guard' },
+        quotaOverride,
       });
 
       expect(res.status).toBe(400);

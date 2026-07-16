@@ -70,11 +70,19 @@ export interface PublishListingInput {
   id: string;
   actorId?: string;
   dryRun?: boolean;
+  quotaOverride?: {
+    confirmed: true;
+    reason: string;
+  };
 }
 
 export interface PublishListingPreview {
   dryRun: true;
   canPublish: boolean;
+  quotaOverrideEligibility: {
+    eligible: boolean;
+    reason: string | null;
+  };
   listingId: string;
   status: ListingStatus;
   marketplaceKey?: Marketplace['key'];

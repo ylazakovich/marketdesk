@@ -2,6 +2,7 @@ import type { HermesEvent, Listing, Marketplace } from '@shared/types';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
+  buildPublishListingInput,
   mainPreviewImageSx,
   PublishPreviewReview,
   remoteMarketplaceChipColor,
@@ -57,6 +58,7 @@ describe('ListingDetailsPage presentation', () => {
     const preview: PublishListingPreview = {
       dryRun: true,
       canPublish: false,
+      quotaOverrideEligibility: { eligible: false, reason: null },
       listingId: 'listing-projector',
       status: 'draft',
       marketplaceKey: 'olx',
@@ -89,6 +91,68 @@ describe('ListingDetailsPage presentation', () => {
     expect(html).toContain('Electronics → TV and video → Projectors');
     expect(html).toContain(reason);
     expect(html).toContain('Publication is blocked');
+  });
+
+  it('builds a single-operation quota override only after explicit valid confirmation', () => {
+    const preview: PublishListingPreview = {
+      dryRun: true,
+      canPublish: false,
+      quotaOverrideEligibility: { eligible: true, reason: 'quota_unknown' },
+      listingId: 'listing-frezarka',
+      status: 'expired',
+      marketplaceKey: 'olx',
+      payload: null,
+      marketplaceCategory: null,
+      warnings: ['OLX quota blocks publication: quota_unknown'],
+    };
+
+    expect(buildPublishListingInput('listing-frezarka', preview, false, 'Possible fee accepted')).toBeNull();
+    expect(buildPublishListingInput('listing-frezarka', preview, true, 'short')).toBeNull();
+    expect(buildPublishListingInput('listing-frezarka', preview, true, 'x'.repeat(501))).toBeNull();
+    expect(buildPublishListingInput('listing-frezarka', preview, true, '  Possible fee accepted  ')).toEqual({
+      id: 'listing-frezarka',
+      quotaOverride: { confirmed: true, reason: 'Possible fee accepted' },
+    });
+  });
+
+  it('never builds an override for non-quota blockers and leaves normal publish unchanged', () => {
+    const blocked: PublishListingPreview = {
+      dryRun: true,
+      canPublish: false,
+      quotaOverrideEligibility: { eligible: false, reason: 'quota_unknown' },
+      listingId: 'listing-projector',
+      status: 'draft',
+      marketplaceKey: 'olx',
+      payload: null,
+      marketplaceCategory: null,
+      warnings: ['OLX taxonomy verification is stale', 'OLX quota blocks publication: quota_unknown'],
+    };
+
+    expect(buildPublishListingInput('listing-projector', blocked, true, 'Accept possible provider fee')).toBeNull();
+    expect(buildPublishListingInput(
+      'listing-projector',
+      { ...blocked, canPublish: true, quotaOverrideEligibility: { eligible: false, reason: null }, warnings: [] },
+      true,
+      'This must not be sent',
+    )).toEqual({ id: 'listing-projector' });
+  });
+
+  it('presents eligible quota blocks as explicit fee-risk confirmation rather than a bypass', () => {
+    const preview: PublishListingPreview = {
+      dryRun: true,
+      canPublish: false,
+      quotaOverrideEligibility: { eligible: true, reason: 'quota_unknown' },
+      listingId: 'listing-frezarka',
+      status: 'expired',
+      marketplaceKey: 'olx',
+      payload: null,
+      marketplaceCategory: null,
+      warnings: ['OLX quota blocks publication: quota_unknown'],
+    };
+
+    const html = renderToStaticMarkup(<PublishPreviewReview preview={preview} />);
+    expect(html).toContain('operation-scoped fee-risk confirmation');
+    expect(html).toContain('Quota confirmation required');
   });
 
   it('centers the full-size preview without stretching it across both axes', () => {

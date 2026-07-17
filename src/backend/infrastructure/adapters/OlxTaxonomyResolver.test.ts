@@ -205,6 +205,70 @@ describe('OlxTaxonomyResolver', () => {
     });
   });
 
+  it.each([
+    [
+      '1973',
+      'Słuchawki bezprzewodowe',
+      ['Elektronika', 'Sprzęt audio', 'Słuchawki', 'Słuchawki bezprzewodowe'],
+    ],
+    [
+      '1984',
+      'Projektory',
+      ['Elektronika', 'Sprzęt video', 'Projektory'],
+    ],
+    [
+      '5091',
+      'Frezarki',
+      ['Firma i Przemysł', 'Wyposażenie salonów', 'Akcesoria kosmetyczne', 'Frezarki'],
+    ],
+  ])('reconstructs the production OLX parent_id breadcrumb for category %s', async (
+    categoryId,
+    categoryName,
+    expectedPath,
+  ) => {
+    // Ancestor ids are synthetic; leaf ids, names, response fields, and paths
+    // mirror the production contract captured in issue #197.
+    const categories = [
+      { id: 100, name: 'Elektronika', parent_id: 0, is_leaf: false },
+      { id: 110, name: 'Sprzęt audio', parent_id: 100, is_leaf: false },
+      { id: 111, name: 'Słuchawki', parent_id: 110, is_leaf: false },
+      { id: 1973, name: 'Słuchawki bezprzewodowe', parent_id: 111, is_leaf: true },
+      { id: 120, name: 'Sprzęt video', parent_id: 100, is_leaf: false },
+      { id: 1984, name: 'Projektory', parent_id: 120, is_leaf: true },
+      { id: 200, name: 'Firma i Przemysł', parent_id: 0, is_leaf: false },
+      { id: 210, name: 'Wyposażenie salonów', parent_id: 200, is_leaf: false },
+      { id: 211, name: 'Akcesoria kosmetyczne', parent_id: 210, is_leaf: false },
+      { id: 5091, name: 'Frezarki', parent_id: 211, is_leaf: true },
+    ];
+    const target = categories.find((category) => String(category.id) === categoryId)!;
+    const request = jest.fn(async ({ url }: { url: string }) => ({
+      status: 200,
+      data: url.endsWith(`/categories/${categoryId}`) ? target : { data: categories },
+    }));
+    const resolver = new OlxTaxonomyResolver(
+      { request: request as MarketplaceHttpClient['request'] },
+      'https://example.test/api',
+      () => now,
+    );
+
+    await expect(resolver.verify(categoryId)).resolves.toMatchObject({
+      providerCategoryId: categoryId,
+      name: categoryName,
+      path: expectedPath,
+      isLeaf: true,
+      source: 'provider_taxonomy',
+    });
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(request).toHaveBeenNthCalledWith(1, {
+      method: 'GET',
+      url: `https://example.test/api/categories/${categoryId}`,
+    });
+    expect(request).toHaveBeenNthCalledWith(2, {
+      method: 'GET',
+      url: 'https://example.test/api/categories',
+    });
+  });
+
   it('uses explicit non-leaf status when an optional children array is empty', async () => {
     const request = jest.fn(async ({ url }: { url: string }) => ({
       status: 200,

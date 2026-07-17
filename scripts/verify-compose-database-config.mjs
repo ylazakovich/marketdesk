@@ -47,8 +47,12 @@ try {
   assert.equal(internal.services.migrate.environment.DB_SSL_MODE, 'disable');
   assert.deepEqual(internal.services.migrate.command, ['node', 'dist/backend/migrate.js']);
   assert.equal(internal.services.migrate.environment.MARKETDESK_MIGRATIONS_DIR, '/app/migrations');
-  assert.equal(internal.services.migrate.depends_on.postgres.condition, 'service_healthy');
+  assert.equal(internal.services.migrate.environment.JWT_SECRET, undefined);
+  assert.equal(internal.services.migrate.environment.HERMES_API_KEY, undefined);
+  assert.equal(internal.services.migrate.environment.MARKETPLACE_CREDENTIALS_KEY, undefined);
+  assert.equal(internal.services.migrate.depends_on, undefined);
   assert.equal(internal.services.app.depends_on.migrate.condition, 'service_completed_successfully');
+  assert.equal(internal.services.app.depends_on.postgres, undefined);
   assert.equal(internal.services.postgres.ports[0].host_ip, '127.0.0.1');
   assert.equal(internal.services.redis.ports[0].host_ip, '127.0.0.1');
 

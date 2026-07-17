@@ -11,6 +11,7 @@ import {
 import { tmpdir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parse as parseDotenv } from 'dotenv';
 
 const RELEASE_TAG_PATTERN = /^hermes-marketdesk-v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
 const RELEASE_CONTEXT_PREFIX = 'marketdesk-release-context-';
@@ -210,7 +211,13 @@ export function inspectExistingProjectName(cwd) {
   ));
 }
 
-export function buildReleaseComposeArgs(args, cwd = process.cwd(), composeFile, envFile) {
+export function buildReleaseComposeArgs(
+  args,
+  cwd = process.cwd(),
+  composeFile,
+  envFile,
+  externalDatabase = false,
+) {
   const accepted = args.length === 1 && args[0] === 'up'
     || args.length === 2 && args[0] === 'up' && ['-d', '--detach'].includes(args[1]);
   if (!accepted) {
@@ -224,7 +231,13 @@ export function buildReleaseComposeArgs(args, cwd = process.cwd(), composeFile, 
     ...(envFile ? ['--env-file', resolve(envFile)] : []),
     '-f', resolve(composeFile ?? resolve(projectDirectory, 'docker-compose.yml')),
     'up', '--build', '--detach',
+    ...(externalDatabase ? ['--scale', 'postgres=0'] : []),
   ];
+}
+
+export function releaseUsesExternalDatabase(envFile) {
+  const parsed = parseDotenv(readFileSync(resolve(envFile)));
+  return Boolean(parsed.DATABASE_URL?.trim());
 }
 
 export function buildReleaseComposeEnvironment(
@@ -275,6 +288,7 @@ export async function runReleaseCompose(args, cwd = process.cwd()) {
       cwd,
       resolve(immutable.context, 'docker-compose.yml'),
       releaseEnvFile,
+      releaseUsesExternalDatabase(releaseEnvFile),
     );
     assertReleaseAssociation(release, cwd);
     const detached = process.platform !== 'win32';

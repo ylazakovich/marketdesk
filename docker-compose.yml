@@ -95,15 +95,10 @@ services:
   migrate:
     <<: *app-image
     command: ["node", "dist/backend/migrate.js"]
-    env_file:
-      - ${MARKETDESK_ENV_FILE:-./.env}
     environment:
       <<: *database-environment
       NODE_ENV: ${NODE_ENV:-development}
       MARKETDESK_MIGRATIONS_DIR: /app/migrations
-    depends_on:
-      postgres:
-        condition: service_healthy
     networks:
       - marketdesk-network
     restart: "no"
@@ -147,8 +142,6 @@ services:
         condition: service_completed_successfully
       migrate:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     # NOTE: the built frontend (dist/frontend) and backend (dist/backend) are baked

@@ -332,7 +332,10 @@ Migrations are located in `src/backend/persistence/migrations/` as numbered SQL 
 
 ### Running Migrations
 
-Migrations are automatically run when the PostgreSQL container starts. To manually run migrations:
+Compose runs the non-root one-shot `migrate` service from the same application
+image and starts `app` only after every ordered migration succeeds. Production
+releases require a fresh verified backup before this automatic schema gate. To
+manually run migrations during development:
 
 ```bash
 npm run db:migrate

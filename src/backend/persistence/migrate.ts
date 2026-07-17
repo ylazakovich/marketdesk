@@ -3,6 +3,7 @@ import fs from 'fs';
 import { Pool, type PoolClient } from 'pg';
 import dotenv from 'dotenv';
 import { migrationPoolConfig } from '../config/databaseConfig.js';
+import { concurrentIndexIdentity, quotedIndexIdentity } from './migrationSql.js';
 import pino from 'pino';
 
 dotenv.config();
@@ -11,6 +12,24 @@ const migrationsDir = process.env.MARKETDESK_MIGRATIONS_DIR
   ? path.resolve(process.env.MARKETDESK_MIGRATIONS_DIR)
   : path.join(process.cwd(), 'src/backend/persistence/migrations');
 const MIGRATION_LOCK_KEY = 'marketdesk:migrations';
+const CONNECTION_ATTEMPTS = 30;
+const CONNECTION_RETRY_MS = 1_000;
+
+async function connectWithRetry(pool: Pool): Promise<PoolClient> {
+  for (let attempt = 1; attempt <= CONNECTION_ATTEMPTS; attempt += 1) {
+    try {
+      return await pool.connect();
+    } catch (error) {
+      if (attempt === CONNECTION_ATTEMPTS) throw error;
+      logger.warn(
+        { attempt, attempts: CONNECTION_ATTEMPTS },
+        'Database is not ready for migrations; retrying',
+      );
+      await new Promise((resolvePromise) => setTimeout(resolvePromise, CONNECTION_RETRY_MS));
+    }
+  }
+  throw new Error('Database connection retry loop exhausted');
+}
 
 async function runMigrations() {
   const pool = new Pool(migrationPoolConfig());
@@ -31,7 +50,7 @@ async function runMigrations() {
       return;
     }
 
-    client = await pool.connect();
+    client = await connectWithRetry(pool);
     await client.query('SELECT pg_advisory_lock(hashtext($1))', [MIGRATION_LOCK_KEY]);
     locked = true;
 
@@ -43,23 +62,24 @@ async function runMigrations() {
 
       try {
         logger.info(`Running migration: ${file}`);
-        if (/\bCREATE\s+(?:UNIQUE\s+)?INDEX\s+CONCURRENTLY\b/i.test(sql)) {
+        const concurrentIndex = concurrentIndexIdentity(sql);
+        if (concurrentIndex) {
           // Concurrent index DDL must run outside a transaction. Invalid remnants
           // are inspected and removed under the same suite-wide session lock.
-          const indexMatch = sql.match(
-            /\bCREATE\s+(?:UNIQUE\s+)?INDEX\s+CONCURRENTLY\s+(?:IF\s+NOT\s+EXISTS\s+)?([A-Za-z_][A-Za-z0-9_]*)/i
-          );
-          if (!indexMatch) throw new Error(`Cannot identify concurrent index in ${file}`);
-          const indexName = indexMatch[1];
           const validity = await client.query<{ indisvalid: boolean }>(
             `SELECT index.indisvalid
                FROM pg_class relation
                JOIN pg_index index ON index.indexrelid = relation.oid
-              WHERE relation.relname = $1 AND pg_table_is_visible(relation.oid)`,
-            [indexName]
+               JOIN pg_namespace namespace ON namespace.oid = relation.relnamespace
+              WHERE relation.relname = $1
+                AND (($2::text IS NULL AND pg_table_is_visible(relation.oid))
+                  OR namespace.nspname = $2)`,
+            [concurrentIndex.name, concurrentIndex.schema ?? null]
           );
           if (validity.rows[0] && !validity.rows[0].indisvalid) {
-            await client.query(`DROP INDEX CONCURRENTLY IF EXISTS "${indexName}"`);
+            await client.query(
+              `DROP INDEX CONCURRENTLY IF EXISTS ${quotedIndexIdentity(concurrentIndex)}`,
+            );
           }
           await client.query(sql);
         } else {

@@ -22,6 +22,7 @@ import {
   createReleaseEnvironmentSnapshot,
   deriveReleaseProjectName,
   parseExistingProjectInspection,
+  releaseUsesExternalDatabase,
   resolveCheckoutRelease,
   resolveCheckoutReleaseTag,
 } from './compose-release.mjs';
@@ -48,6 +49,10 @@ try {
   assert.deepEqual(buildReleaseComposeArgs(['up', '-d']), canonicalArgs);
   assert.deepEqual(buildReleaseComposeArgs(['up', '--detach']), canonicalArgs);
   assert.deepEqual(
+    buildReleaseComposeArgs(['up'], '.', undefined, undefined, true),
+    [...canonicalArgs, '--scale', 'postgres=0'],
+  );
+  assert.deepEqual(
     buildReleaseComposeArgs(
       ['up'],
       '.',
@@ -68,6 +73,16 @@ try {
   ]) {
     assert.throws(() => buildReleaseComposeArgs(rejected), /Usage:/);
   }
+
+  const databaseModeEnv = join(tempRoot, 'database-mode.env');
+  writeFileSync(databaseModeEnv, 'DATABASE_URL=\nDB_SSL_MODE=disable\n', { mode: 0o600 });
+  assert.equal(releaseUsesExternalDatabase(databaseModeEnv), false);
+  writeFileSync(
+    databaseModeEnv,
+    'DATABASE_URL=postgresql://managed.example.invalid/marketdesk\nDB_SSL_MODE=verify-full\n',
+    { mode: 0o600 },
+  );
+  assert.equal(releaseUsesExternalDatabase(databaseModeEnv), true);
 
   assert.doesNotThrow(() => assertExistingProjectIdentity('hermes-marketdesk', undefined));
   assert.doesNotThrow(() => assertExistingProjectIdentity('hermes-marketdesk', 'hermes-marketdesk'));

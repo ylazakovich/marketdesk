@@ -73,6 +73,9 @@ jobs:
       - name: Verify Docker Compose database configuration
         run: npm run verify:compose-db
 
+      - name: Verify Docker Compose upload storage initialization
+        run: npm run verify:compose-uploads
+
       # Lint is reported but non-blocking: the repo has a small number of
       # pre-existing lint errors in files outside this change set. New code is
       # expected to be lint-clean.

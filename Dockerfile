@@ -31,8 +31,9 @@ ENV NODE_ENV=production
 # dumb-init for proper signal handling / zombie reaping.
 RUN apk add --no-cache dumb-init
 
-# Non-root user.
-RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+# Deterministic non-root runtime identity. Explicitly assign the primary group;
+# Alpine otherwise places a system user in `nogroup` even when a same-name group exists.
+RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001 -G nodejs
 
 # Copy pruned production node_modules + build output + metadata.
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules

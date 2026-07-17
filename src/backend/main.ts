@@ -14,6 +14,7 @@ import { buildApp, createCorsOptions, HELMET_OPTIONS } from './presentation/http
 import { HermesLiveUpdates } from './presentation/websocket/HermesLiveUpdates.js';
 import { buildContainer, type AppContainer } from './config/di/index.js';
 import { safeErrorDetails } from './config/safeErrorDetails.js';
+import { verifyUploadStorageWritable } from './infrastructure/storage/verifyUploadStorage.js';
 
 const logger = pino({
   level: env.logLevel,
@@ -52,6 +53,9 @@ function resolveContainer(): AppContainer {
 
 const startServer = async () => {
   try {
+    const uploadsDir = await verifyUploadStorageWritable(env.upload.uploadDir);
+    logger.info({ uploadsDir }, 'Upload storage writable');
+
     const pool = createPool();
     logger.info('Database pool created');
 
@@ -135,8 +139,6 @@ const startServer = async () => {
     });
 
     // Product images must be publicly reachable while OLX imports them.
-    const uploadsDir = path.resolve(process.cwd(), env.upload.uploadDir);
-    fs.mkdirSync(uploadsDir, { recursive: true });
     app.use(
       '/uploads',
       express.static(uploadsDir, { dotfiles: 'deny', index: false, maxAge: '1h' }),

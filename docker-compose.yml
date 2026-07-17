@@ -1,3 +1,11 @@
+x-app-image: &app-image
+  # Explicit shared tag guarantees the initializer runs the exact app image while
+  # retaining Compose's project-level isolation between parallel deployments.
+  image: ${COMPOSE_PROJECT_NAME:-marketdesk}-app:${MARKETDESK_IMAGE_TAG:-local}
+  build:
+    context: .
+    dockerfile: Dockerfile
+
 services:
   postgres:
     image: postgres:18-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15
@@ -54,10 +62,25 @@ services:
       - marketdesk-network
     restart: unless-stopped
 
+  upload-storage-init:
+    <<: *app-image
+    # This one-shot process is the only root process in the application image.
+    # Its command is deliberately fixed to the upload mount; do not make the
+    # ownership target environment-configurable.
+    user: "0:0"
+    command:
+      - sh
+      - -ceu
+      - |
+        mkdir -p /app/uploads/workspaces
+        chown -R 1001:1001 /app/uploads
+    volumes:
+      - ./uploads:/app/uploads
+    network_mode: none
+    restart: "no"
+
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    <<: *app-image
     container_name: marketdesk-app
     env_file:
       - ./.env
@@ -91,11 +114,15 @@ services:
       HERMES_MODEL: ${HERMES_MODEL:-hermes-agent}
       HERMES_REQUEST_TIMEOUT_MS: ${HERMES_REQUEST_TIMEOUT_MS:-120000}
       TIMEZONE: ${TIMEZONE:-UTC}
+      # Keep the container storage path aligned with the fixed init-service target.
+      UPLOAD_DIR: /app/uploads
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
       - "127.0.0.1:${APP_PORT:-3000}:3000"
     depends_on:
+      upload-storage-init:
+        condition: service_completed_successfully
       postgres:
         condition: service_healthy
       redis:

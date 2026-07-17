@@ -60,6 +60,12 @@ below.
   - `uploads/` directory;
   - existing `/etc/caddy/` configuration.
 
+The Compose app runs as UID 1001. Its one-shot `upload-storage-init` service prepares
+the fixed `/app/uploads` bind mount before the app starts and preserves existing
+workspace and legacy files. For expected host ownership, permission recovery, and a
+real upload/read/restart/delete probe, follow
+[Upload storage initialization and recovery](upload-storage.md).
+
 ## Cloudflare DNS and TLS settings
 
 ### DNS records

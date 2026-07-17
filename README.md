@@ -87,6 +87,7 @@ MarketDesk is an integrated product and listing management system designed to si
 ## Deployment Docs
 
 - [Caddy + Cloudflare VPS deployment](docs/deployment/caddy-cloudflare-vps.md) — production HTTPS reverse-proxy setup for the `hosting/domain provider → Cloudflare DNS → Caddy → VPS → MarketDesk` path.
+- [Upload storage initialization and recovery](docs/deployment/upload-storage.md) — non-root Compose startup, expected ownership, safe recovery, and upload/read/restart/delete verification.
 - [OLX publication quota guard](docs/olx-publication-quota.md) — operator workflow, fail-closed decisions, explicit overrides, and concurrency semantics.
 
 ## Design & Product Docs
@@ -177,6 +178,13 @@ docker compose logs -f app
 The `app` image builds both the backend (`dist/backend`) and the frontend
 (`dist/frontend`); the backend serves the SPA, so once healthy the full application
 is available at `http://localhost:3000` (API under `/api`).
+
+Compose first runs a one-shot root initializer for the fixed `./uploads:/app/uploads`
+bind mount. It preserves existing workspace and legacy uploads, assigns them to the
+image's UID/GID `1001:1001`, and must complete before the non-root app starts. The app
+also proves storage write/delete access before listening. See
+[Upload storage initialization and recovery](docs/deployment/upload-storage.md) for
+ownership checks, safe recovery, and the credential-free verification procedure.
 
 > PostgreSQL 18 stores its cluster under `/var/lib/postgresql`. Before deploying
 > this Compose file over an existing pre-18 `postgres_data` volume, create a

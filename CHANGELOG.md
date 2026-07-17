@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.0](https://github.com/ylazakovich/marketdesk/compare/hermes-marketdesk-v0.11.1...hermes-marketdesk-v0.12.0) (2026-07-17)
+
+
+### ✨ Features
+
+* **sync:** reconcile product category provenance ([#214](https://github.com/ylazakovich/marketdesk/issues/214)) ([8de95e0](https://github.com/ylazakovich/marketdesk/commit/8de95e0c54634f7f717a03b51bfe46020a60831a))
+
 ## [0.11.1](https://github.com/ylazakovich/marketdesk/compare/hermes-marketdesk-v0.11.0...hermes-marketdesk-v0.11.1) (2026-07-17)
 
 

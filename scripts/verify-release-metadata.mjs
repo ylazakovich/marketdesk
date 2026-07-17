@@ -10,6 +10,7 @@ import {
   buildReleaseComposeArgs,
   buildReleaseComposeEnvironment,
   deriveReleaseProjectName,
+  parseExistingProjectInspection,
   resolveCheckoutReleaseTag,
 } from './compose-release.mjs';
 
@@ -47,6 +48,24 @@ try {
   assert.throws(
     () => assertExistingProjectIdentity('hermes-marketdesk', 'redirected-project'),
     /aborting before volume or container mutation/,
+  );
+  assert.equal(
+    parseExistingProjectInspection({ status: 1, stdout: '', stderr: 'Error: No such object: marketdesk-app' }),
+    undefined,
+  );
+  assert.equal(
+    parseExistingProjectInspection({ status: 0, stdout: 'hermes-marketdesk\n', stderr: '' }),
+    'hermes-marketdesk',
+  );
+  for (const invalidLabel of ['', '\n', '<no value>\n', 'Invalid Project\n']) {
+    assert.throws(
+      () => parseExistingProjectInspection({ status: 0, stdout: invalidLabel, stderr: '' }),
+      /missing a valid Compose project label/,
+    );
+  }
+  assert.throws(
+    () => parseExistingProjectInspection({ status: 1, stdout: '', stderr: 'permission denied' }),
+    /Unable to verify/,
   );
 
   const composeEnvironment = buildReleaseComposeEnvironment('hermes-marketdesk-v0.10.0', {

@@ -65,16 +65,25 @@ export function assertExistingProjectIdentity(projectName, existingProjectName) 
   }
 }
 
-export function inspectExistingProjectName(cwd) {
-  const result = spawnSync(
-    'docker',
-    ['inspect', 'marketdesk-app', '--format', '{{ index .Config.Labels "com.docker.compose.project" }}'],
-    { cwd, encoding: 'utf8' },
-  );
-  if (result.status === 0) return result.stdout.trim() || undefined;
+export function parseExistingProjectInspection(result) {
+  if (result.status === 0) {
+    const projectName = result.stdout.trim();
+    if (!/^[a-z0-9][a-z0-9_-]*$/.test(projectName)) {
+      throw new Error('Existing marketdesk-app is missing a valid Compose project label');
+    }
+    return projectName;
+  }
   const diagnostic = `${result.stdout ?? ''}\n${result.stderr ?? ''}`;
   if (/no such (?:object|container)/i.test(diagnostic)) return undefined;
   throw new Error('Unable to verify the existing MarketDesk Compose project identity');
+}
+
+export function inspectExistingProjectName(cwd) {
+  return parseExistingProjectInspection(spawnSync(
+    'docker',
+    ['inspect', 'marketdesk-app', '--format', '{{ index .Config.Labels "com.docker.compose.project" }}'],
+    { cwd, encoding: 'utf8' },
+  ));
 }
 
 export function buildReleaseComposeArgs(args, cwd = process.cwd()) {

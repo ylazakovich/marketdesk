@@ -16,7 +16,6 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import StorefrontRoundedIcon from '@mui/icons-material/StorefrontRounded';
 import MenuOpenRoundedIcon from '@mui/icons-material/MenuOpenRounded';
 import ChevronRightRoundedIcon from '@mui/icons-material/ChevronRightRounded';
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
@@ -111,21 +110,17 @@ export const Sidebar: React.FC = () => {
         sx={{ px: showLabels ? 2 : 1.5, minHeight: 72 }}
       >
         <Box
+          component="img"
+          src="/marketdesk-mark.svg"
+          alt=""
           aria-hidden="true"
           sx={{
             width: 36,
             height: 36,
-            borderRadius: 2.25,
-            display: 'grid',
-            placeItems: 'center',
-            color: 'primary.contrastText',
-            background: (t) =>
-              `linear-gradient(135deg, ${t.palette.primary.light}, ${t.palette.primary.dark})`,
+            display: 'block',
             flexShrink: 0,
           }}
-        >
-          <StorefrontRoundedIcon fontSize="small" />
-        </Box>
+        />
         {showLabels && (
           <Box sx={{ minWidth: 0, flexGrow: 1 }}>
             <Typography

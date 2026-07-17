@@ -18,6 +18,8 @@
     "verify:spec": "node scripts/verify-spec-traceability.mjs",
     "verify:compose-db": "node scripts/verify-compose-database-config.mjs",
     "verify:compose-uploads": "node scripts/verify-compose-upload-storage.mjs",
+    "generate:brand-assets": "node scripts/generate-brand-assets.mjs",
+    "verify:brand-assets": "node scripts/verify-brand-assets.mjs",
     "db:migrate": "node --loader ts-node/esm src/backend/persistence/migrate.ts",
     "db:seed": "node --loader ts-node/esm src/backend/persistence/seed.ts",
     "test": "jest",

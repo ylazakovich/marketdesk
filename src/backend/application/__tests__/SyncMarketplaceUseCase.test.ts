@@ -49,6 +49,8 @@ describe('SyncMarketplaceUseCase', () => {
       marketplaceKey: 'olx',
       marketplaceId: marketplace.id,
       externalListingIds: ['olx-1', 'olx-2'],
+      trigger: 'manual',
+      actorId: 'user-1',
     });
     expect(JSON.stringify(queue.jobs[0].data)).not.toMatch(/access|refresh|token|bearer/i);
   });

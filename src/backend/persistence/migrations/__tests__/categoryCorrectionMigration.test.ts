@@ -56,6 +56,20 @@ describe('OLX category correction migrations', () => {
     expect(runner).not.toContain('await pool.query(sql)');
   });
 
+  it('persists product category provenance with a constrained JSONB shape in migration and schema snapshot', () => {
+    const migration = readMigration('027_product_category_provenance.sql');
+    const schema = fs.readFileSync(
+      path.join(process.cwd(), 'src/backend/persistence/schema.sql'),
+      'utf8',
+    );
+
+    for (const sql of [migration, schema]) {
+      expect(sql).toContain('category_provenance JSONB');
+      expect(sql).toContain('products_category_provenance_shape');
+      expect(sql).toContain("category_provenance->>'status' IN ('synced', 'conflict')");
+    }
+  });
+
   it('preserves correction audit rows across ordinary event, listing, and marketplace retention', () => {
     const sql = readMigration('025_category_correction_operations.sql');
     const validation = readMigration('026_validate_olx_publication_mode.sql');

@@ -5,6 +5,8 @@ export interface IProductRepository {
   // Tenant-scoped read: returns null when the product belongs to another
   // workspace, so single-resource endpoints cannot leak across tenants (S2).
   findByIdForWorkspace(id: string, workspaceId: string): Promise<Product | null>;
+  // Transactional category reconciliation serializes decisions on the product row.
+  findByIdForWorkspaceForUpdate(id: string, workspaceId: string): Promise<Product | null>;
   findByWorkspace(workspaceId: string): Promise<Product[]>;
   findBySku(workspaceId: string, sku: string): Promise<Product | null>;
   save(product: Product): Promise<void>;

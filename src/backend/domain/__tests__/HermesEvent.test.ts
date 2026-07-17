@@ -129,6 +129,29 @@ describe('HermesEvent lifecycle transitions', () => {
     expect(event.beginRevert().isErr()).toBe(true);
     expect(event.markApplied().isErr()).toBe(true);
   });
+
+  it('keeps product category conflicts dismiss-only', () => {
+    const event = unwrap(HermesEvent.create({
+      id: 'category-conflict-1', workspaceId: 'w1', productId: 'p1',
+      type: 'product_category_conflict', severity: 'warning',
+      title: 'Category conflict', status: 'pending_review',
+      proposedChange: {
+        kind: 'product_category_conflict', productId: 'p1', currentCategory: 'Electronics',
+        candidates: [{
+          marketplaceKey: 'olx', marketplaceId: 'm1', listingId: 'l1',
+          providerCategoryId: '100', name: 'Projectors',
+          path: ['Electronics', 'Projectors'],
+          taxonomyVerifiedAt: '2026-07-15T00:00:00.000Z',
+          syncedAt: '2026-07-15T01:00:00.000Z',
+        }],
+      },
+    }));
+
+    expect(event.approve().isErr()).toBe(true);
+    expect(event.status).toBe('pending_review');
+    expect(event.dismiss().isOk()).toBe(true);
+    expect(event.status).toBe('dismissed');
+  });
 });
 
 describe('HermesEvent requiresHumanReview', () => {

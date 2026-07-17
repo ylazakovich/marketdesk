@@ -65,7 +65,9 @@ describe('MarketplaceSyncScheduler', () => {
     expect(second.jobId).toBe(first.jobId);
     expect(scheduled).toHaveLength(2);
     expect(scheduled[0]).toEqual({
-      data: { marketplaceKey: 'olx', marketplaceId: 'm-1', externalListingIds: [] },
+      data: {
+        marketplaceKey: 'olx', marketplaceId: 'm-1', externalListingIds: [], trigger: 'scheduled',
+      },
       options: { jobId: 'sync-marketplace:m-1:hourly', everyMs: 3_600_000 },
     });
     expect(removed).toEqual([]);

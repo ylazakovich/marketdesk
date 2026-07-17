@@ -153,7 +153,7 @@ export const CategoryRecreationReview: React.FC<CategoryRecreationReviewProps> =
   );
 };
 
-const ProposedChangeDiff: React.FC<{
+export const ProposedChangeDiff: React.FC<{
   change: ProposedChange;
   currency: string;
   onCategoryAction?: CategoryRecreationReviewProps['onAction'];
@@ -221,6 +221,22 @@ const ProposedChangeDiff: React.FC<{
         <Typography variant="body2">
           Create listing on <strong>{MARKETPLACE_NAMES[change.marketplaceKey]}</strong>
         </Typography>,
+      );
+    case 'product_category_conflict':
+      return wrap(
+        <Stack spacing={0.75}>
+          <Typography variant="caption" color="text.secondary">
+            Current category: {change.currentCategory}
+          </Typography>
+          {change.candidates.map((candidate) => (
+            <Typography
+              key={`${candidate.marketplaceId}:${candidate.listingId}:${candidate.providerCategoryId}`}
+              variant="body2"
+            >
+              {candidate.marketplaceKey.toUpperCase()} · {candidate.path.join(' › ')} · ID {candidate.providerCategoryId}
+            </Typography>
+          ))}
+        </Stack>,
       );
     case 'category_recreation':
       return <CategoryRecreationReview change={change} onAction={onCategoryAction} />;
@@ -322,6 +338,7 @@ export const HermesEventCard: React.FC<HermesEventCardProps> = ({
                 onResolved={onResolved}
                 approveLabel={approveLabel}
                 successMessage={successMessage}
+                dismissOnly={event.type === 'product_category_conflict'}
               />
             )}
           </Stack>

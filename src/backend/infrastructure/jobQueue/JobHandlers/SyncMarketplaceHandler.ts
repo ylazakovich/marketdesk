@@ -50,12 +50,19 @@ export interface SyncMarketplaceHandlerDeps {
     currentCategory: MarketplaceCategoryMetadata | null;
     proposedCategory: MarketplaceCategoryMetadata | null;
   }) => Promise<void>;
+  persistAndReconcileProductCategories?: (input: {
+    marketplace: Marketplace;
+    listings: Listing[];
+    job: SyncMarketplaceJobData;
+  }) => Promise<void>;
 }
 
 export interface SyncMarketplaceJobData {
   marketplaceKey: MarketplaceKey;
   marketplaceId: string;
   externalListingIds: string[];
+  trigger?: 'manual' | 'scheduled';
+  actorId?: string;
 }
 
 export interface SyncMarketplaceResult {
@@ -86,7 +93,7 @@ export class SyncMarketplaceHandler {
       throw error;
     }
 
-    const persisted = await this.persistStats(data.marketplaceId, synced);
+    const persisted = await this.persistStats(data, synced);
     const marketplaceUpdated = await this.recordMarketplaceSuccess(data.marketplaceId);
 
     return {
@@ -98,6 +105,13 @@ export class SyncMarketplaceHandler {
   }
 
   private async createAdapter(data: SyncMarketplaceJobData): Promise<IMarketplaceAdapter> {
+    const marketplace = await this.deps.marketplaceStore?.findById(data.marketplaceId);
+    if (this.deps.marketplaceStore && !marketplace) {
+      throw new InvalidStateError(`Marketplace not found for sync job: ${data.marketplaceId}`);
+    }
+    if (marketplace && marketplace.key !== data.marketplaceKey) {
+      throw new InvalidStateError('Sync job marketplace key does not match persisted marketplace');
+    }
     if (data.marketplaceKey === 'olx' && this.deps.accessTokens && this.deps.authenticatedHttpClient) {
       if (!data.marketplaceId) {
         throw new InvalidStateError('Sync job is missing marketplaceId for OLX OAuth');
@@ -125,14 +139,14 @@ export class SyncMarketplaceHandler {
   // Transient/unknown provider states are recorded as sync notes instead of
   // forcing destructive local transitions.
   private async persistStats(
-    marketplaceId: string,
+    data: SyncMarketplaceJobData,
     synced: SyncedListing[],
   ): Promise<number> {
     const store = this.deps.listingStore;
     if (!store || synced.length === 0) return 0;
 
-    const listings = await store.findByMarketplace(marketplaceId);
-    const marketplace = await this.deps.marketplaceStore?.findById(marketplaceId);
+    const listings = await store.findByMarketplace(data.marketplaceId);
+    const marketplace = await this.deps.marketplaceStore?.findById(data.marketplaceId);
     const byExternalId = new Map<string, Listing>();
     for (const listing of listings) {
       if (listing.marketplaceListingId) {
@@ -184,7 +198,13 @@ export class SyncMarketplaceHandler {
         await this.deps.recommendCategoryMismatch({ ...candidate, workspaceId: marketplace.workspaceId });
       }
     }
-    if (updated.length > 0) await store.saveAll(updated);
+    if (updated.length > 0) {
+      if (marketplace && this.deps.persistAndReconcileProductCategories) {
+        await this.deps.persistAndReconcileProductCategories({ marketplace, listings: updated, job: data });
+      } else {
+        await store.saveAll(updated);
+      }
+    }
     return updated.length;
   }
 

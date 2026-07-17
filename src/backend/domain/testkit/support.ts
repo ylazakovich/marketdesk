@@ -42,6 +42,9 @@ export class InMemoryProductRepository implements IProductRepository {
     const product = this.items.get(id);
     return product && product.workspaceId === workspaceId ? product : null;
   }
+  async findByIdForWorkspaceForUpdate(id: string, workspaceId: string): Promise<Product | null> {
+    return this.findByIdForWorkspace(id, workspaceId);
+  }
   async findByWorkspace(workspaceId: string): Promise<Product[]> {
     return [...this.items.values()].filter((p) => p.workspaceId === workspaceId);
   }

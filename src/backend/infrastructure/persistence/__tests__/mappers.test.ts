@@ -69,6 +69,32 @@ describe('ProductMapper', () => {
     expect(product.tags.length).toBe(0);
     expect(product.images.length).toBe(0);
   });
+
+  it('rehydrates valid category provenance and rejects malformed JSONB claims', () => {
+    const valid = ProductMapper.toDomain({
+      ...baseRow,
+      category_provenance: {
+        status: 'synced',
+        sources: [{
+          marketplaceKey: 'olx', marketplaceId: 'mkt-1', listingId: 'list-1',
+          providerCategoryId: '100', name: 'Projectors',
+          path: ['Electronics', 'Projectors'],
+          taxonomyVerifiedAt: '2026-07-15T00:00:00.000Z',
+          syncedAt: '2026-07-15T01:00:00.000Z',
+        }],
+      },
+    }, [], []);
+    expect(valid.categoryProvenance).toMatchObject({ status: 'synced' });
+
+    const malformed = ProductMapper.toDomain({
+      ...baseRow,
+      category_provenance: {
+        status: 'synced',
+        sources: [{ marketplaceKey: 'olx', providerCategoryId: '100', path: [] }],
+      } as never,
+    }, [], []);
+    expect(malformed.categoryProvenance).toBeNull();
+  });
 });
 
 describe('ListingMapper', () => {

@@ -526,6 +526,22 @@ const ListingDetailsPage: React.FC = () => {
           <Stack spacing={1.25}>
             <DetailRow label="Condition">{conditionLabel(p.condition)}</DetailRow>
             <DetailRow label="Category">{p.category || '—'}</DetailRow>
+            {p.categoryProvenance?.status === 'synced' && (
+              <DetailRow label="Category source">
+                {p.categoryProvenance.sources.map((source) => (
+                  <Typography key={`${source.marketplaceId}:${source.listingId}`} variant="body2">
+                    {source.marketplaceKey.toUpperCase()} · {source.path.join(' › ')} · ID {source.providerCategoryId}
+                  </Typography>
+                ))}
+              </DetailRow>
+            )}
+            {p.categoryProvenance?.status === 'conflict' && (
+              <DetailRow label="Category source">
+                <Typography variant="body2" color="warning.main" sx={{ fontWeight: 600 }}>
+                  Conflicting active listing categories require review
+                </Typography>
+              </DetailRow>
+            )}
             <DetailRow label="Cost">{formatCurrency(p.costPrice, currency)}</DetailRow>
             <DetailRow label="Selling price" strong>
               {formatCurrency(p.sellingPrice, currency)}

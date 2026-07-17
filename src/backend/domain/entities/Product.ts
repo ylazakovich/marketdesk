@@ -6,7 +6,12 @@
 import { Result, Ok, Err } from '../shared/Result';
 import { ValidationError, InvalidStateError } from '../shared/DomainError';
 import { Money } from '../valueObjects/Money';
-import type { ProductStatus, ProductCondition } from '../../../shared/types';
+import type {
+  ProductStatus,
+  ProductCondition,
+  ProductCategoryProvenance,
+  ProductCategorySource,
+} from '../../../shared/types';
 import {
   PRODUCT_DESCRIPTION_MIN_LENGTH,
   PRODUCT_DESCRIPTION_MAX_LENGTH,
@@ -24,6 +29,7 @@ export interface CreateProductProps {
   sellingPrice: Money;
   condition: ProductCondition;
   category: string;
+  categoryProvenance?: ProductCategoryProvenance | null;
   status?: ProductStatus;
   tags?: string[];
   images?: string[];
@@ -44,6 +50,7 @@ export class Product {
     private _sellingPrice: Money,
     private _condition: ProductCondition,
     private _category: string,
+    private _categoryProvenance: ProductCategoryProvenance | null,
     private _status: ProductStatus,
     private _tags: string[],
     private _images: string[],
@@ -95,6 +102,7 @@ export class Product {
         props.sellingPrice,
         props.condition,
         props.category,
+        props.categoryProvenance ?? null,
         props.status ?? 'draft',
         props.tags ? [...props.tags] : [],
         props.images ? [...props.images] : [],
@@ -105,7 +113,10 @@ export class Product {
   }
 
   // Rehydrate from persistence without re-running invariants (data is trusted).
-  static reconstitute(props: Required<Omit<CreateProductProps, 'allowBelowCost'>>): Product {
+  static reconstitute(
+    props: Required<Omit<CreateProductProps, 'allowBelowCost' | 'categoryProvenance'>>
+      & { categoryProvenance?: ProductCategoryProvenance | null }
+  ): Product {
     return new Product(
       props.id,
       props.workspaceId,
@@ -116,6 +127,7 @@ export class Product {
       props.sellingPrice,
       props.condition,
       props.category,
+      props.categoryProvenance ?? null,
       props.status,
       [...props.tags],
       [...props.images],
@@ -154,6 +166,9 @@ export class Product {
   }
   get category(): string {
     return this._category;
+  }
+  get categoryProvenance(): ProductCategoryProvenance | null {
+    return this._categoryProvenance ? structuredClone(this._categoryProvenance) : null;
   }
   get status(): ProductStatus {
     return this._status;
@@ -287,9 +302,58 @@ export class Product {
     if (!category?.trim()) {
       return Err(new ValidationError('Product category is required'));
     }
-    this._category = category.trim();
+    const normalized = category.trim();
+    if (normalized === this._category && this._categoryProvenance === null) return Ok(undefined);
+    this._category = normalized;
+    this._categoryProvenance = null;
     this.touch();
     return Ok(undefined);
+  }
+
+  synchronizeCategory(
+    category: string,
+    sources: ProductCategorySource[],
+  ): Result<{ categoryChanged: boolean; stateChanged: boolean }> {
+    const normalized = category?.trim();
+    if (!normalized) return Err(new ValidationError('Product category is required'));
+    const normalizedSources = Product.sortedSources(sources);
+    if (normalizedSources.length === 0) {
+      return Err(new ValidationError('At least one category source is required'));
+    }
+    const current = this._categoryProvenance;
+    const sameSources = current?.status === 'synced'
+      && Product.sameCandidateSet(current.sources, normalizedSources);
+    const categoryChanged = this._category !== normalized;
+    if (!categoryChanged && sameSources) {
+      return Ok({ categoryChanged: false, stateChanged: false });
+    }
+    this._category = normalized;
+    this._categoryProvenance = { status: 'synced', sources: normalizedSources };
+    this.touch();
+    return Ok({ categoryChanged, stateChanged: true });
+  }
+
+  recordCategoryConflict(
+    candidates: ProductCategorySource[],
+    detectedAt: Date = new Date(),
+  ): { stateChanged: boolean } {
+    const normalized = Product.sortedSources(candidates);
+    if (
+      this._categoryProvenance?.status === 'conflict'
+      && Product.sameCandidateSet(this._categoryProvenance.candidates, normalized)
+    ) {
+      return { stateChanged: false };
+    }
+    this._categoryProvenance = {
+      status: 'conflict',
+      currentSources: this._categoryProvenance?.status === 'synced'
+        ? Product.sortedSources(this._categoryProvenance.sources)
+        : (this._categoryProvenance?.currentSources ?? null),
+      candidates: normalized,
+      detectedAt: detectedAt.toISOString(),
+    };
+    this.touch();
+    return { stateChanged: true };
   }
 
   updateDescription(description: string): Result<void> {
@@ -342,5 +406,32 @@ export class Product {
 
   private touch(): void {
     this._updatedAt = new Date();
+  }
+
+  private static categorySourceKey(source: ProductCategorySource): string {
+    return [
+      source.marketplaceKey,
+      source.marketplaceId,
+      source.listingId,
+      source.providerCategoryId,
+      source.name,
+      ...source.path,
+    ].join('\u0000');
+  }
+
+  private static sortedSources(sources: ProductCategorySource[]): ProductCategorySource[] {
+    return [...sources]
+      .map((source) => structuredClone(source))
+      .sort((left, right) => Product.categorySourceKey(left).localeCompare(Product.categorySourceKey(right)));
+  }
+
+  private static sameCandidateSet(
+    left: ProductCategorySource[],
+    right: ProductCategorySource[],
+  ): boolean {
+    const keys = (values: ProductCategorySource[]) => values
+      .map(Product.categorySourceKey)
+      .sort();
+    return JSON.stringify(keys(left)) === JSON.stringify(keys(right));
   }
 }

@@ -2,7 +2,12 @@
 // the exact columns each repository SELECTs, including any joined `currency`
 // column used to reconstruct Money value objects.
 
-import type { ProposedChange, HermesGuardrails, MarketplaceCategoryMetadata } from '../../../../shared/types';
+import type {
+  ProposedChange,
+  HermesGuardrails,
+  MarketplaceCategoryMetadata,
+  ProductCategoryProvenance,
+} from '../../../../shared/types';
 
 export interface ProductRow {
   id: string;
@@ -14,6 +19,7 @@ export interface ProductRow {
   selling_price: string | number;
   condition: string;
   category: string;
+  category_provenance?: ProductCategoryProvenance | null;
   status: string;
   created_at: Date | string;
   updated_at: Date | string;

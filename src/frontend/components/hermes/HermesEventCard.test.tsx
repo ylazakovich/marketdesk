@@ -1,7 +1,10 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import type { CategoryRecreationChangePayload } from '@shared/types';
-import { CategoryRecreationReview } from './HermesEventCard';
+import type {
+  CategoryRecreationChangePayload,
+  ProductCategoryConflictChangePayload,
+} from '@shared/types';
+import { CategoryRecreationReview, ProposedChangeDiff } from './HermesEventCard';
 
 const change: CategoryRecreationChangePayload = {
   kind: 'category_recreation',
@@ -81,5 +84,39 @@ describe('CategoryRecreationReview', () => {
     expect(html).toContain('does not restore');
     expect(html).toContain('OLX has not provided authoritative remaining quota.');
     expect(html).toContain('No durable recreate action is available');
+  });
+});
+
+describe('product category conflict review', () => {
+  it('renders the unchanged current category and every exact candidate source', () => {
+    const conflict: ProductCategoryConflictChangePayload = {
+      kind: 'product_category_conflict',
+      productId: 'product-1',
+      currentCategory: 'Electronics',
+      candidates: [
+        {
+          marketplaceKey: 'olx', marketplaceId: 'marketplace-1', listingId: 'listing-1',
+          providerCategoryId: 'projectors-91', name: 'Projectors',
+          path: ['Electronics', 'TV and video', 'Projectors'],
+          taxonomyVerifiedAt: '2026-07-15T00:00:00.000Z',
+          syncedAt: '2026-07-15T01:00:00.000Z',
+        },
+        {
+          marketplaceKey: 'olx', marketplaceId: 'marketplace-1', listingId: 'listing-2',
+          providerCategoryId: 'headphones-44', name: 'Wireless headphones',
+          path: ['Electronics', 'Audio equipment', 'Wireless headphones'],
+          taxonomyVerifiedAt: '2026-07-15T00:00:00.000Z',
+          syncedAt: '2026-07-15T01:00:00.000Z',
+        },
+      ],
+    };
+
+    const html = renderToStaticMarkup(<ProposedChangeDiff change={conflict} currency="PLN" />);
+
+    expect(html).toContain('Current category: Electronics');
+    expect(html).toContain('Electronics › TV and video › Projectors');
+    expect(html).toContain('ID projectors-91');
+    expect(html).toContain('Electronics › Audio equipment › Wireless headphones');
+    expect(html).toContain('ID headphones-44');
   });
 });

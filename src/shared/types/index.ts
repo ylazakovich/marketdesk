@@ -36,6 +36,26 @@ export interface MarketplaceCategoryMetadata {
   taxonomyStaleAt: string;
 }
 
+export interface ProductCategorySource {
+  marketplaceKey: MarketplaceKey;
+  marketplaceId: string;
+  listingId: string;
+  providerCategoryId: string;
+  name: string;
+  path: string[];
+  taxonomyVerifiedAt: string;
+  syncedAt: string;
+}
+
+export type ProductCategoryProvenance =
+  | { status: 'synced'; sources: ProductCategorySource[] }
+  | {
+      status: 'conflict';
+      currentSources: ProductCategorySource[] | null;
+      candidates: ProductCategorySource[];
+      detectedAt: string;
+    };
+
 export type AutonomyLevel = 'suggest_only' | 'balanced' | 'full_auto';
 
 export type HermesSeverity = 'info' | 'success' | 'warning' | 'critical';
@@ -65,6 +85,7 @@ export type HermesEventType =
   | 'create_listing'
   | 'update_description'
   | 'olx_category_mismatch'
+  | 'product_category_conflict'
   | 'relist';
 
 export type ChangedBy = 'user' | 'hermes';
@@ -107,6 +128,13 @@ export interface RelistChangePayload {
 export interface CreateListingChangePayload {
   kind: 'create_listing';
   marketplaceKey: MarketplaceKey;
+}
+
+export interface ProductCategoryConflictChangePayload {
+  kind: 'product_category_conflict';
+  productId: string;
+  currentCategory: string;
+  candidates: ProductCategorySource[];
 }
 
 export type CategoryRecreationOperationStatus =
@@ -170,6 +198,7 @@ export type ProposedChange =
   | DescriptionChangePayload
   | RelistChangePayload
   | CreateListingChangePayload
+  | ProductCategoryConflictChangePayload
   | CategoryRecreationChangePayload
   | null;
 
@@ -222,6 +251,7 @@ export interface Product {
   sellingPrice: number;
   condition: ProductCondition;
   category: string;
+  categoryProvenance?: ProductCategoryProvenance | null;
   status: ProductStatus;
   tags: string[];
   images: string[];

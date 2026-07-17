@@ -110,6 +110,7 @@ import { AnalyticsApplicationService } from '../../application/services/Analytic
 import { MarketplaceOAuthService } from '../../application/services/MarketplaceOAuthService';
 import { MarketplaceSyncScheduler } from '../../application/services/MarketplaceSyncScheduler';
 import { MarketplaceImportService } from '../../application/services/MarketplaceImportService';
+import { ProductCategorySyncService } from '../../application/services/ProductCategorySyncService';
 import { OlxPublicationQuotaService } from '../../application/services/OlxPublicationQuotaService';
 import { CategoryCorrectionOperationService } from '../../application/services/CategoryCorrectionOperationService';
 import type { IdGenerator } from '../../application/ports/IdGenerator';
@@ -437,6 +438,19 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     idGenerator,
     publishAttemptRepo,
   );
+  const productCategorySyncService = new ProductCategorySyncService(
+    (work) =>
+      withPoolTransaction(pool, (client) =>
+        work({
+          productRepo: new ProductRepository(pool, client),
+          listingRepo: new ListingRepository(pool, client),
+          marketplaceRepo: new MarketplaceRepository(pool, client),
+          activityLog: new ActivityLogRepository(pool, client),
+          eventRepo: new EventRepository(pool, client),
+        })
+      ),
+    idGenerator,
+  );
   const marketplaceImportService = new MarketplaceImportService(
     marketplaceRepo,
     productRepo,
@@ -464,6 +478,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
       ),
     eventRepo,
     categoryCorrectionOperationRepo,
+    productCategorySyncService,
   );
 
   // 9. Register job handlers now that their collaborators exist. The publish
@@ -505,6 +520,35 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
         : undefined,
     eventPublisher,
     recommendCategoryMismatch: (input) => marketplaceImportService.recommendSyncedCategoryMismatch(input),
+    persistAndReconcileProductCategories: async ({ marketplace, listings, job }) => {
+      await withPoolTransaction(pool, async (client) => {
+        const repositories = {
+          productRepo: new ProductRepository(pool, client),
+          listingRepo: new ListingRepository(pool, client),
+          marketplaceRepo: new MarketplaceRepository(pool, client),
+          activityLog: new ActivityLogRepository(pool, client),
+          eventRepo: new EventRepository(pool, client),
+        };
+        await repositories.listingRepo.saveAll(listings);
+        const firstListingByProduct = new Map<string, typeof listings[number]>();
+        for (const listing of listings) {
+          if (!firstListingByProduct.has(listing.productId)) {
+            firstListingByProduct.set(listing.productId, listing);
+          }
+        }
+        for (const listing of firstListingByProduct.values()) {
+          await productCategorySyncService.reconcileWithRepositories(
+            {
+              workspaceId: marketplace.workspaceId,
+              listingId: listing.id,
+              trigger: job.trigger ?? 'scheduled',
+              actorId: job.actorId,
+            },
+            repositories,
+          );
+        }
+      });
+    },
   });
   syncQueue.registerHandler((data) => syncHandler.handle(data));
 

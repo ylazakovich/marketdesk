@@ -160,9 +160,30 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
                     <Typography variant="body2">{conditionLabel(product.condition)}</Typography>
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" color="text.secondary">
-                      {product.category || '—'}
-                    </Typography>
+                    <Stack spacing={0.25} sx={{ maxWidth: 280 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        {product.category || '—'}
+                      </Typography>
+                      {product.categoryProvenance?.status === 'synced' && (
+                        <Tooltip
+                          title={product.categoryProvenance.sources
+                            .map((source) => `${source.path.join(' › ')} (${source.providerCategoryId})`)
+                            .join('\n')}
+                        >
+                          <Typography variant="caption" color="success.main" noWrap>
+                            Source: {product.categoryProvenance.sources
+                              .map((source) => source.marketplaceKey.toUpperCase())
+                              .filter((key, index, keys) => keys.indexOf(key) === index)
+                              .join(', ')} · {product.categoryProvenance.sources[0]?.path.join(' › ')}
+                          </Typography>
+                        </Tooltip>
+                      )}
+                      {product.categoryProvenance?.status === 'conflict' && (
+                        <Typography variant="caption" color="warning.main" sx={{ fontWeight: 600 }}>
+                          Category conflict · review required
+                        </Typography>
+                      )}
+                    </Stack>
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="body2" color="text.secondary">

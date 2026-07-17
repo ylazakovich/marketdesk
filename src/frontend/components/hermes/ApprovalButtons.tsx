@@ -21,6 +21,7 @@ export interface ApprovalButtonsProps {
   onResolved?: () => void;
   approveLabel?: string;
   successMessage?: string;
+  dismissOnly?: boolean;
 }
 
 function errorMessage(err: unknown): string {
@@ -37,6 +38,7 @@ export const ApprovalButtons: React.FC<ApprovalButtonsProps> = ({
   onResolved,
   approveLabel = 'Approve',
   successMessage = 'Suggestion approval recorded.',
+  dismissOnly = false,
 }) => {
   const dispatch = useAppDispatch();
   const [approve, { isLoading: approving }] = useApproveHermesEvent();
@@ -78,16 +80,18 @@ export const ApprovalButtons: React.FC<ApprovalButtonsProps> = ({
   return (
     <>
       <Stack direction="row" spacing={1}>
-        <Button
-          size={size}
-          variant="contained"
-          color="primary"
-          startIcon={<CheckIcon />}
-          disabled={!pending || busy}
-          onClick={handleApproveClick}
-        >
-          {approveLabel}
-        </Button>
+        {!dismissOnly && (
+          <Button
+            size={size}
+            variant="contained"
+            color="primary"
+            startIcon={<CheckIcon />}
+            disabled={!pending || busy}
+            onClick={handleApproveClick}
+          >
+            {approveLabel}
+          </Button>
+        )}
         <Button
           size={size}
           variant="outlined"

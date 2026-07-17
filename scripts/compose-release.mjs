@@ -2,7 +2,6 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import {
-  lstatSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -92,28 +91,12 @@ export function assertReleaseAssociation(release, cwd = process.cwd()) {
   }
 }
 
-function privateReleaseBase() {
-  const uid = typeof process.getuid === 'function' ? process.getuid() : 'user';
-  const directory = join('/tmp', `marketdesk-release-${uid}`);
-  try {
-    mkdirSync(directory, { mode: 0o700 });
-  } catch (error) {
-    if (error?.code !== 'EEXIST') throw error;
-  }
-  const metadata = lstatSync(directory);
-  const ownedByCurrentUser = typeof process.getuid !== 'function' || metadata.uid === process.getuid();
-  if (!metadata.isDirectory() || !ownedByCurrentUser || (metadata.mode & 0o077) !== 0) {
-    throw new Error('Release runtime directory must be a private directory owned by the current user');
-  }
-  return directory;
-}
-
 function acquirePersistentReleaseLock(cwd) {
   const projectName = basename(resolve(cwd));
   if (!/^[a-z0-9][a-z0-9_-]*$/.test(projectName)) {
     throw new Error(`Checkout directory is not a valid canonical Compose project name: ${projectName}`);
   }
-  const lockRoot = join(privateReleaseBase(), 'marketdesk.lock');
+  const lockRoot = '/tmp/marketdesk-release.lock';
   try {
     mkdirSync(lockRoot, { mode: 0o700 });
   } catch (error) {

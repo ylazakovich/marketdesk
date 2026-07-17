@@ -29,8 +29,7 @@ const competingRepo = join(root, competingRepoName);
 const fakeBin = join(root, 'bin');
 const runtime = join(root, 'runtime');
 const alternateRuntime = join(root, 'alternate-runtime');
-const releaseBase = join('/tmp', `marketdesk-release-${process.getuid()}`);
-const lockRoot = join(releaseBase, 'marketdesk.lock');
+const lockRoot = '/tmp/marketdesk-release.lock';
 const contextRoot = join(lockRoot, 'deployment');
 const activeGroups = new Set();
 

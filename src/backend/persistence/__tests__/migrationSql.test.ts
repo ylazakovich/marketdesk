@@ -28,6 +28,15 @@ describe('concurrent migration SQL parsing', () => {
     expect(quotedIndexIdentity(identity!)).toBe('"private"."audit_idx"');
   });
 
+  it('folds unquoted index and table-schema identifiers to PostgreSQL lowercase', () => {
+    const identity = concurrentIndexIdentity(
+      'CREATE INDEX CONCURRENTLY Audit_Idx ON ONLY Private.Audit(id);',
+    );
+
+    expect(identity).toEqual({ schema: 'private', name: 'audit_idx' });
+    expect(quotedIndexIdentity(identity!)).toBe('"private"."audit_idx"');
+  });
+
   it('supports quoted schema/index identifiers and escaped quotes', () => {
     const identity = concurrentIndexIdentity(
       'CREATE INDEX CONCURRENTLY IF NOT EXISTS "Mixed/*Case""Index" ON "private--schema".listings(id);',

@@ -120,9 +120,9 @@ function isWord(token: SqlToken | undefined, value: string): boolean {
 }
 
 function identifierValue(token: SqlToken | undefined): string | undefined {
-  return token && (token.kind === 'word' || token.kind === 'identifier')
-    ? token.value
-    : undefined;
+  if (token?.kind === 'word') return token.value.toLowerCase();
+  if (token?.kind === 'identifier') return token.value;
+  return undefined;
 }
 
 export function concurrentIndexIdentity(sql: string): ConcurrentIndexIdentity | undefined {

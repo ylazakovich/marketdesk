@@ -541,7 +541,7 @@ export class MarketplaceImportService {
     }
     if (listing.externalUrl !== (remote.externalUrl ?? null)) changes.push('external_url');
     if (
-      remote.marketplaceCategory !== undefined
+      remote.marketplaceCategory != null
       && !this.sameMarketplaceCategoryIdentity(listing.marketplaceCategory, remote.marketplaceCategory)
     )
       changes.push('marketplace_category');
@@ -715,7 +715,7 @@ export class MarketplaceImportService {
       await repos.productRepo.save(product);
     }
     listing.recordExternalUrl(remote.externalUrl ?? null);
-    if (remote.marketplaceCategory !== undefined) {
+    if (remote.marketplaceCategory != null) {
       listing.recordMarketplaceCategory(remote.marketplaceCategory);
     }
     const statusRecorded = listing.recordImportedStatus(remote.status, product ?? null);
@@ -723,7 +723,7 @@ export class MarketplaceImportService {
     listing.recordSyncStats(remote.metrics ?? {}, new Date());
     listing.recordSyncStatusNote(null);
     await repos.listingRepo.save(listing);
-    if (remote.marketplaceCategory !== undefined) {
+    if (remote.marketplaceCategory != null) {
       await this.createCategoryMismatchRecommendation(
         listing,
         product,

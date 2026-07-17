@@ -167,8 +167,11 @@ describe('UpdateProductUseCase', () => {
   it('uses a transaction-scoped locked re-read before applying an ordinary update', async () => {
     const { productRepo, publisher, product } = setup();
     const locked = jest.spyOn(productRepo, 'findByIdForWorkspaceForUpdate');
-    const runInTransaction = jest.fn(async <T>(work: (repo: InMemoryProductRepository) => Promise<T>) =>
-      work(productRepo));
+    const runInTransaction = jest.fn(async <T>(work: (repo: InMemoryProductRepository) => Promise<T>) => {
+      const result = await work(productRepo);
+      expect(publisher.published).toHaveLength(0);
+      return result;
+    });
     const useCase = new UpdateProductUseCase(productRepo, publisher, runInTransaction);
 
     const result = await useCase.execute({

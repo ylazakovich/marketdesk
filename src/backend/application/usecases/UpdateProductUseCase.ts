@@ -13,6 +13,16 @@ import type { IEventPublisher, DomainEvent } from '../../domain/ports/IEventPubl
 import type { UpdateProductDTO } from '../dto/UpdateProductDTO';
 import { ProductValidator } from '../validators/ProductValidator';
 
+interface PersistedProductUpdate {
+  product: Product;
+  pricing: {
+    pricesChanged: boolean;
+    belowCostConfirmed: boolean;
+    previousCostPrice: number | null;
+    previousSellingPrice: number;
+  };
+}
+
 export class UpdateProductUseCase {
   constructor(
     private readonly productRepo: IProductRepository,
@@ -28,17 +38,24 @@ export class UpdateProductUseCase {
     if (validated.isErr()) return validated;
     const dto = validated.value;
 
-    if (this.runInTransaction) {
-      return this.runInTransaction((productRepo) => this.executeValidated(dto, productRepo, true));
+    const persisted = this.runInTransaction
+      ? await this.runInTransaction((productRepo) => this.executeValidated(dto, productRepo, true))
+      : await this.executeValidated(dto, this.productRepo, false);
+    if (persisted.isErr()) return persisted;
+
+    try {
+      await this.eventPublisher.publish(this.updatedEvent(persisted.value.product, persisted.value.pricing));
+    } catch {
+      // Product already committed; don't fail the request over best-effort delivery.
     }
-    return this.executeValidated(dto, this.productRepo, false);
+    return Ok(persisted.value.product);
   }
 
   private async executeValidated(
     dto: UpdateProductDTO,
     productRepo: IProductRepository,
     lockProduct: boolean,
-  ): Promise<Result<Product>> {
+  ): Promise<Result<PersistedProductUpdate>> {
 
     // Tenant-scoped load: a product in another workspace reads as not-found so a
     // cross-tenant id cannot be mutated (S2).
@@ -125,21 +142,15 @@ export class UpdateProductUseCase {
 
     await productRepo.save(product);
 
-    try {
-      await this.eventPublisher.publish(
-        this.updatedEvent(product, {
-          pricesChanged: dto.costPrice !== undefined || dto.sellingPrice !== undefined,
-          belowCostConfirmed: dto.allowBelowCost === true,
-          previousCostPrice,
-          previousSellingPrice,
-        })
-      );
-    } catch {
-      // Product already persisted; don't fail the request over a best-effort
-      // event publication failure. Consider logging/metrics here.
-    }
-
-    return Ok(product);
+    return Ok({
+      product,
+      pricing: {
+        pricesChanged: dto.costPrice !== undefined || dto.sellingPrice !== undefined,
+        belowCostConfirmed: dto.allowBelowCost === true,
+        previousCostPrice,
+        previousSellingPrice,
+      },
+    });
   }
 
   private updatedEvent(

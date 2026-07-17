@@ -418,6 +418,25 @@ describe('MarketplaceImportService', () => {
     expect(listing.status).toBe('live');
   });
 
+  it('preserves trusted listing category evidence when OLX omits category metadata', async () => {
+    const existing = unwrap(Listing.create({
+      id: 'listing-category-preserve', productId: 'product-1', marketplaceId: 'marketplace-1',
+      marketplaceListingId: 'olx-1', externalUrl: 'https://www.olx.pl/d/oferta/olx-1',
+      price: money(100), status: 'live', remoteStatus: 'active',
+      marketplaceCategory: headphonesCategory, views: 7, watchers: 2, messages: 1,
+    }));
+    const { service, listingRepo } = createService([
+      remoteListing({ marketplaceCategory: null }),
+    ], [existing]);
+
+    const result = await service.import({
+      workspaceId: 'workspace-1', marketplaceId: 'marketplace-1', externalListingIds: ['olx-1'],
+    });
+
+    if (result.isErr()) throw result.error;
+    expect((await listingRepo.findById(existing.id))?.marketplaceCategory).toEqual(headphonesCategory);
+  });
+
   it('detects refreshed trust metadata even when the category identity is unchanged', async () => {
     const existingCategory = { ...headphonesCategory, taxonomyVerifiedAt: '2026-01-10T11:00:00.000Z' };
     const refreshedCategory = { ...headphonesCategory, taxonomyVerifiedAt: '2026-01-10T12:00:00.000Z' };

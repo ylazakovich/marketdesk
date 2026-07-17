@@ -69,10 +69,15 @@ describe('OLX category correction migrations', () => {
       expect(sql).toContain("category_provenance->>'status' IN ('synced', 'conflict')");
       expect(sql).toContain('COALESCE(');
     }
-    const drop = migration.indexOf('DROP CONSTRAINT IF EXISTS products_category_provenance_shape');
-    const add = migration.indexOf('ADD CONSTRAINT products_category_provenance_shape');
-    expect(drop).toBeGreaterThan(-1);
-    expect(add).toBeGreaterThan(drop);
+    expect(migration).toContain('pg_get_constraintdef(oid)');
+    expect(migration).toContain("POSITION('COALESCE' IN UPPER(constraint_definition)) = 0");
+    expect(migration).toContain('DROP CONSTRAINT products_category_provenance_shape');
+    expect(migration).toContain('ADD CONSTRAINT products_category_provenance_shape');
+    expect(migration).toContain('NOT VALID');
+
+    const validation = readMigration('028_validate_product_category_provenance.sql');
+    expect(validation).toContain('AND NOT convalidated');
+    expect(validation).toContain('VALIDATE CONSTRAINT products_category_provenance_shape');
   });
 
   it('preserves correction audit rows across ordinary event, listing, and marketplace retention', () => {

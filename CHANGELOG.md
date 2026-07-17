@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.11.0](https://github.com/ylazakovich/marketdesk/compare/hermes-marketdesk-v0.10.1...hermes-marketdesk-v0.11.0) (2026-07-17)
+
+
+### ✨ Features
+
+* **branding:** add MarketDesk site icon assets ([#210](https://github.com/ylazakovich/marketdesk/issues/210)) ([1ba2edf](https://github.com/ylazakovich/marketdesk/commit/1ba2edfac4e9f26cacbd3d82c70856c268763918))
+* **listings:** confirm OLX quota override in publish review ([#202](https://github.com/ylazakovich/marketdesk/issues/202)) ([4627ed8](https://github.com/ylazakovich/marketdesk/commit/4627ed89a9b28f0f328e933dfac58cb3197c13b4))
+* **settings:** show installed release version ([#211](https://github.com/ylazakovich/marketdesk/issues/211)) ([a10524f](https://github.com/ylazakovich/marketdesk/commit/a10524fea85c8cb5efa333291d1fa05e99eb80f4))
+
+
+### 🐛 Bug Fixes
+
+* **deploy:** initialize writable upload storage ([#206](https://github.com/ylazakovich/marketdesk/issues/206)) ([936cee1](https://github.com/ylazakovich/marketdesk/commit/936cee1397d77c18c0a5e1fbfc5926d74a350935))
+* **deploy:** make database TLS mode explicit ([#205](https://github.com/ylazakovich/marketdesk/issues/205)) ([6169286](https://github.com/ylazakovich/marketdesk/commit/61692867515d2270d8db713b1c69cfebde7c1bdb))
+
+
+### 📚 Documentation
+
+* **deploy:** verify deleted uploads behind SPA fallback ([#208](https://github.com/ylazakovich/marketdesk/issues/208)) ([daf315f](https://github.com/ylazakovich/marketdesk/commit/daf315fee4bc6eb91f0bc8e17f3eeed80691d8bc))
+
+
+### 🧪 Tests
+
+* **olx:** cover production parent-id breadcrumbs ([#209](https://github.com/ylazakovich/marketdesk/issues/209)) ([c03b831](https://github.com/ylazakovich/marketdesk/commit/c03b83186c249c3e7a095cedad6afd8f405860f3))
+
 ## [0.10.1](https://github.com/ylazakovich/marketdesk/compare/hermes-marketdesk-v0.10.0...hermes-marketdesk-v0.10.1) (2026-07-16)
 
 

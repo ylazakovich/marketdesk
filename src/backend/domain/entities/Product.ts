@@ -347,25 +347,42 @@ export class Product {
   recordCategoryConflict(
     candidates: ProductCategorySource[],
     detectedAt: Date = new Date(),
-  ): { stateChanged: boolean } {
+  ): { stateChanged: boolean; conflictChanged: boolean } {
     const normalized = Product.sortedSources(candidates);
-    if (
-      this._categoryProvenance?.status === 'conflict'
-      && Product.sameCandidateSet(this._categoryProvenance.candidates, normalized)
-    ) {
-      return { stateChanged: false };
+    const current = this._categoryProvenance;
+    if (current?.status === 'conflict' && Product.sameCandidateSet(current.candidates, normalized)) {
+      const refreshedCurrentSources = current.currentSources?.map((source) => {
+        const refreshed = normalized.find(
+          (candidate) => Product.categorySourceKey(candidate) === Product.categorySourceKey(source),
+        );
+        return refreshed ?? source;
+      }) ?? null;
+      const candidatesChanged = !Product.sameSourceState(current.candidates, normalized);
+      const currentSourcesChanged = current.currentSources !== null
+        && !Product.sameSourceState(current.currentSources, refreshedCurrentSources ?? []);
+      if (!candidatesChanged && !currentSourcesChanged) {
+        return { stateChanged: false, conflictChanged: false };
+      }
+      this._categoryProvenance = {
+        ...current,
+        currentSources: refreshedCurrentSources,
+        candidates: normalized,
+      };
+      this._categoryStateDirty = true;
+      this.touch();
+      return { stateChanged: true, conflictChanged: false };
     }
     this._categoryProvenance = {
       status: 'conflict',
-      currentSources: this._categoryProvenance?.status === 'synced'
-        ? Product.sortedSources(this._categoryProvenance.sources)
-        : (this._categoryProvenance?.currentSources ?? null),
+      currentSources: current?.status === 'synced'
+        ? Product.sortedSources(current.sources)
+        : (current?.currentSources ?? null),
       candidates: normalized,
       detectedAt: detectedAt.toISOString(),
     };
     this._categoryStateDirty = true;
     this.touch();
-    return { stateChanged: true };
+    return { stateChanged: true, conflictChanged: true };
   }
 
   updateDescription(description: string): Result<void> {

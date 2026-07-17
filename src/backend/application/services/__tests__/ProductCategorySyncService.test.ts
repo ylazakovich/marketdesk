@@ -186,6 +186,48 @@ describe('ProductCategorySyncService', () => {
     expect(activityLog.entries).toHaveLength(0);
   });
 
+  it('persists refreshed conflict evidence without duplicating review or activity events', async () => {
+    const initial = product();
+    const { service, repositories, activityLog, eventRepo } = setup(initial);
+    const firstListing = listing('listing-a', projector);
+    const secondListing = listing('listing-b', headphones);
+    repositories.listingRepo.items.set('listing-a', firstListing);
+    repositories.listingRepo.items.set('listing-b', secondListing);
+    await service.reconcile({ workspaceId: 'workspace-1', listingId: 'listing-b', trigger: 'scheduled', now });
+    const detectedAt = initial.categoryProvenance?.status === 'conflict'
+      ? initial.categoryProvenance.detectedAt
+      : null;
+
+    const refreshedAt = new Date('2026-01-10T12:30:00.000Z');
+    const refreshedVerifiedAt = '2026-01-10T12:25:00.000Z';
+    firstListing.recordMarketplaceCategory({
+      ...projector,
+      taxonomyVerifiedAt: refreshedVerifiedAt,
+      taxonomyStaleAt: '2026-01-10T14:00:00.000Z',
+    });
+    secondListing.recordMarketplaceCategory({
+      ...headphones,
+      taxonomyVerifiedAt: refreshedVerifiedAt,
+      taxonomyStaleAt: '2026-01-10T14:00:00.000Z',
+    });
+    firstListing.recordSyncStats({}, refreshedAt);
+    secondListing.recordSyncStats({}, refreshedAt);
+
+    expect(await service.reconcile({
+      workspaceId: 'workspace-1', listingId: 'listing-a', trigger: 'scheduled', now: refreshedAt,
+    })).toEqual({ outcome: 'unchanged', categoryChanged: false });
+    expect(initial.categoryProvenance).toMatchObject({
+      status: 'conflict',
+      detectedAt,
+      candidates: [
+        expect.objectContaining({ taxonomyVerifiedAt: refreshedVerifiedAt, syncedAt: refreshedAt.toISOString() }),
+        expect.objectContaining({ taxonomyVerifiedAt: refreshedVerifiedAt, syncedAt: refreshedAt.toISOString() }),
+      ],
+    });
+    expect(await eventRepo.findPendingReview('workspace-1')).toHaveLength(1);
+    expect(activityLog.entries).toHaveLength(0);
+  });
+
   it('uses stable product identity rather than stale Product.category for semantic validation', async () => {
     const initial = product('Wireless headphones', 'AOPEN QH11 projector');
     const { service, repositories } = setup(initial);

@@ -127,12 +127,13 @@ export class ProductCategorySyncService {
     ].join('\u0000')));
 
     if (requiresReview || categoryKeys.size > 1) {
-      const { stateChanged } = product.recordCategoryConflict(
+      const { stateChanged, conflictChanged } = product.recordCategoryConflict(
         candidates.map(({ source }) => source),
         now,
       );
       if (!stateChanged) return { outcome: 'unchanged', categoryChanged: false };
       await repositories.productRepo.save(product);
+      if (!conflictChanged) return { outcome: 'unchanged', categoryChanged: false };
       await this.recordConflictEvent(repositories.eventRepo, product.id, product.category, candidates.map(({ source }) => source), input.workspaceId, now);
       return { outcome: 'conflict', categoryChanged: false };
     }

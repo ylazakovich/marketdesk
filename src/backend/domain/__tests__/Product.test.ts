@@ -164,6 +164,36 @@ describe('Product category provenance', () => {
     });
   });
 
+  it('refreshes stable conflict evidence without creating a new conflict transition', () => {
+    const product = unwrap(Product.create(baseProps({ category: 'Projectors' })));
+    const other = source({
+      listingId: 'l2', providerCategoryId: '200', name: 'Audio', path: ['Electronics', 'Audio'],
+    });
+    unwrap(product.synchronizeCategory('Projectors', [source()]));
+    expect(product.recordCategoryConflict([source(), other], new Date('2026-07-15T02:00:00.000Z')))
+      .toEqual({ stateChanged: true, conflictChanged: true });
+
+    const refreshed = [source({
+      taxonomyVerifiedAt: '2026-07-16T00:00:00.000Z', syncedAt: '2026-07-16T01:00:00.000Z',
+    }), {
+      ...other,
+      taxonomyVerifiedAt: '2026-07-16T00:00:00.000Z', syncedAt: '2026-07-16T01:00:00.000Z',
+    }];
+    expect(product.recordCategoryConflict(refreshed, new Date('2026-07-16T02:00:00.000Z')))
+      .toEqual({ stateChanged: true, conflictChanged: false });
+    expect(product.categoryProvenance).toMatchObject({
+      status: 'conflict',
+      detectedAt: '2026-07-15T02:00:00.000Z',
+      currentSources: [expect.objectContaining({ syncedAt: '2026-07-16T01:00:00.000Z' })],
+      candidates: [
+        expect.objectContaining({ syncedAt: '2026-07-16T01:00:00.000Z' }),
+        expect.objectContaining({ syncedAt: '2026-07-16T01:00:00.000Z' }),
+      ],
+    });
+    expect(product.recordCategoryConflict(refreshed, new Date('2026-07-17T02:00:00.000Z')))
+      .toEqual({ stateChanged: false, conflictChanged: false });
+  });
+
   it('preserves provenance and updatedAt when an ordinary edit resubmits the same category', () => {
     const product = unwrap(Product.create(baseProps({ category: 'Projectors' })));
     unwrap(product.synchronizeCategory('Projectors', [source()]));

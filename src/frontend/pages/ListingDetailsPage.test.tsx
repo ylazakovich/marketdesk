@@ -12,6 +12,7 @@ import {
   selectProductRecommendations,
 } from './ListingDetailsPage';
 import type { PublishListingPreview } from '../state/api/dto';
+import { formatDateTime } from '../utils/formatters';
 
 const listing: Listing = {
   id: 'listing-1',
@@ -63,8 +64,8 @@ describe('ListingDetailsPage presentation', () => {
       currentSources: [{ ...source, listingId: 'listing-current' }],
       candidates: [{ ...source, listingId: 'listing-candidate', providerCategoryId: '200', path: ['Electronics', 'Audio'] }],
     })).toEqual([
-      'Current · listing listing-current · Electronics › Projectors · ID 100 · Taxonomy verified 2026-07-15T00:00:00.000Z · Synced 2026-07-15T01:00:00.000Z',
-      'Candidate · listing listing-candidate · Electronics › Audio · ID 200 · Taxonomy verified 2026-07-15T00:00:00.000Z · Synced 2026-07-15T01:00:00.000Z',
+      `Current · listing listing-current · Electronics › Projectors · ID 100 · Taxonomy verified ${formatDateTime(source.taxonomyVerifiedAt)} · Synced ${formatDateTime(source.syncedAt)}`,
+      `Candidate · listing listing-candidate · Electronics › Audio · ID 200 · Taxonomy verified ${formatDateTime(source.taxonomyVerifiedAt)} · Synced ${formatDateTime(source.syncedAt)}`,
     ]);
   });
 

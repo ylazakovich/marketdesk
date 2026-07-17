@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.12.1](https://github.com/ylazakovich/marketdesk/compare/hermes-marketdesk-v0.12.0...hermes-marketdesk-v0.12.1) (2026-07-17)
+
+
+### 🐛 Bug Fixes
+
+* **release:** gate app startup on database migrations ([#217](https://github.com/ylazakovich/marketdesk/issues/217)) ([9e53a37](https://github.com/ylazakovich/marketdesk/commit/9e53a3709f09e3cec11954f55e1b43192303e8a4))
+
 ## [0.12.0](https://github.com/ylazakovich/marketdesk/compare/hermes-marketdesk-v0.11.1...hermes-marketdesk-v0.12.0) (2026-07-17)
 
 

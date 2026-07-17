@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button, Typography } from '@mui/material';
 import {
+  ApplicationInfoBlock,
   SettingsSectionNavigation,
   settingsSections,
   type SettingsSection,
@@ -66,5 +67,19 @@ describe('SettingsPage shell navigation', () => {
 
     expect(notificationsButton?.props.variant).toBe('contained');
     expect(textContent(notificationsButton)).toContain('Channels by event');
+  });
+
+  it('shows the installed release version in the About block', () => {
+    const tree = ApplicationInfoBlock({ version: 'v0.10.0' }) as ElementLike;
+
+    expect(textContent(tree)).toContain('Application version');
+    expect(textContent(tree)).toContain('v0.10.0');
+    expect(textContent(tree)).not.toMatch(/commit|sha|branch|dirty/i);
+  });
+
+  it('shows an honest fallback when application information cannot be loaded', () => {
+    const tree = ApplicationInfoBlock({ isError: true }) as ElementLike;
+
+    expect(textContent(tree)).toContain('Version unavailable');
   });
 });

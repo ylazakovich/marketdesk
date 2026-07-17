@@ -77,6 +77,7 @@ export interface AppOptions {
   enableRateLimit?: boolean;
   corsOrigin?: string;
   maxUploadFileSize?: number;
+  applicationVersion?: string;
 }
 
 const DEFAULT_CORS_ORIGIN = 'http://localhost:5173';
@@ -211,6 +212,7 @@ export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
     createApiRouter(controllers, {
       enableRateLimit: options.enableRateLimit,
       maxUploadFileSize,
+      applicationVersion: options.applicationVersion ?? env.applicationVersion,
     }),
   );
 

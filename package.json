@@ -20,6 +20,8 @@
     "verify:compose-uploads": "node scripts/verify-compose-upload-storage.mjs",
     "generate:brand-assets": "node scripts/generate-brand-assets.mjs",
     "verify:brand-assets": "node scripts/verify-brand-assets.mjs",
+    "verify:release-metadata": "node scripts/verify-release-metadata.mjs && node scripts/verify-release-process-lifecycle.mjs",
+    "compose:release": "node scripts/compose-release.mjs",
     "db:migrate": "node --loader ts-node/esm src/backend/persistence/migrate.ts",
     "db:seed": "node --loader ts-node/esm src/backend/persistence/seed.ts",
     "test": "jest",

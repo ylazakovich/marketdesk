@@ -349,6 +349,7 @@ function stubCategoryCorrectionOperationService(): CategoryCorrectionOperationSe
 async function buildTestApp(options: {
   olxPublicationQuotaService?: OlxPublicationQuotaService;
   disableOlxPublicationQuotaService?: boolean;
+  applicationVersion?: string;
 } = {}) {
   const authUserStore = new InMemoryAuthStore();
   const productRepo = new InMemoryProductRepository();
@@ -412,7 +413,10 @@ async function buildTestApp(options: {
   if (marketplace.isErr()) throw marketplace.error;
   await marketplaceRepo.save(marketplace.value);
   return {
-    app: buildApp(deps, { enableRateLimit: false }),
+    app: buildApp(deps, {
+      enableRateLimit: false,
+      applicationVersion: options.applicationVersion,
+    }),
     authUserStore,
     marketplaceRepo,
     workspaceRepo,
@@ -448,6 +452,27 @@ const token = signToken({ userId: 'u-1', workspaceId: 'ws-1' });
 const auth = (req: request.Test) => req.set('Authorization', `Bearer ${token}`);
 
 describe('Presentation API', () => {
+  describe('application information', () => {
+    it('returns the running artifact version publicly without Git metadata', async () => {
+      const { app } = await buildTestApp({ applicationVersion: 'v0.10.0' });
+
+      const res = await request(app).get('/api/application-info');
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ success: true, data: { version: 'v0.10.0' } });
+      expect(JSON.stringify(res.body)).not.toMatch(/commit|sha|branch|dirty/i);
+    });
+
+    it('returns an honest development fallback when release metadata is absent', async () => {
+      const { app } = await buildTestApp();
+
+      const res = await request(app).get('/api/application-info');
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.version).toBe('Development');
+    });
+  });
+
   describe('auth', () => {
     it('logs in with valid credentials and returns a token', async () => {
       const { app } = await buildTestApp();

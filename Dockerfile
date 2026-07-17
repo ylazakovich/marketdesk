@@ -1,3 +1,5 @@
+ARG MARKETDESK_RELEASE_TAG=""
+
 # Stage 1: Dependencies and build (needs devDependencies for tsc + vite).
 FROM node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd AS builder
 
@@ -24,7 +26,11 @@ RUN npm prune --omit=dev
 # Stage 2: Runtime
 FROM node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432d679c54fbfd
 
+ARG MARKETDESK_RELEASE_TAG
+
 WORKDIR /app
+
+RUN printf '%s' "${MARKETDESK_RELEASE_TAG}" > /app/.marketdesk-release-tag
 
 ENV NODE_ENV=production
 

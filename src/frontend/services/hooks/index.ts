@@ -46,6 +46,7 @@ import {
   useLoginMutation,
   useRegisterMutation,
   useMeQuery,
+  useGetApplicationInfoQuery,
 } from '../../state/api/index.js';
 import type {
   ProductListParams,
@@ -149,3 +150,6 @@ export const useUpdateWorkspace = useUpdateWorkspaceMutation;
 export const useLogin = useLoginMutation;
 export const useRegister = useRegisterMutation;
 export const useMe = useMeQuery;
+
+// ---- Application information ----
+export const useApplicationInfo = useGetApplicationInfoQuery;

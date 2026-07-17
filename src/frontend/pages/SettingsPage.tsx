@@ -24,13 +24,14 @@ import PaletteIcon from '@mui/icons-material/PaletteOutlined';
 import TelegramIcon from '@mui/icons-material/Telegram';
 import SecurityIcon from '@mui/icons-material/SecurityOutlined';
 import TuneIcon from '@mui/icons-material/TuneOutlined';
+import InfoIcon from '@mui/icons-material/InfoOutlined';
 import type { AutonomyLevel, Workspace } from '@shared/types';
 import { AUTONOMY_LEVEL_LIST } from '@shared/constants';
 import { useAppDispatch, useAppSelector } from '../state/hooks.js';
 import { setWorkspace, setAutonomyLevel } from '../state/slices/workspaceSlice.js';
 import type { WorkspaceState } from '../state/slices/workspaceSlice.js';
 import { setThemeMode, enqueueToast } from '../state/slices/uiSlice.js';
-import { useUpdateWorkspace } from '../services/hooks/index.js';
+import { useApplicationInfo, useUpdateWorkspace } from '../services/hooks/index.js';
 import { AUTONOMY_LABELS, AUTONOMY_DESCRIPTIONS } from '../utils/labels.js';
 import { Card } from '../components/common/Card.js';
 
@@ -44,7 +45,8 @@ export type SettingsSection =
   | 'apiKeys'
   | 'appearance'
   | 'telegram'
-  | 'security';
+  | 'security'
+  | 'about';
 
 export const settingsSections: Array<{ id: SettingsSection; label: string; caption: string; icon: React.ReactNode }> = [
   { id: 'general', label: 'General', caption: 'Workspace basics', icon: <TuneIcon fontSize="small" /> },
@@ -55,6 +57,7 @@ export const settingsSections: Array<{ id: SettingsSection; label: string; capti
   { id: 'appearance', label: 'Appearance', caption: 'Theme and density', icon: <PaletteIcon fontSize="small" /> },
   { id: 'telegram', label: 'Telegram', caption: 'Bot notifications', icon: <TelegramIcon fontSize="small" /> },
   { id: 'security', label: 'Security', caption: 'Account protection', icon: <SecurityIcon fontSize="small" /> },
+  { id: 'about', label: 'About', caption: 'Application information', icon: <InfoIcon fontSize="small" /> },
 ];
 
 const notificationRows = [
@@ -83,10 +86,45 @@ function toWorkspaceState(ws: Workspace): WorkspaceState {
   };
 }
 
+export function ApplicationInfoBlock({
+  version,
+  isLoading = false,
+  isError = false,
+}: {
+  version?: string;
+  isLoading?: boolean;
+  isError?: boolean;
+}) {
+  const displayVersion = isLoading
+    ? 'Loading…'
+    : isError || !version
+      ? 'Version unavailable'
+      : version;
+
+  return (
+    <Stack spacing={0.75}>
+      <Typography variant="body2" color="text.secondary">
+        Application version
+      </Typography>
+      <Typography variant="h6" sx={{ fontWeight: 800 }}>
+        {displayVersion}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        Version embedded in the currently running MarketDesk artifact.
+      </Typography>
+    </Stack>
+  );
+}
+
 const SettingsPage: React.FC = () => {
   const dispatch = useAppDispatch();
   const workspace = useAppSelector((s) => s.workspace);
   const themeMode = useAppSelector((s) => s.ui.themeMode);
+  const {
+    data: applicationInfo,
+    isLoading: applicationInfoLoading,
+    isError: applicationInfoError,
+  } = useApplicationInfo();
 
   const [activeSection, setActiveSection] = useState<SettingsSection>('general');
   const [name, setName] = useState(workspace.name);
@@ -239,6 +277,14 @@ const SettingsPage: React.FC = () => {
         return <Placeholder title="Telegram integration" detail="Configure bot username, chat ID, and Telegram delivery preferences." />;
       case 'security':
         return <Placeholder title="Security controls" detail="Password, two-factor authentication, and active sessions belong here." />;
+      case 'about':
+        return (
+          <ApplicationInfoBlock
+            version={applicationInfo?.version}
+            isLoading={applicationInfoLoading}
+            isError={applicationInfoError}
+          />
+        );
       default:
         return null;
     }

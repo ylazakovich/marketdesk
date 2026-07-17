@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { readEmbeddedApplicationVersion } from './applicationVersion';
 
 dotenv.config();
 
@@ -82,6 +83,7 @@ export const env = {
   // Application
   nodeEnv,
   appName: process.env.APP_NAME || 'hermes-marketdesk',
+  applicationVersion: readEmbeddedApplicationVersion(),
   appPort: parseInt(process.env.APP_PORT || '3000', 10),
   logLevel: process.env.LOG_LEVEL || 'info',
   trustProxy: process.env.TRUST_PROXY === 'true',

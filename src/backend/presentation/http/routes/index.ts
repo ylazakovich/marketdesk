@@ -27,6 +27,7 @@ import { createAnalyticsRoutes } from './analytics';
 import { createWorkspaceRoutes } from './workspaces';
 import { createUploadRoutes } from './uploads';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { ok } from '../formatters/ResponseFormatter';
 
 export interface ApiControllers {
   auth: AuthController;
@@ -43,6 +44,7 @@ export interface ApiRouterOptions {
   // Rate limiting is stateful across requests; disable it for tests.
   enableRateLimit?: boolean;
   maxUploadFileSize?: number;
+  applicationVersion?: string;
 }
 
 export function createApiRouter(
@@ -63,6 +65,11 @@ export function createApiRouter(
     : undefined;
 
   // Public
+  api.get(
+    '/application-info',
+    ...(publicLimiter ? [publicLimiter] : []),
+    (_req, res) => ok(res, { version: options.applicationVersion ?? 'Development' }),
+  );
   api.use('/auth', createAuthRoutes(c.auth, publicLimiter));
   api.get(
     '/marketplaces/:provider/oauth/callback',

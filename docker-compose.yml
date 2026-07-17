@@ -3,8 +3,12 @@ x-app-image: &app-image
   # retaining Compose's project-level isolation between parallel deployments.
   image: ${COMPOSE_PROJECT_NAME:-marketdesk}-app:${MARKETDESK_IMAGE_TAG:-local}
   build:
-    context: .
+    # Release deployments override this with an immutable git archive. Normal
+    # development keeps using the checkout as the build context.
+    context: ${MARKETDESK_BUILD_CONTEXT:-.}
     dockerfile: Dockerfile
+    args:
+      MARKETDESK_RELEASE_TAG: ${MARKETDESK_RELEASE_TAG:-}
 
 services:
   postgres:
@@ -83,7 +87,7 @@ services:
     <<: *app-image
     container_name: marketdesk-app
     env_file:
-      - ./.env
+      - ${MARKETDESK_ENV_FILE:-./.env}
     environment:
       NODE_ENV: ${NODE_ENV:-development}
       APP_NAME: ${APP_NAME:-hermes-marketdesk}

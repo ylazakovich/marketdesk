@@ -72,6 +72,7 @@ const startServer = async () => {
       app = buildApp(container.deps, {
         enableRateLimit: !isTest,
         corsOrigin: env.cors.origin,
+        applicationVersion: env.applicationVersion,
       });
       logger.info('API layer mounted via buildApp(deps)');
     } catch (wiringError) {
@@ -114,6 +115,7 @@ const startServer = async () => {
         timestamp: new Date().toISOString(),
         uptime: process.uptime(),
         environment: env.nodeEnv,
+        version: env.applicationVersion,
       });
     });
 

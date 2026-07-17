@@ -9,6 +9,7 @@ export * from './hermesApi.js';
 export * from './analyticsApi.js';
 export * from './workspacesApi.js';
 export * from './authApi.js';
+export * from './applicationInfoApi.js';
 
 export * from './dto.js';
 export { buildQueryString } from './queryString.js';

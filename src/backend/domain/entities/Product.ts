@@ -351,12 +351,7 @@ export class Product {
     const normalized = Product.sortedSources(candidates);
     const current = this._categoryProvenance;
     if (current?.status === 'conflict' && Product.sameCandidateSet(current.candidates, normalized)) {
-      const refreshedCurrentSources = current.currentSources?.map((source) => {
-        const refreshed = normalized.find(
-          (candidate) => Product.categorySourceKey(candidate) === Product.categorySourceKey(source),
-        );
-        return refreshed ?? source;
-      }) ?? null;
+      const refreshedCurrentSources = Product.refreshMatchingSources(current.currentSources, normalized);
       const candidatesChanged = !Product.sameSourceState(current.candidates, normalized);
       const currentSourcesChanged = current.currentSources !== null
         && !Product.sameSourceState(current.currentSources, refreshedCurrentSources ?? []);
@@ -375,7 +370,7 @@ export class Product {
     this._categoryProvenance = {
       status: 'conflict',
       currentSources: current?.status === 'synced'
-        ? Product.sortedSources(current.sources)
+        ? Product.refreshMatchingSources(current.sources, normalized)
         : (current?.currentSources ?? null),
       candidates: normalized,
       detectedAt: detectedAt.toISOString(),
@@ -452,6 +447,18 @@ export class Product {
     return [...sources]
       .map((source) => structuredClone(source))
       .sort((left, right) => Product.categorySourceKey(left).localeCompare(Product.categorySourceKey(right)));
+  }
+
+  private static refreshMatchingSources(
+    sources: ProductCategorySource[] | null,
+    candidates: ProductCategorySource[],
+  ): ProductCategorySource[] | null {
+    if (sources === null) return null;
+    return Product.sortedSources(sources.map((source) => (
+      candidates.find(
+        (candidate) => Product.categorySourceKey(candidate) === Product.categorySourceKey(source),
+      ) ?? source
+    )));
   }
 
   private static sameCandidateSet(

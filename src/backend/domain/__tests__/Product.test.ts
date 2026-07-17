@@ -170,27 +170,35 @@ describe('Product category provenance', () => {
       listingId: 'l2', providerCategoryId: '200', name: 'Audio', path: ['Electronics', 'Audio'],
     });
     unwrap(product.synchronizeCategory('Projectors', [source()]));
-    expect(product.recordCategoryConflict([source(), other], new Date('2026-07-15T02:00:00.000Z')))
+    const initialConflictSource = source({
+      taxonomyVerifiedAt: '2026-07-16T00:00:00.000Z', syncedAt: '2026-07-16T01:00:00.000Z',
+    });
+    expect(product.recordCategoryConflict([initialConflictSource, other], new Date('2026-07-16T02:00:00.000Z')))
       .toEqual({ stateChanged: true, conflictChanged: true });
+    expect(product.categoryProvenance).toMatchObject({
+      status: 'conflict',
+      detectedAt: '2026-07-16T02:00:00.000Z',
+      currentSources: [expect.objectContaining({ syncedAt: '2026-07-16T01:00:00.000Z' })],
+    });
 
     const refreshed = [source({
-      taxonomyVerifiedAt: '2026-07-16T00:00:00.000Z', syncedAt: '2026-07-16T01:00:00.000Z',
+      taxonomyVerifiedAt: '2026-07-17T00:00:00.000Z', syncedAt: '2026-07-17T01:00:00.000Z',
     }), {
       ...other,
-      taxonomyVerifiedAt: '2026-07-16T00:00:00.000Z', syncedAt: '2026-07-16T01:00:00.000Z',
+      taxonomyVerifiedAt: '2026-07-17T00:00:00.000Z', syncedAt: '2026-07-17T01:00:00.000Z',
     }];
-    expect(product.recordCategoryConflict(refreshed, new Date('2026-07-16T02:00:00.000Z')))
+    expect(product.recordCategoryConflict(refreshed, new Date('2026-07-17T02:00:00.000Z')))
       .toEqual({ stateChanged: true, conflictChanged: false });
     expect(product.categoryProvenance).toMatchObject({
       status: 'conflict',
-      detectedAt: '2026-07-15T02:00:00.000Z',
-      currentSources: [expect.objectContaining({ syncedAt: '2026-07-16T01:00:00.000Z' })],
+      detectedAt: '2026-07-16T02:00:00.000Z',
+      currentSources: [expect.objectContaining({ syncedAt: '2026-07-17T01:00:00.000Z' })],
       candidates: [
-        expect.objectContaining({ syncedAt: '2026-07-16T01:00:00.000Z' }),
-        expect.objectContaining({ syncedAt: '2026-07-16T01:00:00.000Z' }),
+        expect.objectContaining({ syncedAt: '2026-07-17T01:00:00.000Z' }),
+        expect.objectContaining({ syncedAt: '2026-07-17T01:00:00.000Z' }),
       ],
     });
-    expect(product.recordCategoryConflict(refreshed, new Date('2026-07-17T02:00:00.000Z')))
+    expect(product.recordCategoryConflict(refreshed, new Date('2026-07-18T02:00:00.000Z')))
       .toEqual({ stateChanged: false, conflictChanged: false });
   });
 

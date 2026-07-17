@@ -28,9 +28,30 @@ describe('concurrent migration SQL parsing', () => {
     expect(quotedIndexIdentity(identity!)).toBe('"private"."audit_idx"');
   });
 
-  it('fails closed for quoted names that the recovery parser does not support', () => {
+  it('supports quoted schema/index identifiers and escaped quotes', () => {
+    const identity = concurrentIndexIdentity(
+      'CREATE INDEX CONCURRENTLY IF NOT EXISTS "private--schema"."Mixed/*Case""Index" ON listings(id);',
+    );
+
+    expect(identity).toEqual({ schema: 'private--schema', name: 'Mixed/*Case"Index' });
+    expect(quotedIndexIdentity(identity!)).toBe('"private--schema"."Mixed/*Case""Index"');
+  });
+
+  it('ignores DDL-shaped text in strings and dollar-quoted bodies', () => {
+    expect(concurrentIndexIdentity(`
+      SELECT 'CREATE INDEX CONCURRENTLY fake_string ON listings(id)';
+      SELECT $$CREATE INDEX CONCURRENTLY fake_dollar ON listings(id)$$;
+      DO $body$
+      BEGIN
+        RAISE NOTICE 'CREATE UNIQUE INDEX CONCURRENTLY fake_body ON listings(id)';
+      END
+      $body$;
+    `)).toBeUndefined();
+  });
+
+  it('fails closed for malformed executable concurrent DDL', () => {
     expect(() => concurrentIndexIdentity(
-      'CREATE INDEX CONCURRENTLY IF NOT EXISTS "MixedCase" ON listings(id);',
+      'CREATE INDEX CONCURRENTLY IF NOT EXISTS ON listings(id);',
     )).toThrow(/Cannot identify/);
   });
 });

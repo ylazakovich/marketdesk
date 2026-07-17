@@ -6,14 +6,11 @@ import {
   Box,
   Button,
   Checkbox,
-  Chip,
-  Divider,
   FormControlLabel,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
-import EditIcon from '@mui/icons-material/EditOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
@@ -34,12 +31,9 @@ import {
 import { useMarketplaceLookup } from '../hooks/useMarketplaceLookup.js';
 import { useAppDispatch, useAppSelector } from '../state/hooks.js';
 import { enqueueToast } from '../state/slices/uiSlice.js';
-import { formatCurrency, formatDateTime } from '../utils/formatters.js';
-import { conditionLabel } from '../utils/labels.js';
-import { PageHeader } from '../components/common/PageHeader.js';
+import { formatDateTime } from '../utils/formatters.js';
 import { Card } from '../components/common/Card.js';
 import { Modal } from '../components/common/Modal.js';
-import { ProductStatusBadge } from '../components/common/Badge.js';
 import { ErrorRetry } from '../components/common/ErrorRetry.js';
 import { LoadingSkeleton } from '../components/common/Skeleton.js';
 import { ListingsTable } from '../components/tables/index.js';
@@ -47,16 +41,21 @@ import { ProductForm } from '../components/forms/index.js';
 import type { ProductFormValues } from '../components/forms/index.js';
 import { PricingForm } from '../components/forms/index.js';
 import { HermesEventCard } from '../components/hermes/index.js';
+import {
+  mainPreviewImageSx,
+  OlxInsightsCard,
+  PriceHistoryCard,
+  PricingSummaryCard,
+  ProductCategoryEvidence,
+  ProductDescriptionCard,
+  productDetailGridSx,
+  ProductGalleryCard,
+  ProductIdentityHero,
+  productDetailRailSx,
+  ProductTimelineCard,
+} from '../components/product-detail/ProductDetailSections.js';
 
-export const mainPreviewImageSx = {
-  display: 'block',
-  width: 'auto',
-  height: 'auto',
-  maxWidth: '100%',
-  maxHeight: '100%',
-  objectFit: 'contain',
-  margin: 'auto',
-} as const;
+export { mainPreviewImageSx };
 
 export const MIN_QUOTA_OVERRIDE_REASON_LENGTH = 10;
 export const MAX_QUOTA_OVERRIDE_REASON_LENGTH = 500;
@@ -150,34 +149,6 @@ function errorMessage(err: unknown): string {
   return 'Request failed';
 }
 
-const DetailRow: React.FC<{ label: string; children: React.ReactNode; strong?: boolean }> = ({
-  label,
-  children,
-  strong = false,
-}) => (
-  <Box
-    sx={{
-      display: 'grid',
-      gridTemplateColumns: { xs: '1fr', sm: 'minmax(120px, max-content) minmax(0, 1fr)' },
-      gap: { xs: 0.25, sm: 2 },
-      alignItems: 'baseline',
-    }}
-  >
-    <Typography
-      variant="caption"
-      color="text.secondary"
-      sx={{ textTransform: 'uppercase', letterSpacing: 0.4 }}
-    >
-      {label}
-    </Typography>
-    <Typography
-      variant="body2"
-      sx={{ fontWeight: strong ? 700 : 500, minWidth: 0, overflowWrap: 'anywhere' }}
-    >
-      {children}
-    </Typography>
-  </Box>
-);
 
 export const PublishPreviewReview: React.FC<{ preview: PublishListingPreview }> = ({ preview }) => {
   const category = preview.marketplaceCategory ?? preview.payload?.marketplaceCategory;
@@ -297,7 +268,12 @@ const ListingDetailsPage: React.FC = () => {
   };
 
   const refreshAfterRecommendation = async () => {
-    await Promise.all([hermesEvents.refetch(), product.refetch(), listings.refetch()]);
+    await Promise.all([
+      hermesEvents.refetch(),
+      product.refetch(),
+      listings.refetch(),
+      ...(primaryListing ? [priceHistory.refetch()] : []),
+    ]);
   };
 
   const handleEdit = async (values: ProductFormValues) => {
@@ -458,202 +434,31 @@ const ListingDetailsPage: React.FC = () => {
 
   const p = product.data;
   const images = p.images ?? [];
-  const selectedImageIndex = images.length > 0 ? Math.min(activeImage, images.length - 1) : 0;
 
   return (
     <Box>
       <Button startIcon={<ArrowBackIcon />} onClick={() => navigate('/products')} sx={{ mb: 1 }}>
         Back to products
       </Button>
-      <PageHeader
-        title={p.name}
-        subtitle={p.sku}
-        actions={
-          <Stack direction="row" spacing={1.5} alignItems="center">
-            <ProductStatusBadge status={p.status} />
-            <Button variant="outlined" startIcon={<EditIcon />} onClick={() => setEditOpen(true)}>
-              Edit
-            </Button>
-          </Stack>
-        }
-      />
+      <ProductIdentityHero product={p} onEdit={() => setEditOpen(true)} />
 
-      <Box
-        sx={{
-          display: 'grid',
-          gap: 2.5,
-          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
-          alignItems: 'start',
-        }}
-      >
-        <Card title="Media & details">
-          <Box
-            sx={{
-              width: '100%',
-              aspectRatio: '16 / 10',
-              borderRadius: 2,
-              overflow: 'hidden',
-              bgcolor: 'action.hover',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            {images.length > 0 ? (
-              <Box
-                component="img"
-                src={images[selectedImageIndex]}
-                alt={p.name}
-                sx={mainPreviewImageSx}
-              />
-            ) : (
-              <Typography variant="body2" color="text.secondary">
-                No images
-              </Typography>
-            )}
-          </Box>
-          {images.length > 1 && (
-            <Stack direction="row" spacing={1} sx={{ mt: 1.5, overflowX: 'auto' }}>
-              {images.map((img, i) => (
-                <Box
-                  key={img + i}
-                  component="img"
-                  src={img}
-                  alt=""
-                  onClick={() => setActiveImage(i)}
-                  sx={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 1.5,
-                    objectFit: 'cover',
-                    cursor: 'pointer',
-                    border: (t) =>
-                      `2px solid ${i === selectedImageIndex ? t.palette.primary.main : 'transparent'}`,
-                  }}
-                />
-              ))}
-            </Stack>
-          )}
-
-          <Divider sx={{ my: 2 }} />
-          <Stack spacing={1.25}>
-            <DetailRow label="Condition">{conditionLabel(p.condition)}</DetailRow>
-            <DetailRow label="Category">{p.category || '—'}</DetailRow>
-            {p.categoryProvenance?.status === 'synced' && (
-              <DetailRow label="Category source">
-                {p.categoryProvenance.sources.map((source) => (
-                  <Typography key={`${source.marketplaceId}:${source.listingId}`} variant="body2" component="span" sx={{ display: 'block' }}>
-                    {source.marketplaceKey.toUpperCase()} · listing {source.listingId} · {source.path.join(' › ')} · ID {source.providerCategoryId}
-                    {' · '}Taxonomy verified {new Date(source.taxonomyVerifiedAt).toLocaleString()}
-                    {' · '}Synced {new Date(source.syncedAt).toLocaleString()}
-                  </Typography>
-                ))}
-              </DetailRow>
-            )}
-            {p.categoryProvenance?.status === 'conflict' && (
-              <DetailRow label="Category source">
-                <Typography component="span" variant="body2" color="warning.main" sx={{ display: 'block', fontWeight: 600 }}>
-                  Conflicting active listing categories require review
-                </Typography>
-                {categoryConflictEvidenceLines(p.categoryProvenance).map((line) => (
-                  <Typography key={line} component="span" variant="body2" sx={{ display: 'block' }}>
-                    {line}
-                  </Typography>
-                ))}
-                <Typography component="span" variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                  Detected {new Date(p.categoryProvenance.detectedAt).toLocaleString()}
-                </Typography>
-              </DetailRow>
-            )}
-            <DetailRow label="Cost">{formatCurrency(p.costPrice, currency)}</DetailRow>
-            <DetailRow label="Selling price" strong>
-              {formatCurrency(p.sellingPrice, currency)}
-            </DetailRow>
-          </Stack>
-
-          {p.tags.length > 0 && (
-            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ mt: 2 }}>
-              {p.tags.map((tag) => (
-                <Chip key={tag} size="small" variant="outlined" label={tag} />
-              ))}
-            </Stack>
-          )}
-
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 2, whiteSpace: 'pre-wrap' }}>
-            {p.description}
-          </Typography>
-        </Card>
-
-        <Stack spacing={2.5}>
-          <Card title="Pricing / status summary">
-            <Typography variant="h4" sx={{ fontWeight: 800 }}>{formatCurrency(p.sellingPrice, currency)}</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Cost {formatCurrency(p.costPrice, currency)} · Profit {formatCurrency(p.sellingPrice - (p.costPrice ?? 0), currency)}
-            </Typography>
-          </Card>
-
-          <Card title="Statistics">
-            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-              {[
-                ['Views', primaryListing?.views ?? '—'],
-                ['Watchers', primaryListing?.watchers ?? '—'],
-                ['Messages', primaryListing?.messages ?? '—'],
-                ['Conversion', primaryListing?.views ? `${Math.round(((primaryListing.messages ?? 0) / primaryListing.views) * 100)}%` : '—'],
-              ].map(([label, value]) => (
-                <Box key={label} sx={{ minWidth: 96, p: 1.25, borderRadius: 2, bgcolor: 'action.hover' }}>
-                  <Typography variant="caption" color="text.secondary">{label}</Typography>
-                  <Typography variant="h6" sx={{ fontWeight: 800 }}>{value}</Typography>
-                </Box>
-              ))}
-            </Stack>
-          </Card>
-
-          <Card title={remoteMarketplace.title}>
-            <Chip
-              size="small"
-              label={remoteMarketplace.status}
-              color={remoteMarketplaceChipColor(primaryListing)}
-              variant="outlined"
-            />
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {primaryListing
-                ? remoteMarketplace.explanation
-                : 'Create or publish a marketplace listing to start tracking its provider status.'}
-            </Typography>
-            {primaryListing?.lastSyncAt && (
-              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-                Last checked: {formatDateTime(primaryListing.lastSyncAt)}
-              </Typography>
-            )}
-            {remoteMarketplace.externalUrl && (
-              <Button
-                component="a"
-                href={remoteMarketplace.externalUrl}
-                target="_blank"
-                rel="noreferrer"
-                size="small"
-                sx={{ mt: 1, px: 0 }}
-              >
-                Open on {primaryMarketplaceName}
-              </Button>
-            )}
-          </Card>
-
+      <Box sx={productDetailGridSx} data-testid="product-detail-layout">
+        <Stack spacing={{ xs: 2, lg: 3 }} sx={{ minWidth: 0 }}>
+          <ProductGalleryCard name={p.name} images={images} activeIndex={activeImage} onSelect={setActiveImage} />
+          <ProductDescriptionCard product={p} onEdit={() => setEditOpen(true)} />
+          <ProductCategoryEvidence
+            product={p}
+            conflictLines={p.categoryProvenance?.status === 'conflict'
+              ? categoryConflictEvidenceLines(p.categoryProvenance)
+              : []}
+          />
           <Card
             title="Marketplace listings"
-            action={
-              availableMarketplace ? (
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<AddIcon />}
-                  disabled={creatingListing}
-                  onClick={handleCreateListing}
-                >
-                  Create {availableMarketplace.name} listing
-                </Button>
-              ) : undefined
-            }
+            action={availableMarketplace ? (
+              <Button size="small" variant="outlined" startIcon={<AddIcon />} disabled={creatingListing} onClick={handleCreateListing}>
+                Create {availableMarketplace.name} listing
+              </Button>
+            ) : undefined}
             disablePadding
           >
             <ListingsTable
@@ -663,14 +468,48 @@ const ListingDetailsPage: React.FC = () => {
               onRetry={listings.refetch}
               currency={currency}
               resolveMarketplaceName={resolveMarketplaceName}
-              onRowClick={(l) => setPriceListing(l)}
+              onRowClick={(listing) => setPriceListing(listing)}
               onRelist={handleRelist}
               onPublish={handlePublish}
               actionsDisabled={publicationActionsLocked}
             />
           </Card>
+          <PriceHistoryCard
+            listing={primaryListing}
+            history={priceHistory.data}
+            loading={priceHistory.isLoading || listings.isLoading}
+            error={listings.isError ? listings.error : priceHistory.isError ? priceHistory.error : undefined}
+            onRetry={() => {
+              if (listings.isError) void listings.refetch();
+              if (priceHistory.isError) void priceHistory.refetch();
+            }}
+            currency={currency}
+          />
+          <ProductTimelineCard product={p} listing={primaryListing} />
+        </Stack>
 
-          <Card title="Hermes recommendations">
+        <Stack spacing={{ xs: 2, lg: 3 }} sx={productDetailRailSx} data-testid="product-detail-rail">
+          <PricingSummaryCard product={p} currency={currency} onEdit={() => setEditOpen(true)} />
+          <OlxInsightsCard
+            listing={primaryListing}
+            loading={listings.isLoading || listings.isFetching}
+            error={listings.isError ? listings.error : undefined}
+            onRetry={() => { void listings.refetch(); }}
+            isOlx={Boolean(primaryListing && marketplaces?.find(
+              (marketplace) => marketplace.id === primaryListing.marketplaceId,
+            )?.key === 'olx')}
+            statusTitle={remoteMarketplace.title}
+            statusLabel={remoteMarketplace.status}
+            statusExplanation={primaryListing
+              ? remoteMarketplace.explanation
+              : 'Create or publish an OLX listing to start tracking provider status.'}
+            statusColor={remoteMarketplaceChipColor(primaryListing)}
+          />
+          <Card
+            title="Hermes recommendations"
+            subtitle="Real pending recommendations for this product"
+            sx={{ borderColor: 'primary.main', bgcolor: 'background.paper' }}
+          >
             {hermesEvents.isLoading || hermesEvents.isFetching ? (
               <LoadingSkeleton lines={2} height={96} />
             ) : hermesEvents.isError ? (
@@ -693,62 +532,8 @@ const ListingDetailsPage: React.FC = () => {
                   />
                 ))}
                 <Typography variant="caption" color="text.secondary">
-                  Standard suggestions may update the product locally and queue connected marketplace updates. Category correction always uses separate audited delist and recreate reviews.
+                  Category correction always uses separate audited delist and recreate reviews.
                 </Typography>
-              </Stack>
-            )}
-          </Card>
-
-          <Card title="Activity log">
-            <Stack spacing={1}>
-              <Typography variant="body2">Product updated · {formatDateTime(p.updatedAt)}</Typography>
-              {primaryListing?.publishedAt && <Typography variant="body2">Published to marketplace · {formatDateTime(primaryListing.publishedAt)}</Typography>}
-              {primaryListing?.lastSyncAt && <Typography variant="body2">Marketplace synced · {formatDateTime(primaryListing.lastSyncAt)}</Typography>}
-            </Stack>
-          </Card>
-
-          <Card title="Price history">
-            {!primaryListing ? (
-              <Typography variant="body2" color="text.secondary">
-                No listings yet.
-              </Typography>
-            ) : priceHistory.isLoading ? (
-              <LoadingSkeleton lines={3} height={32} />
-            ) : (priceHistory.data?.length ?? 0) === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                No price changes recorded yet.
-              </Typography>
-            ) : (
-              <Stack divider={<Divider />}>
-                {priceHistory.data?.map((entry) => (
-                  <Stack
-                    key={entry.id}
-                    direction="row"
-                    alignItems="center"
-                    justifyContent="space-between"
-                    spacing={2}
-                    sx={{ py: 1 }}
-                  >
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {entry.oldPrice != null
-                          ? `${formatCurrency(entry.oldPrice, currency)} → ${formatCurrency(entry.newPrice, currency)}`
-                          : formatCurrency(entry.newPrice, currency)}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {entry.changedBy}
-                        {entry.reason ? ` · ${entry.reason}` : ''}
-                      </Typography>
-                    </Box>
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{ whiteSpace: 'nowrap' }}
-                    >
-                      {formatDateTime(entry.createdAt)}
-                    </Typography>
-                  </Stack>
-                ))}
               </Stack>
             )}
           </Card>

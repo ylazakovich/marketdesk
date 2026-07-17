@@ -165,13 +165,16 @@ export class MarketplaceImportService {
     );
   }
 
-  async recommendSyncedCategoryMismatch(input: {
-    listing: Listing;
-    workspaceId: string;
-    currentCategory: ImportedMarketplaceListing['marketplaceCategory'];
-    proposedCategory: ImportedMarketplaceListing['marketplaceCategory'];
-  }): Promise<void> {
-    await this.unitOfWork(async (repos) => {
+  async recommendSyncedCategoryMismatch(
+    input: {
+      listing: Listing;
+      workspaceId: string;
+      currentCategory: ImportedMarketplaceListing['marketplaceCategory'];
+      proposedCategory: ImportedMarketplaceListing['marketplaceCategory'];
+    },
+    repositories?: MarketplaceImportRepositories,
+  ): Promise<void> {
+    const recommend = async (repos: MarketplaceImportRepositories): Promise<void> => {
       const product = await repos.productRepo.findByIdForWorkspace(
         input.listing.productId,
         input.workspaceId,
@@ -186,7 +189,12 @@ export class MarketplaceImportService {
         repos.eventRepo,
         repos.correctionOperations,
       );
-    });
+    };
+    if (repositories) {
+      await recommend(repositories);
+    } else {
+      await this.unitOfWork(recommend);
+    }
   }
 
   async import(input: ImportApplyInput): Promise<Result<ImportApplyResult>> {

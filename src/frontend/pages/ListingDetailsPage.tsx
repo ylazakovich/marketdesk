@@ -66,7 +66,7 @@ type CategoryConflictProvenance = Extract<ProductCategoryProvenance, { status: '
 export function categoryConflictEvidenceLines(provenance: CategoryConflictProvenance): string[] {
   return [
     ...(provenance.currentSources ?? []).map(
-      (source) => `Current · listing ${source.listingId} · ${source.path.join(' › ')} · Taxonomy verified ${source.taxonomyVerifiedAt} · Synced ${source.syncedAt}`,
+      (source) => `Current · listing ${source.listingId} · ${source.path.join(' › ')} · ID ${source.providerCategoryId} · Taxonomy verified ${source.taxonomyVerifiedAt} · Synced ${source.syncedAt}`,
     ),
     ...provenance.candidates.map(
       (source) => `Candidate · listing ${source.listingId} · ${source.path.join(' › ')} · ID ${source.providerCategoryId} · Taxonomy verified ${source.taxonomyVerifiedAt} · Synced ${source.syncedAt}`,

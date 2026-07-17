@@ -528,7 +528,13 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
         : undefined,
     eventPublisher,
     recommendCategoryMismatch: (input) => marketplaceImportService.recommendSyncedCategoryMismatch(input),
-    persistAndReconcileProductCategories: async ({ marketplace, listings, expectedUpdatedAt, job }) => {
+    persistAndReconcileProductCategories: async ({
+      marketplace,
+      listings,
+      expectedUpdatedAt,
+      mismatchCandidates,
+      job,
+    }) => {
       await withPoolTransaction(pool, async (client) => {
         const repositories = {
           productRepo: new ProductRepository(pool, client),
@@ -536,6 +542,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
           marketplaceRepo: new MarketplaceRepository(pool, client),
           activityLog: new ActivityLogRepository(pool, client),
           eventRepo: new EventRepository(pool, client),
+          correctionOperations: new CategoryCorrectionOperationRepository(pool, client),
         };
         const productIds = [...new Set(listings.map((listing) => listing.productId))].sort();
         for (const productId of productIds) {
@@ -546,6 +553,12 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
           if (!product) throw new Error(`Product not found for synchronized listing: ${productId}`);
         }
         await repositories.listingRepo.saveAllIfUnchanged(listings, expectedUpdatedAt);
+        for (const candidate of mismatchCandidates) {
+          await marketplaceImportService.recommendSyncedCategoryMismatch(
+            { ...candidate, workspaceId: marketplace.workspaceId },
+            repositories,
+          );
+        }
         for (const listing of selectProductCategoryTriggerListings(listings)) {
           await productCategorySyncService.reconcileWithRepositories(
             {

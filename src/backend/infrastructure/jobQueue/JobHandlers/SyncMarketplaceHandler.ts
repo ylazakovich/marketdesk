@@ -54,6 +54,11 @@ export interface SyncMarketplaceHandlerDeps {
     marketplace: Marketplace;
     listings: Listing[];
     expectedUpdatedAt: ReadonlyMap<string, Date>;
+    mismatchCandidates: Array<{
+      listing: Listing;
+      currentCategory: MarketplaceCategoryMetadata | null;
+      proposedCategory: MarketplaceCategoryMetadata | null;
+    }>;
     job: SyncMarketplaceJobData;
   }) => Promise<void>;
 }
@@ -162,6 +167,7 @@ export class SyncMarketplaceHandler {
       currentCategory: MarketplaceCategoryMetadata | null;
       proposedCategory: MarketplaceCategoryMetadata | null;
     }> = [];
+    const statusEvents: DomainEvent[] = [];
     for (const s of synced) {
       const listing = byExternalId.get(s.externalListingId);
       if (!listing) continue;
@@ -182,7 +188,8 @@ export class SyncMarketplaceHandler {
         listing.recordMarketplaceCategory(s.marketplaceCategory);
         mismatchCandidates.push({ listing, currentCategory: s.marketplaceCategory, proposedCategory });
       }
-      await this.reconcileStatus(listing, s);
+      const statusEvent = this.reconcileStatus(listing, s);
+      if (statusEvent) statusEvents.push(statusEvent);
       if (s.messageMetricStatus === 'error') {
         const messageMetricNote = 'Message metric is stale: provider statistics request failed';
         listing.recordSyncStatusNote(
@@ -192,41 +199,49 @@ export class SyncMarketplaceHandler {
       updated.push(listing);
     }
 
-    // Build the idempotent durable mismatch pair before persisting the remote
-    // category. If recommendation creation fails, a retry still sees the prior
-    // verified category and can reconstruct the original mismatch.
-    if (marketplace && this.deps.recommendCategoryMismatch) {
-      for (const candidate of mismatchCandidates) {
-        await this.deps.recommendCategoryMismatch({ ...candidate, workspaceId: marketplace.workspaceId });
-      }
-    }
     if (updated.length > 0) {
       if (marketplace && this.deps.persistAndReconcileProductCategories) {
         await this.deps.persistAndReconcileProductCategories({
           marketplace,
           listings: updated,
           expectedUpdatedAt,
+          mismatchCandidates,
           job: data,
         });
       } else {
         await store.saveAll(updated);
+        if (marketplace && this.deps.recommendCategoryMismatch) {
+          for (const candidate of mismatchCandidates) {
+            await this.deps.recommendCategoryMismatch({
+              ...candidate,
+              workspaceId: marketplace.workspaceId,
+            });
+          }
+        }
+      }
+    }
+    for (const event of statusEvents) {
+      try {
+        await this.deps.eventPublisher?.publish(event);
+      } catch {
+        // Listing state is already committed; lifecycle delivery is best-effort.
       }
     }
     return updated.length;
   }
 
-  private async reconcileStatus(listing: Listing, synced: SyncedListing): Promise<void> {
+  private reconcileStatus(listing: Listing, synced: SyncedListing): DomainEvent | null {
     const before = listing.status;
     const remoteStatus = (synced.remoteStatus ?? synced.status).toLowerCase();
     const transition = this.transitionForRemoteStatus(remoteStatus, synced);
 
     if (transition === 'observe') {
       listing.recordSyncStatusNote(`Remote status observed: ${remoteStatus}`);
-      return;
+      return null;
     }
     if (transition === 'unknown') {
       listing.recordSyncStatusNote(`Unknown remote status observed: ${remoteStatus}`);
-      return;
+      return null;
     }
 
     let result;
@@ -248,11 +263,11 @@ export class SyncMarketplaceHandler {
       listing.recordSyncStatusNote(
         `Remote status ${remoteStatus} could not be applied from local status ${before}: ${result.error.message}`,
       );
-      return;
+      return null;
     }
-    if (before !== listing.status) {
-      await this.publishStatusChanged(listing, before, remoteStatus);
-    }
+    return before !== listing.status
+      ? this.statusChangedEvent(listing, before, remoteStatus)
+      : null;
   }
 
   private transitionForRemoteStatus(
@@ -281,12 +296,12 @@ export class SyncMarketplaceHandler {
     return 'unknown';
   }
 
-  private async publishStatusChanged(
+  private statusChangedEvent(
     listing: Listing,
     previousStatus: string,
     remoteStatus: string,
-  ): Promise<void> {
-    const event: DomainEvent = {
+  ): DomainEvent {
+    return {
       type: 'listing.remote_status_reconciled',
       aggregateType: 'Listing',
       aggregateId: listing.id,
@@ -300,7 +315,6 @@ export class SyncMarketplaceHandler {
       },
       occurredAt: new Date(),
     };
-    await this.deps.eventPublisher?.publish(event);
   }
 
   private async recordMarketplaceSuccess(marketplaceId: string): Promise<boolean> {

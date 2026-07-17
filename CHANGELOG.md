@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.13.0](https://github.com/ylazakovich/marketdesk/compare/hermes-marketdesk-v0.12.1...hermes-marketdesk-v0.13.0) (2026-07-17)
+
+
+### ✨ Features
+
+* **products:** redesign product detail page ([#219](https://github.com/ylazakovich/marketdesk/issues/219)) ([6030b7f](https://github.com/ylazakovich/marketdesk/commit/6030b7fd21cc511c9e8d37fa66df528c0795a379))
+
+
+### 🐛 Bug Fixes
+
+* **frontend:** recover stale lazy-loaded chunks ([#222](https://github.com/ylazakovich/marketdesk/issues/222)) ([f0961a9](https://github.com/ylazakovich/marketdesk/commit/f0961a9f3e678224d7400a8bcb2429a407b9d918))
+
 ## [0.12.1](https://github.com/ylazakovich/marketdesk/compare/hermes-marketdesk-v0.12.0...hermes-marketdesk-v0.12.1) (2026-07-17)
 
 

@@ -13,10 +13,23 @@ import type { IEventPublisher, DomainEvent } from '../../domain/ports/IEventPubl
 import type { UpdateProductDTO } from '../dto/UpdateProductDTO';
 import { ProductValidator } from '../validators/ProductValidator';
 
+interface PersistedProductUpdate {
+  product: Product;
+  pricing: {
+    pricesChanged: boolean;
+    belowCostConfirmed: boolean;
+    previousCostPrice: number | null;
+    previousSellingPrice: number;
+  };
+}
+
 export class UpdateProductUseCase {
   constructor(
     private readonly productRepo: IProductRepository,
     private readonly eventPublisher: IEventPublisher,
+    private readonly runInTransaction?: <T>(
+      work: (productRepo: IProductRepository) => Promise<T>,
+    ) => Promise<T>,
     private readonly validator: ProductValidator = new ProductValidator()
   ) {}
 
@@ -25,9 +38,30 @@ export class UpdateProductUseCase {
     if (validated.isErr()) return validated;
     const dto = validated.value;
 
+    const persisted = this.runInTransaction
+      ? await this.runInTransaction((productRepo) => this.executeValidated(dto, productRepo, true))
+      : await this.executeValidated(dto, this.productRepo, false);
+    if (persisted.isErr()) return persisted;
+
+    try {
+      await this.eventPublisher.publish(this.updatedEvent(persisted.value.product, persisted.value.pricing));
+    } catch {
+      // Product already committed; don't fail the request over best-effort delivery.
+    }
+    return Ok(persisted.value.product);
+  }
+
+  private async executeValidated(
+    dto: UpdateProductDTO,
+    productRepo: IProductRepository,
+    lockProduct: boolean,
+  ): Promise<Result<PersistedProductUpdate>> {
+
     // Tenant-scoped load: a product in another workspace reads as not-found so a
     // cross-tenant id cannot be mutated (S2).
-    const product = await this.productRepo.findByIdForWorkspace(dto.productId, dto.workspaceId);
+    const product = lockProduct
+      ? await productRepo.findByIdForWorkspaceForUpdate(dto.productId, dto.workspaceId)
+      : await productRepo.findByIdForWorkspace(dto.productId, dto.workspaceId);
     if (!product) {
       return Err(new NotFoundError(`Product not found: ${dto.productId}`));
     }
@@ -106,23 +140,17 @@ export class UpdateProductUseCase {
       if (r.isErr()) return r;
     }
 
-    await this.productRepo.save(product);
+    await productRepo.save(product);
 
-    try {
-      await this.eventPublisher.publish(
-        this.updatedEvent(product, {
-          pricesChanged: dto.costPrice !== undefined || dto.sellingPrice !== undefined,
-          belowCostConfirmed: dto.allowBelowCost === true,
-          previousCostPrice,
-          previousSellingPrice,
-        })
-      );
-    } catch {
-      // Product already persisted; don't fail the request over a best-effort
-      // event publication failure. Consider logging/metrics here.
-    }
-
-    return Ok(product);
+    return Ok({
+      product,
+      pricing: {
+        pricesChanged: dto.costPrice !== undefined || dto.sellingPrice !== undefined,
+        belowCostConfirmed: dto.allowBelowCost === true,
+        previousCostPrice,
+        previousSellingPrice,
+      },
+    });
   }
 
   private updatedEvent(

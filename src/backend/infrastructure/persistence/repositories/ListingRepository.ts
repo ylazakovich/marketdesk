@@ -4,6 +4,7 @@ import type { IListingRepository } from '../../../domain/repositories/interfaces
 import type { Listing } from '../../../domain/entities/Listing';
 import { ListingMapper } from '../mappers/ListingMapper';
 import type { ListingRow } from '../mappers/rows';
+import { InvalidStateError } from '../../../domain/shared/DomainError';
 
 // listings carry no currency column; join products -> workspaces for Money.
 const LISTING_SELECT = `
@@ -110,6 +111,21 @@ export class ListingRepository implements IListingRepository {
     await withTransaction(run);
   }
 
+  async saveAllIfUnchanged(
+    listings: Listing[],
+    expectedUpdatedAt: ReadonlyMap<string, Date>,
+  ): Promise<void> {
+    const run = async (client: PoolClient): Promise<void> => {
+      for (const listing of [...listings].sort((a, b) => a.id.localeCompare(b.id))) {
+        const expected = expectedUpdatedAt.get(listing.id);
+        if (!expected) throw new InvalidStateError(`Missing listing version: ${listing.id}`);
+        await this.updateIfUnchanged(listing, expected, client);
+      }
+    };
+    if (this.client) return run(this.client);
+    await withTransaction(run);
+  }
+
   async delete(id: string): Promise<void> {
     await query(`DELETE FROM listings WHERE id = $1`, [id], this.client);
   }
@@ -158,5 +174,32 @@ export class ListingRepository implements IListingRepository {
       ],
       client,
     );
+  }
+
+  private async updateIfUnchanged(
+    listing: Listing,
+    expectedUpdatedAt: Date,
+    client: PoolClient,
+  ): Promise<void> {
+    const result = await query(
+      `UPDATE listings SET
+         marketplace_listing_id = $2, external_url = $3, price = $4, status = $5,
+         remote_status = $6, marketplace_category = $7, views = $8, watchers = $9,
+         messages = $10, published_at = $11, expires_at = $12, sync_error = $13,
+         last_sync_at = $14, updated_at = $15
+       WHERE id = $1 AND updated_at = $16
+       RETURNING id`,
+      [
+        listing.id, listing.marketplaceListingId, listing.externalUrl, listing.price.amount,
+        listing.status, listing.remoteStatus,
+        listing.marketplaceCategory ? JSON.stringify(listing.marketplaceCategory) : null,
+        listing.views, listing.watchers, listing.messages, listing.publishedAt, listing.expiresAt,
+        listing.syncError, listing.lastSyncAt, listing.updatedAt, expectedUpdatedAt,
+      ],
+      client,
+    );
+    if (result.rowCount !== 1) {
+      throw new InvalidStateError(`Listing changed concurrently; retry sync: ${listing.id}`);
+    }
   }
 }

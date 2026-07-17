@@ -71,6 +71,7 @@ export function presentProduct(product: Product): ProductView {
     sellingPrice: product.sellingPrice.amount,
     condition: product.condition,
     category: product.category,
+    categoryProvenance: product.categoryProvenance,
     status: product.status,
     tags: [...product.tags],
     images: [...product.images],

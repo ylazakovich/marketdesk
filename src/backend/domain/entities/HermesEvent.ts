@@ -67,6 +67,9 @@ export class HermesEvent {
     if (!HERMES_EVENT_STATUSES.includes(status)) {
       return Err(new ValidationError(`Unknown HermesEvent status: ${status}`));
     }
+    if (props.type === 'product_category_conflict' && status !== 'pending_review') {
+      return Err(new ValidationError('Product category conflicts must start in pending_review'));
+    }
     const terminal = ['applied', 'dismissed', 'failed', 'reverted'].includes(status);
     const resolvedAt = props.resolvedAt ?? null;
     if (terminal !== (resolvedAt !== null)) {
@@ -118,6 +121,7 @@ export class HermesEvent {
         type === 'relist' ||
         type === 'needs_relisting' ||
         type === 'create_listing' ||
+        type === 'product_category_conflict' ||
         type === 'olx_category_mismatch';
       if (requiresChange) {
         return Err(
@@ -153,6 +157,9 @@ export class HermesEvent {
     }
     if (type === 'create_listing' && change.kind !== 'create_listing') {
       return Err(new ValidationError('create_listing requires a create_listing change'));
+    }
+    if (type === 'product_category_conflict' && change.kind !== 'product_category_conflict') {
+      return Err(new ValidationError('product_category_conflict requires a typed category conflict'));
     }
     if (type === 'olx_category_mismatch' && change.kind !== 'category_recreation') {
       return Err(new ValidationError('olx_category_mismatch requires a category_recreation change'));
@@ -197,6 +204,9 @@ export class HermesEvent {
 
   // Human approval starts execution; it does not claim the side effect succeeded.
   approve(): Result<void> {
+    if (this.type === 'product_category_conflict') {
+      return Err(new InvalidStateError('Product category conflicts are dismiss-only until a category is resolved explicitly'));
+    }
     if (this._status !== 'pending_review') {
       return Err(
         new InvalidStateError(`Cannot approve event in ${this._status} state`),
@@ -208,6 +218,9 @@ export class HermesEvent {
   }
 
   beginAutoApply(): Result<void> {
+    if (this.type === 'product_category_conflict') {
+      return Err(new InvalidStateError('Product category conflicts cannot be auto-applied'));
+    }
     if (this._status !== 'pending_decision') {
       return Err(
         new InvalidStateError(`Cannot auto-apply event in ${this._status} state`),

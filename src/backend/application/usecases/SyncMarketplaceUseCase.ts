@@ -41,6 +41,8 @@ export class SyncMarketplaceUseCase {
       marketplaceKey: marketplace.key,
       marketplaceId: marketplace.id,
       externalListingIds,
+      trigger: 'manual',
+      actorId: input.actorId,
     });
 
     return Ok({

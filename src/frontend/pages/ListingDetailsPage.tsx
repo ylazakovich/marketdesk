@@ -17,7 +17,7 @@ import EditIcon from '@mui/icons-material/EditOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import type { HermesEvent, Listing, Marketplace } from '@shared/types';
+import type { HermesEvent, Listing, Marketplace, ProductCategoryProvenance } from '@shared/types';
 import type { PublishListingInput, PublishListingPreview } from '../state/api/dto.js';
 import {
   useProduct,
@@ -60,6 +60,19 @@ export const mainPreviewImageSx = {
 
 export const MIN_QUOTA_OVERRIDE_REASON_LENGTH = 10;
 export const MAX_QUOTA_OVERRIDE_REASON_LENGTH = 500;
+
+type CategoryConflictProvenance = Extract<ProductCategoryProvenance, { status: 'conflict' }>;
+
+export function categoryConflictEvidenceLines(provenance: CategoryConflictProvenance): string[] {
+  return [
+    ...(provenance.currentSources ?? []).map(
+      (source) => `Current · listing ${source.listingId} · ${source.path.join(' › ')} · ID ${source.providerCategoryId} · Taxonomy verified ${source.taxonomyVerifiedAt} · Synced ${source.syncedAt}`,
+    ),
+    ...provenance.candidates.map(
+      (source) => `Candidate · listing ${source.listingId} · ${source.path.join(' › ')} · ID ${source.providerCategoryId} · Taxonomy verified ${source.taxonomyVerifiedAt} · Synced ${source.syncedAt}`,
+    ),
+  ];
+}
 
 export function buildPublishListingInput(
   listingId: string,
@@ -526,6 +539,32 @@ const ListingDetailsPage: React.FC = () => {
           <Stack spacing={1.25}>
             <DetailRow label="Condition">{conditionLabel(p.condition)}</DetailRow>
             <DetailRow label="Category">{p.category || '—'}</DetailRow>
+            {p.categoryProvenance?.status === 'synced' && (
+              <DetailRow label="Category source">
+                {p.categoryProvenance.sources.map((source) => (
+                  <Typography key={`${source.marketplaceId}:${source.listingId}`} variant="body2" component="span" sx={{ display: 'block' }}>
+                    {source.marketplaceKey.toUpperCase()} · listing {source.listingId} · {source.path.join(' › ')} · ID {source.providerCategoryId}
+                    {' · '}Taxonomy verified {new Date(source.taxonomyVerifiedAt).toLocaleString()}
+                    {' · '}Synced {new Date(source.syncedAt).toLocaleString()}
+                  </Typography>
+                ))}
+              </DetailRow>
+            )}
+            {p.categoryProvenance?.status === 'conflict' && (
+              <DetailRow label="Category source">
+                <Typography component="span" variant="body2" color="warning.main" sx={{ display: 'block', fontWeight: 600 }}>
+                  Conflicting active listing categories require review
+                </Typography>
+                {categoryConflictEvidenceLines(p.categoryProvenance).map((line) => (
+                  <Typography key={line} component="span" variant="body2" sx={{ display: 'block' }}>
+                    {line}
+                  </Typography>
+                ))}
+                <Typography component="span" variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                  Detected {new Date(p.categoryProvenance.detectedAt).toLocaleString()}
+                </Typography>
+              </DetailRow>
+            )}
             <DetailRow label="Cost">{formatCurrency(p.costPrice, currency)}</DetailRow>
             <DetailRow label="Selling price" strong>
               {formatCurrency(p.sellingPrice, currency)}

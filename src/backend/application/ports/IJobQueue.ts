@@ -72,6 +72,8 @@ export interface SyncMarketplaceJob {
   // update the marketplace's lastSyncAt/errorCount (C5).
   marketplaceId: string;
   externalListingIds: string[];
+  trigger?: 'manual' | 'scheduled';
+  actorId?: string;
 }
 
 export interface HermesRunJob {

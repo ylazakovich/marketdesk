@@ -164,4 +164,25 @@ describe('UpdateProductUseCase', () => {
     expect(productRepo.saved[0]?.sellingPrice.amount).toBe(599);
   });
 
+  it('uses a transaction-scoped locked re-read before applying an ordinary update', async () => {
+    const { productRepo, publisher, product } = setup();
+    const locked = jest.spyOn(productRepo, 'findByIdForWorkspaceForUpdate');
+    const runInTransaction = jest.fn(async <T>(work: (repo: InMemoryProductRepository) => Promise<T>) => {
+      const result = await work(productRepo);
+      expect(publisher.published).toHaveLength(0);
+      return result;
+    });
+    const useCase = new UpdateProductUseCase(productRepo, publisher, runInTransaction);
+
+    const result = await useCase.execute({
+      productId: product.id,
+      workspaceId: product.workspaceId,
+      name: 'AirPods 4 updated safely',
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(runInTransaction).toHaveBeenCalledTimes(1);
+    expect(locked).toHaveBeenCalledWith(product.id, product.workspaceId);
+  });
+
 });

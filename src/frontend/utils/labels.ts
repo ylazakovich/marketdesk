@@ -52,6 +52,7 @@ export const HERMES_TYPE_LABELS: Record<HermesEventType, string> = {
   create_listing: 'Create listing',
   update_description: 'Update description',
   olx_category_mismatch: 'OLX category mismatch',
+  product_category_conflict: 'Product category conflict',
   relist: 'Relist',
 };
 

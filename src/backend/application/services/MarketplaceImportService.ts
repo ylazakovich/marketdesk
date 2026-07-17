@@ -1,5 +1,9 @@
 import { randomUUID } from 'crypto';
-import type { MarketplaceKey, ProductCondition } from '../../../shared/types';
+import type {
+  MarketplaceCategoryMetadata,
+  MarketplaceKey,
+  ProductCondition,
+} from '../../../shared/types';
 import { Product } from '../../domain/entities/Product';
 import { Listing } from '../../domain/entities/Listing';
 import { HermesEvent } from '../../domain/entities/HermesEvent';
@@ -25,6 +29,7 @@ import type {
   MarketplaceAccountRepository,
 } from './MarketplaceOAuthService';
 import type { IdGenerator } from '../ports/IdGenerator';
+import type { ProductCategorySyncService } from './ProductCategorySyncService';
 import { Err, Ok, type Result } from '../../domain/shared/Result';
 import {
   GuardrailViolationError,
@@ -86,6 +91,7 @@ interface ImportDiscoveryContext {
 export interface MarketplaceImportRepositories {
   productRepo: IProductRepository;
   listingRepo: IListingRepository;
+  marketplaceRepo?: IMarketplaceRepository;
   activityLog?: IActivityLogRepository;
   eventRepo: IEventRepository;
   correctionOperations: ICategoryCorrectionOperationRepository;
@@ -141,6 +147,7 @@ export class MarketplaceImportService {
     },
     private readonly eventRepo?: IEventRepository,
     private readonly correctionOperations?: ICategoryCorrectionOperationRepository,
+    private readonly productCategorySync?: ProductCategorySyncService,
   ) {}
 
   async preview(input: ImportPreviewInput): Promise<Result<ImportPreviewResult>> {
@@ -158,13 +165,16 @@ export class MarketplaceImportService {
     );
   }
 
-  async recommendSyncedCategoryMismatch(input: {
-    listing: Listing;
-    workspaceId: string;
-    currentCategory: ImportedMarketplaceListing['marketplaceCategory'];
-    proposedCategory: ImportedMarketplaceListing['marketplaceCategory'];
-  }): Promise<void> {
-    await this.unitOfWork(async (repos) => {
+  async recommendSyncedCategoryMismatch(
+    input: {
+      listing: Listing;
+      workspaceId: string;
+      currentCategory: ImportedMarketplaceListing['marketplaceCategory'];
+      proposedCategory: ImportedMarketplaceListing['marketplaceCategory'];
+    },
+    repositories?: MarketplaceImportRepositories,
+  ): Promise<void> {
+    const recommend = async (repos: MarketplaceImportRepositories): Promise<void> => {
       const product = await repos.productRepo.findByIdForWorkspace(
         input.listing.productId,
         input.workspaceId,
@@ -179,7 +189,12 @@ export class MarketplaceImportService {
         repos.eventRepo,
         repos.correctionOperations,
       );
-    });
+    };
+    if (repositories) {
+      await recommend(repositories);
+    } else {
+      await this.unitOfWork(recommend);
+    }
   }
 
   async import(input: ImportApplyInput): Promise<Result<ImportApplyResult>> {
@@ -233,6 +248,12 @@ export class MarketplaceImportService {
               input.actorId,
               repos
             );
+            await this.reconcileImportedProductCategory(
+              existing.id,
+              input.workspaceId,
+              input.actorId,
+              repos,
+            );
             return { status: 'updated' as const, listingId: existing.id };
           }
 
@@ -243,6 +264,12 @@ export class MarketplaceImportService {
           );
           await repos.productRepo.save(product);
           await repos.listingRepo.save(listing);
+          await this.reconcileImportedProductCategory(
+            listing.id,
+            input.workspaceId,
+            input.actorId,
+            repos,
+          );
           await this.createCategoryMismatchRecommendation(
             listing,
             product,
@@ -521,7 +548,10 @@ export class MarketplaceImportService {
       changes.push('price');
     }
     if (listing.externalUrl !== (remote.externalUrl ?? null)) changes.push('external_url');
-    if (JSON.stringify(listing.marketplaceCategory) !== JSON.stringify(remote.marketplaceCategory ?? null))
+    if (
+      remote.marketplaceCategory != null
+      && !this.sameMarketplaceCategoryIdentity(listing.marketplaceCategory, remote.marketplaceCategory)
+    )
       changes.push('marketplace_category');
     if (listing.status !== remote.status) changes.push('status');
     if (remote.metrics?.views !== undefined && listing.views !== remote.metrics.views)
@@ -542,8 +572,38 @@ export class MarketplaceImportService {
       ) {
         changes.push('product_selling_price');
       }
+      if (
+        this.productCategorySync
+        && remote.marketplaceCategory
+        && (
+          product.category !== remote.marketplaceCategory.name.trim()
+          || product.categoryProvenance?.status !== 'synced'
+          || !product.categoryProvenance.sources.some((source) => source.listingId === listing.id)
+        )
+      ) {
+        changes.push('product_category');
+      }
     }
     return changes;
+  }
+
+  private async reconcileImportedProductCategory(
+    listingId: string,
+    workspaceId: string,
+    actorId: string | undefined,
+    repos: MarketplaceImportRepositories,
+  ): Promise<void> {
+    if (!this.productCategorySync) return;
+    await this.productCategorySync.reconcileWithRepositories(
+      { workspaceId, listingId, actorId, trigger: 'import' },
+      {
+        productRepo: repos.productRepo,
+        listingRepo: repos.listingRepo,
+        marketplaceRepo: repos.marketplaceRepo ?? this.marketplaceRepo,
+        activityLog: repos.activityLog,
+        eventRepo: repos.eventRepo,
+      },
+    );
   }
 
   private createImportedRecords(
@@ -610,13 +670,18 @@ export class MarketplaceImportService {
     actorId: string | undefined,
     repos: MarketplaceImportRepositories
   ): Promise<void> {
+    const product = await repos.productRepo.findByIdForWorkspaceForUpdate(listing.productId, workspaceId);
+    const currentListing = await repos.listingRepo.findByIdForWorkspace(listing.id, workspaceId);
+    if (!currentListing || currentListing.productId !== listing.productId) {
+      throw new NotFoundError(`Listing not found: ${listing.id}`);
+    }
+    listing = currentListing;
     const proposedCategory = listing.marketplaceCategory;
     if (remote.price !== null && remote.price !== undefined) {
       const price = this.unwrapMoney(remote.price, remote.currency ?? listing.price.currency);
       const priceResult = listing.updatePrice(price);
       if (priceResult.isErr()) throw priceResult.error;
     }
-    const product = await repos.productRepo.findByIdForWorkspace(listing.productId, workspaceId);
     if (remote.status === 'live' && product && !product.canPublish()) {
       const statusRecorded = listing.recordImportedStatus(remote.status, product);
       if (statusRecorded.isErr()) throw statusRecorded.error;
@@ -658,22 +723,26 @@ export class MarketplaceImportService {
       await repos.productRepo.save(product);
     }
     listing.recordExternalUrl(remote.externalUrl ?? null);
-    listing.recordMarketplaceCategory(remote.marketplaceCategory ?? null);
+    if (remote.marketplaceCategory != null) {
+      listing.recordMarketplaceCategory(remote.marketplaceCategory);
+    }
     const statusRecorded = listing.recordImportedStatus(remote.status, product ?? null);
     if (statusRecorded.isErr()) throw statusRecorded.error;
     listing.recordSyncStats(remote.metrics ?? {}, new Date());
     listing.recordSyncStatusNote(null);
     await repos.listingRepo.save(listing);
-    await this.createCategoryMismatchRecommendation(
-      listing,
-      product,
-      remote.marketplaceCategory ?? null,
-      proposedCategory,
-      workspaceId,
-      repos.activityLog,
-      repos.eventRepo,
-      repos.correctionOperations,
-    );
+    if (remote.marketplaceCategory != null) {
+      await this.createCategoryMismatchRecommendation(
+        listing,
+        product,
+        remote.marketplaceCategory,
+        proposedCategory,
+        workspaceId,
+        repos.activityLog,
+        repos.eventRepo,
+        repos.correctionOperations,
+      );
+    }
     await repos.activityLog?.record(
       this.activityEntry(
         workspaceId,
@@ -817,6 +886,24 @@ export class MarketplaceImportService {
 
   private sameStringList(left: string[], right: string[]): boolean {
     return left.length === right.length && left.every((value, index) => value === right[index]);
+  }
+
+  private sameMarketplaceCategoryIdentity(
+    left: MarketplaceCategoryMetadata | null,
+    right: MarketplaceCategoryMetadata | null,
+  ): boolean {
+    if (left === null || right === null) return left === right;
+    const canonical = (category: MarketplaceCategoryMetadata) => JSON.stringify({
+      providerCategoryId: category.providerCategoryId.trim(),
+      name: category.name.trim().toLocaleLowerCase(),
+      path: category.path.map((part) => part.trim().toLocaleLowerCase()),
+      source: category.source,
+      confidence: category.confidence,
+      isLeaf: category.isLeaf,
+      taxonomyVerifiedAt: category.taxonomyVerifiedAt,
+      taxonomyStaleAt: category.taxonomyStaleAt,
+    });
+    return canonical(left) === canonical(right);
   }
 
   private activityEntry(

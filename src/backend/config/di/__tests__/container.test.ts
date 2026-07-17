@@ -72,12 +72,15 @@ describe('buildContainer (composition root)', () => {
     ).toThrow('MARKETPLACE_CREDENTIALS_KEY');
   });
 
-  it('retries checkpointed publish jobs with exponential backoff', () => {
+  it('retries checkpointed publish and optimistic sync jobs with exponential backoff', () => {
     expect(buildBullAddOptions('publish-listing')).toMatchObject({
       attempts: 3,
       backoff: { type: 'exponential', delay: 1_000 },
     });
-    expect(buildBullAddOptions('sync-marketplace')).not.toHaveProperty('attempts');
+    expect(buildBullAddOptions('sync-marketplace')).toMatchObject({
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 1_000 },
+    });
   });
 
   it('populates every required AppDeps field', () => {

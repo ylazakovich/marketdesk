@@ -3,6 +3,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   buildPublishListingInput,
+  categoryConflictEvidenceLines,
   mainPreviewImageSx,
   PublishPreviewReview,
   remoteMarketplaceChipColor,
@@ -51,6 +52,22 @@ function event(
 }
 
 describe('ListingDetailsPage presentation', () => {
+  it('exposes current and candidate listing evidence for a category conflict', () => {
+    const source = {
+      marketplaceKey: 'olx' as const, marketplaceId: 'marketplace-1',
+      providerCategoryId: '100', name: 'Projectors', path: ['Electronics', 'Projectors'],
+      taxonomyVerifiedAt: '2026-07-15T00:00:00.000Z', syncedAt: '2026-07-15T01:00:00.000Z',
+    };
+    expect(categoryConflictEvidenceLines({
+      status: 'conflict', detectedAt: '2026-07-15T02:00:00.000Z',
+      currentSources: [{ ...source, listingId: 'listing-current' }],
+      candidates: [{ ...source, listingId: 'listing-candidate', providerCategoryId: '200', path: ['Electronics', 'Audio'] }],
+    })).toEqual([
+      'Current · listing listing-current · Electronics › Projectors · ID 100 · Taxonomy verified 2026-07-15T00:00:00.000Z · Synced 2026-07-15T01:00:00.000Z',
+      'Candidate · listing listing-candidate · Electronics › Audio · ID 200 · Taxonomy verified 2026-07-15T00:00:00.000Z · Synced 2026-07-15T01:00:00.000Z',
+    ]);
+  });
+
   it.each([
     ['low-confidence', 'Category confidence 0.42 is below the required threshold'],
     ['stale', 'OLX taxonomy verification is stale'],

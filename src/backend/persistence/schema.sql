@@ -49,10 +49,21 @@ CREATE TABLE IF NOT EXISTS products (
   selling_price DECIMAL(10, 2) NOT NULL,
   condition VARCHAR(50) NOT NULL,
   category VARCHAR(100) NOT NULL,
+  category_provenance JSONB,
   status VARCHAR(50) DEFAULT 'draft',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  CONSTRAINT check_price CHECK (selling_price >= 0)
+  CONSTRAINT check_price CHECK (selling_price >= 0),
+  CONSTRAINT products_category_provenance_shape CHECK (
+    category_provenance IS NULL
+    OR (
+      jsonb_typeof(category_provenance) = 'object'
+      AND COALESCE(
+        category_provenance->>'status' IN ('synced', 'conflict'),
+        FALSE
+      )
+    )
+  )
 );
 
 CREATE INDEX IF NOT EXISTS idx_products_workspace_status ON products(workspace_id, status);

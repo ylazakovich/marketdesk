@@ -65,7 +65,8 @@ function remoteListing(
 function createService(
   remote: ImportedMarketplaceListing[],
   existing: Listing[] = [],
-  runUnitOfWork?: ConstructorParameters<typeof MarketplaceImportService>[9]
+  runUnitOfWork?: ConstructorParameters<typeof MarketplaceImportService>[9],
+  productCategorySync?: ConstructorParameters<typeof MarketplaceImportService>[12],
 ) {
   const marketplace = unwrap(
     Marketplace.create({
@@ -114,6 +115,7 @@ function createService(
     runUnitOfWork ?? defaultUnitOfWork,
     eventRepo,
     correctionOperations,
+    productCategorySync,
   );
   return {
     service,
@@ -414,6 +416,94 @@ describe('MarketplaceImportService', () => {
     const [listing] = await listingRepo.findByMarketplace('marketplace-1');
     expect(listing.marketplaceCategory).toEqual(headphonesCategory);
     expect(listing.status).toBe('live');
+  });
+
+  it('preserves trusted listing category evidence when OLX omits category metadata', async () => {
+    const existing = unwrap(Listing.create({
+      id: 'listing-category-preserve', productId: 'product-1', marketplaceId: 'marketplace-1',
+      marketplaceListingId: 'olx-1', externalUrl: 'https://www.olx.pl/d/oferta/olx-1',
+      price: money(100), status: 'live', remoteStatus: 'active',
+      marketplaceCategory: headphonesCategory, views: 7, watchers: 2, messages: 1,
+    }));
+    const { service, listingRepo } = createService([
+      remoteListing({ marketplaceCategory: null }),
+    ], [existing]);
+
+    const result = await service.import({
+      workspaceId: 'workspace-1', marketplaceId: 'marketplace-1', externalListingIds: ['olx-1'],
+    });
+
+    if (result.isErr()) throw result.error;
+    expect((await listingRepo.findById(existing.id))?.marketplaceCategory).toEqual(headphonesCategory);
+  });
+
+  it('detects refreshed trust metadata even when the category identity is unchanged', async () => {
+    const existingCategory = { ...headphonesCategory, taxonomyVerifiedAt: '2026-01-10T11:00:00.000Z' };
+    const refreshedCategory = { ...headphonesCategory, taxonomyVerifiedAt: '2026-01-10T12:00:00.000Z' };
+    const existing = unwrap(Listing.create({
+      id: 'listing-trust-refresh', productId: 'product-1', marketplaceId: 'marketplace-1',
+      marketplaceListingId: 'olx-1', price: money(100), status: 'live',
+      marketplaceCategory: existingCategory,
+    }));
+    const { service } = createService([
+      remoteListing({ marketplaceCategory: refreshedCategory }),
+    ], [existing]);
+
+    const preview = await service.preview({ workspaceId: 'workspace-1', marketplaceId: 'marketplace-1' });
+    if (preview.isErr()) throw preview.error;
+
+    expect(preview.value.items[0]).toMatchObject({
+      status: 'changed',
+      proposedChanges: expect.arrayContaining(['marketplace_category']),
+    });
+  });
+
+  it('reconciles a stale product category even when the imported listing itself is unchanged', async () => {
+    const product = unwrap(Product.create({
+      id: 'product-projector-import', workspaceId: 'workspace-1', sku: 'PROJECTOR-IMPORT',
+      name: 'Remote camera', description: 'Existing OLX advert with enough seller supplied detail.',
+      costPrice: money(10), sellingPrice: money(100), condition: 'good',
+      category: 'Electronics', status: 'active', images: ['https://img/1.jpg'],
+    }));
+    const existing = unwrap(Listing.create({
+      id: 'listing-projector-import', productId: product.id, marketplaceId: 'marketplace-1',
+      marketplaceListingId: 'olx-1', externalUrl: 'https://www.olx.pl/d/oferta/olx-1',
+      price: money(100), status: 'live', marketplaceCategory: projectorCategory,
+      views: 7, watchers: 2, messages: 1,
+    }));
+    const reconcileWithRepositories = jest.fn(async () => ({ outcome: 'synced', categoryChanged: true }));
+    const created = createService(
+      [remoteListing({ marketplaceCategory: projectorCategory })],
+      [existing],
+      undefined,
+      { reconcileWithRepositories } as any,
+    );
+    created.productRepo.items.set(product.id, product);
+
+    const preview = await created.service.preview({
+      workspaceId: 'workspace-1', marketplaceId: 'marketplace-1',
+    });
+    if (preview.isErr()) throw preview.error;
+    expect(preview.value.items[0]).toMatchObject({
+      status: 'changed', proposedChanges: expect.arrayContaining(['product_category']),
+    });
+
+    const result = await created.service.import({
+      workspaceId: 'workspace-1', marketplaceId: 'marketplace-1', externalListingIds: ['olx-1'],
+      actorId: 'user-1',
+    });
+    if (result.isErr()) throw result.error;
+    expect(result.value).toMatchObject({ updated: 1, skipped: 0, failed: 0 });
+    expect(reconcileWithRepositories).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: 'workspace-1', listingId: 'listing-projector-import',
+        trigger: 'import', actorId: 'user-1',
+      }),
+      expect.objectContaining({
+        productRepo: created.productRepo,
+        listingRepo: created.listingRepo,
+      }),
+    );
   });
 
   it('creates one idempotent pending-review mismatch recommendation with separate fail-closed intents', async () => {

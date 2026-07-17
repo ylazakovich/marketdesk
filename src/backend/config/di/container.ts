@@ -110,6 +110,10 @@ import { AnalyticsApplicationService } from '../../application/services/Analytic
 import { MarketplaceOAuthService } from '../../application/services/MarketplaceOAuthService';
 import { MarketplaceSyncScheduler } from '../../application/services/MarketplaceSyncScheduler';
 import { MarketplaceImportService } from '../../application/services/MarketplaceImportService';
+import {
+  ProductCategorySyncService,
+  selectProductCategoryTriggerListings,
+} from '../../application/services/ProductCategorySyncService';
 import { OlxPublicationQuotaService } from '../../application/services/OlxPublicationQuotaService';
 import { CategoryCorrectionOperationService } from '../../application/services/CategoryCorrectionOperationService';
 import type { IdGenerator } from '../../application/ports/IdGenerator';
@@ -142,7 +146,7 @@ export function buildBullAddOptions(name: string, options?: JobEnqueueOptions) {
     // Publish retries resume from the durable checkpoint and never repeat an
     // ambiguous external POST. Backoff gives transient finalization failures time
     // to recover without hot-looping the queue.
-    ...(name === 'publish-listing'
+    ...(name === 'publish-listing' || name === 'sync-marketplace'
       ? { attempts: 3, backoff: { type: 'exponential', delay: 1_000 } }
       : {}),
   };
@@ -355,7 +359,11 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     workspaceRepo,
     idGenerator
   );
-  const updateProductUC = new UpdateProductUseCase(productRepo, eventPublisher);
+  const updateProductUC = new UpdateProductUseCase(
+    productRepo,
+    eventPublisher,
+    (work) => withPoolTransaction(pool, (client) => work(new ProductRepository(pool, client))),
+  );
   const publishListingUC = new PublishListingUseCase(
     listingRepo,
     productRepo,
@@ -437,6 +445,19 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     idGenerator,
     publishAttemptRepo,
   );
+  const productCategorySyncService = new ProductCategorySyncService(
+    (work) =>
+      withPoolTransaction(pool, (client) =>
+        work({
+          productRepo: new ProductRepository(pool, client),
+          listingRepo: new ListingRepository(pool, client),
+          marketplaceRepo: new MarketplaceRepository(pool, client),
+          activityLog: new ActivityLogRepository(pool, client),
+          eventRepo: new EventRepository(pool, client),
+        })
+      ),
+    idGenerator,
+  );
   const marketplaceImportService = new MarketplaceImportService(
     marketplaceRepo,
     productRepo,
@@ -457,6 +478,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
         work({
           productRepo: new ProductRepository(pool, client),
           listingRepo: new ListingRepository(pool, client),
+          marketplaceRepo: new MarketplaceRepository(pool, client),
           activityLog: new ActivityLogRepository(pool, client),
           eventRepo: new EventRepository(pool, client),
           correctionOperations: new CategoryCorrectionOperationRepository(pool, client),
@@ -464,6 +486,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
       ),
     eventRepo,
     categoryCorrectionOperationRepo,
+    productCategorySyncService,
   );
 
   // 9. Register job handlers now that their collaborators exist. The publish
@@ -505,6 +528,50 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
         : undefined,
     eventPublisher,
     recommendCategoryMismatch: (input) => marketplaceImportService.recommendSyncedCategoryMismatch(input),
+    persistAndReconcileProductCategories: async ({
+      marketplace,
+      listings,
+      expectedUpdatedAt,
+      mismatchCandidates,
+      job,
+    }) => {
+      await withPoolTransaction(pool, async (client) => {
+        const repositories = {
+          productRepo: new ProductRepository(pool, client),
+          listingRepo: new ListingRepository(pool, client),
+          marketplaceRepo: new MarketplaceRepository(pool, client),
+          activityLog: new ActivityLogRepository(pool, client),
+          eventRepo: new EventRepository(pool, client),
+          correctionOperations: new CategoryCorrectionOperationRepository(pool, client),
+        };
+        const productIds = [...new Set(listings.map((listing) => listing.productId))].sort();
+        for (const productId of productIds) {
+          const product = await repositories.productRepo.findByIdForWorkspaceForUpdate(
+            productId,
+            marketplace.workspaceId,
+          );
+          if (!product) throw new Error(`Product not found for synchronized listing: ${productId}`);
+        }
+        await repositories.listingRepo.saveAllIfUnchanged(listings, expectedUpdatedAt);
+        for (const candidate of mismatchCandidates) {
+          await marketplaceImportService.recommendSyncedCategoryMismatch(
+            { ...candidate, workspaceId: marketplace.workspaceId },
+            repositories,
+          );
+        }
+        for (const listing of selectProductCategoryTriggerListings(listings)) {
+          await productCategorySyncService.reconcileWithRepositories(
+            {
+              workspaceId: marketplace.workspaceId,
+              listingId: listing.id,
+              trigger: job.trigger ?? 'scheduled',
+              actorId: job.actorId,
+            },
+            repositories,
+          );
+        }
+      });
+    },
   });
   syncQueue.registerHandler((data) => syncHandler.handle(data));
 

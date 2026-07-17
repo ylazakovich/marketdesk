@@ -72,6 +72,7 @@ export class MarketplaceSyncScheduler {
         marketplaceKey: marketplace.key,
         marketplaceId: marketplace.id,
         externalListingIds: [],
+        trigger: 'scheduled',
       },
       { jobId, everyMs: HOURLY_SYNC_EVERY_MS },
     );

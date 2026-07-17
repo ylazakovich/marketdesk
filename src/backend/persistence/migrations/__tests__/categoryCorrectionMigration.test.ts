@@ -56,6 +56,30 @@ describe('OLX category correction migrations', () => {
     expect(runner).not.toContain('await pool.query(sql)');
   });
 
+  it('persists product category provenance with a constrained JSONB shape in migration and schema snapshot', () => {
+    const migration = readMigration('027_product_category_provenance.sql');
+    const schema = fs.readFileSync(
+      path.join(process.cwd(), 'src/backend/persistence/schema.sql'),
+      'utf8',
+    );
+
+    for (const sql of [migration, schema]) {
+      expect(sql).toContain('category_provenance JSONB');
+      expect(sql).toContain('products_category_provenance_shape');
+      expect(sql).toContain("category_provenance->>'status' IN ('synced', 'conflict')");
+      expect(sql).toContain('COALESCE(');
+    }
+    expect(migration).toContain('pg_get_constraintdef(oid)');
+    expect(migration).toContain("POSITION('COALESCE' IN UPPER(constraint_definition)) = 0");
+    expect(migration).toContain('DROP CONSTRAINT products_category_provenance_shape');
+    expect(migration).toContain('ADD CONSTRAINT products_category_provenance_shape');
+    expect(migration).toContain('NOT VALID');
+
+    const validation = readMigration('028_validate_product_category_provenance.sql');
+    expect(validation).toContain('AND NOT convalidated');
+    expect(validation).toContain('VALIDATE CONSTRAINT products_category_provenance_shape');
+  });
+
   it('preserves correction audit rows across ordinary event, listing, and marketplace retention', () => {
     const sql = readMigration('025_category_correction_operations.sql');
     const validation = readMigration('026_validate_olx_publication_mode.sql');

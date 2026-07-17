@@ -337,6 +337,130 @@ describe('SyncMarketplaceHandler', () => {
     expect(marketplace.lastSyncAt).not.toBeNull();
   });
 
+  it('persists listing evidence and product reconciliation through one atomic callback', async () => {
+    const synced: SyncedListing[] = [{
+      externalListingId: 'ext-atomic',
+      status: 'live',
+      marketplaceCategory: {
+        providerCategoryId: '2000', name: 'Projectors',
+        path: ['Electronics', 'TV and video', 'Projectors'],
+        source: 'provider_taxonomy', confidence: 1, isLeaf: true,
+        taxonomyVerifiedAt: '2026-07-16T12:00:00.000Z',
+        taxonomyStaleAt: '2026-07-17T12:00:00.000Z',
+      },
+    }];
+    const adapter = fakeAdapter({ sync: jest.fn(async () => synced) });
+    const { resolver } = resolverFor(adapter);
+    const listing = unwrap(Listing.create({
+      id: 'l-atomic', productId: 'p-atomic', marketplaceId: 'm-1',
+      price: money(50), status: 'live', marketplaceListingId: 'ext-atomic',
+    }));
+    const expectedUpdatedAt = listing.updatedAt;
+    const marketplace = unwrap(Marketplace.create({
+      id: 'm-1', workspaceId: 'w-1', key: 'olx', name: 'OLX',
+    }));
+    const listingStore = {
+      findByMarketplace: jest.fn(async () => [listing]),
+      saveAll: jest.fn(async () => undefined),
+    };
+    const persistAndReconcileProductCategories = jest.fn(async () => undefined);
+    const handler = new SyncMarketplaceHandler(resolver, {
+      listingStore,
+      marketplaceStore: {
+        findById: jest.fn(async () => marketplace),
+        save: jest.fn(async () => undefined),
+      },
+      persistAndReconcileProductCategories,
+    });
+
+    await handler.handle({
+      marketplaceKey: 'olx', marketplaceId: 'm-1', externalListingIds: ['ext-atomic'],
+      trigger: 'manual', actorId: 'user-1',
+    });
+
+    expect(listingStore.saveAll).not.toHaveBeenCalled();
+    expect(persistAndReconcileProductCategories).toHaveBeenCalledWith(expect.objectContaining({
+      marketplace,
+      listings: [expect.objectContaining({ id: 'l-atomic' })],
+      expectedUpdatedAt: new Map([['l-atomic', expectedUpdatedAt]]),
+      mismatchCandidates: [expect.objectContaining({ listing: expect.objectContaining({ id: 'l-atomic' }) })],
+      job: expect.objectContaining({ trigger: 'manual', actorId: 'user-1' }),
+    }));
+    expect(listing.marketplaceCategory).toEqual(synced[0].marketplaceCategory);
+  });
+
+  it('does not publish status or recommendation side effects when atomic persistence rejects', async () => {
+    const oldCategory = {
+      providerCategoryId: '1000', name: 'Televisions', path: ['Electronics', 'Televisions'],
+      source: 'provider_taxonomy' as const, confidence: 1, isLeaf: true,
+      taxonomyVerifiedAt: '2026-07-16T11:00:00.000Z', taxonomyStaleAt: '2026-07-17T11:00:00.000Z',
+    };
+    const newCategory = {
+      ...oldCategory, providerCategoryId: '2000', name: 'Projectors',
+      path: ['Electronics', 'Projectors'],
+    };
+    const sync = jest.fn(async (): Promise<SyncedListing[]> => [{
+      externalListingId: 'ext-cas', status: 'expired', remoteStatus: 'removed',
+      marketplaceCategory: newCategory,
+    }]);
+    const adapter = fakeAdapter({ sync });
+    const { resolver } = resolverFor(adapter);
+    const listing = unwrap(Listing.create({
+      id: 'l-cas', productId: 'p-cas', marketplaceId: 'm-1', price: money(50),
+      status: 'live', marketplaceListingId: 'ext-cas', marketplaceCategory: oldCategory,
+    }));
+    const marketplace = unwrap(Marketplace.create({
+      id: 'm-1', workspaceId: 'w-1', key: 'olx', name: 'OLX',
+    }));
+    const publish = jest.fn(async () => undefined);
+    const recommend = jest.fn(async () => undefined);
+    const persist = jest.fn(async () => {
+      throw new Error('Listing changed concurrently; retry sync');
+    });
+    const handler = new SyncMarketplaceHandler(resolver, {
+      listingStore: {
+        findByMarketplace: jest.fn(async () => [listing]),
+        saveAll: jest.fn(async () => undefined),
+      },
+      marketplaceStore: {
+        findById: jest.fn(async () => marketplace),
+        save: jest.fn(async () => undefined),
+      },
+      eventPublisher: { publish },
+      recommendCategoryMismatch: recommend,
+      persistAndReconcileProductCategories: persist,
+    });
+
+    await expect(handler.handle({
+      marketplaceKey: 'olx', marketplaceId: 'm-1', externalListingIds: ['ext-cas'],
+    })).rejects.toThrow('Listing changed concurrently');
+
+    expect(persist).toHaveBeenCalledWith(expect.objectContaining({
+      mismatchCandidates: [expect.objectContaining({ listing: expect.objectContaining({ id: 'l-cas' }) })],
+    }));
+    expect(recommend).not.toHaveBeenCalled();
+    expect(publish).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when the job provider key differs from the persisted marketplace', async () => {
+    const adapter = fakeAdapter();
+    const { resolver } = resolverFor(adapter);
+    const marketplace = unwrap(Marketplace.create({
+      id: 'm-1', workspaceId: 'w-1', key: 'allegro', name: 'Allegro',
+    }));
+    const handler = new SyncMarketplaceHandler(resolver, {
+      marketplaceStore: {
+        findById: jest.fn(async () => marketplace),
+        save: jest.fn(async () => undefined),
+      },
+    });
+
+    await expect(handler.handle({
+      marketplaceKey: 'olx', marketplaceId: 'm-1', externalListingIds: [],
+    })).rejects.toThrow('does not match persisted marketplace');
+    expect(adapter.sync).not.toHaveBeenCalled();
+  });
+
   it('reconciles terminal remote lifecycle statuses and emits one transition event', async () => {
     const synced: SyncedListing[] = [
       {

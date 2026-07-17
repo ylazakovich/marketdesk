@@ -8,7 +8,7 @@ import type { ProductImageRow, ProductRow, ProductTagRow } from '../mappers/rows
 // products carry no currency column; join workspaces to reconstruct Money.
 const PRODUCT_SELECT = `
   SELECT p.id, p.workspace_id, p.sku, p.name, p.description,
-         p.cost_price, p.selling_price, p.condition, p.category, p.status,
+         p.cost_price, p.selling_price, p.condition, p.category, p.category_provenance, p.status,
          p.created_at, p.updated_at, w.currency
   FROM products p
   JOIN workspaces w ON w.id = p.workspace_id
@@ -42,6 +42,19 @@ export class ProductRepository implements IProductRepository {
       `${PRODUCT_SELECT} WHERE p.id = $1 AND p.workspace_id = $2`,
       [id, workspaceId],
       this.queryClient
+    );
+    const row = rows[0];
+    return row ? this.hydrate(row) : null;
+  }
+
+  async findByIdForWorkspaceForUpdate(id: string, workspaceId: string): Promise<Product | null> {
+    if (!this.client) {
+      throw new Error('Product row locking requires an enlisted transaction client');
+    }
+    const { rows } = await query<ProductRow>(
+      `${PRODUCT_SELECT} WHERE p.id = $1 AND p.workspace_id = $2 FOR UPDATE OF p`,
+      [id, workspaceId],
+      this.client,
     );
     const row = rows[0];
     return row ? this.hydrate(row) : null;
@@ -108,15 +121,16 @@ export class ProductRepository implements IProductRepository {
     await query(
       `INSERT INTO products
          (id, workspace_id, sku, name, description, cost_price, selling_price,
-          condition, category, status, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          condition, category, category_provenance, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
        ON CONFLICT (id) DO UPDATE SET
          name = EXCLUDED.name,
          description = EXCLUDED.description,
          cost_price = EXCLUDED.cost_price,
          selling_price = EXCLUDED.selling_price,
          condition = EXCLUDED.condition,
-         category = EXCLUDED.category,
+         category = CASE WHEN $14 THEN EXCLUDED.category ELSE products.category END,
+         category_provenance = CASE WHEN $14 THEN EXCLUDED.category_provenance ELSE products.category_provenance END,
          status = EXCLUDED.status,
          updated_at = EXCLUDED.updated_at`,
       [
@@ -129,9 +143,11 @@ export class ProductRepository implements IProductRepository {
         product.sellingPrice.amount,
         product.condition,
         product.category,
+        product.categoryProvenance ? JSON.stringify(product.categoryProvenance) : null,
         product.status,
         product.createdAt,
         product.updatedAt,
+        product.hasCategoryStateChanges,
       ],
       client
     );
@@ -156,6 +172,7 @@ export class ProductRepository implements IProductRepository {
       );
       position += 1;
     }
+    product.markCategoryStatePersisted();
   }
 
   private async runInTransaction(fn: (client: PoolClient) => Promise<void>): Promise<void> {

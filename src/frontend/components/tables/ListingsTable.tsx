@@ -156,17 +156,17 @@ export const ListingsTable: React.FC<ListingsTableProps> = ({
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="body2" color="text.secondary">
-                      {listing.views}
+                      {listing.views ?? '—'}
                     </Typography>
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="body2" color="text.secondary">
-                      {listing.watchers}
+                      {listing.watchers ?? '—'}
                     </Typography>
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="body2" color="text.secondary">
-                      {listing.messages}
+                      {listing.messages ?? '—'}
                     </Typography>
                   </TableCell>
                   <TableCell align="right">

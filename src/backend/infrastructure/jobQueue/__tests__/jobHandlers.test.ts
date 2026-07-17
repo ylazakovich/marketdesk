@@ -579,6 +579,128 @@ describe('SyncMarketplaceHandler', () => {
     expect(listing.lastSyncAt).not.toBeNull();
   });
 
+  it('clears a legacy phone-view-derived message value when OLX exposes no message counter', async () => {
+    const synced: SyncedListing[] = [{
+      externalListingId: 'ext-1',
+      status: 'live',
+      remoteStatus: 'active',
+      views: 10,
+      watchers: 2,
+      messages: null,
+      messageMetricStatus: 'unavailable',
+    }];
+    const adapter = fakeAdapter({ sync: jest.fn(async () => synced) });
+    const { resolver } = resolverFor(adapter);
+    const listing = unwrap(Listing.create({
+      id: 'l-1',
+      productId: 'p-1',
+      marketplaceId: 'm-1',
+      price: money(50),
+      status: 'live',
+      marketplaceListingId: 'ext-1',
+      publishedAt: new Date(),
+    }));
+    listing.recordSyncStats({ views: 10, watchers: 2, messages: 0 });
+    const handler = new SyncMarketplaceHandler(resolver, {
+      listingStore: {
+        findByMarketplace: jest.fn(async () => [listing]),
+        saveAll: jest.fn(async () => undefined),
+      },
+    });
+
+    await handler.handle({
+      marketplaceKey: 'olx',
+      marketplaceId: 'm-1',
+      externalListingIds: ['ext-1'],
+    });
+
+    expect(listing.messages).toBeNull();
+    expect(listing.syncError).toBeNull();
+  });
+
+  it('marks messages unavailable when the OLX advert is missing', async () => {
+    const synced: SyncedListing[] = [{
+      externalListingId: 'ext-missing',
+      status: 'expired',
+      remoteStatus: 'missing',
+      missing: true,
+      views: 0,
+      watchers: 0,
+      messages: null,
+      messageMetricStatus: 'unavailable',
+    }];
+    const adapter = fakeAdapter({ sync: jest.fn(async () => synced) });
+    const { resolver } = resolverFor(adapter);
+    const listing = unwrap(Listing.create({
+      id: 'l-missing',
+      productId: 'p-1',
+      marketplaceId: 'm-1',
+      price: money(50),
+      status: 'live',
+      marketplaceListingId: 'ext-missing',
+      publishedAt: new Date(),
+    }));
+    listing.recordSyncStats({ views: 10, watchers: 2, messages: 0 });
+    const handler = new SyncMarketplaceHandler(resolver, {
+      listingStore: {
+        findByMarketplace: jest.fn(async () => [listing]),
+        saveAll: jest.fn(async () => undefined),
+      },
+    });
+
+    await handler.handle({
+      marketplaceKey: 'olx',
+      marketplaceId: 'm-1',
+      externalListingIds: ['ext-missing'],
+    });
+
+    expect(listing.status).toBe('expired');
+    expect(listing.messages).toBeNull();
+    expect(listing.syncError).toBe('Remote advert missing during sync');
+  });
+
+  it('preserves the last message value and marks it stale on a partial statistics failure', async () => {
+    const synced: SyncedListing[] = [{
+      externalListingId: 'ext-1',
+      status: 'live',
+      remoteStatus: 'pending',
+      views: 11,
+      watchers: 2,
+      messageMetricStatus: 'error',
+    }];
+    const adapter = fakeAdapter({ sync: jest.fn(async () => synced) });
+    const { resolver } = resolverFor(adapter);
+    const listing = unwrap(Listing.create({
+      id: 'l-1',
+      productId: 'p-1',
+      marketplaceId: 'm-1',
+      price: money(50),
+      status: 'live',
+      marketplaceListingId: 'ext-1',
+      publishedAt: new Date(),
+    }));
+    listing.recordSyncStats({ views: 10, watchers: 2, messages: 1 });
+    const handler = new SyncMarketplaceHandler(resolver, {
+      listingStore: {
+        findByMarketplace: jest.fn(async () => [listing]),
+        saveAll: jest.fn(async () => undefined),
+      },
+    });
+
+    await handler.handle({
+      marketplaceKey: 'olx',
+      marketplaceId: 'm-1',
+      externalListingIds: ['ext-1'],
+    });
+
+    expect(listing.views).toBe(11);
+    expect(listing.messages).toBe(1);
+    expect(listing.syncError).toBe(
+      'Remote status observed: pending; Message metric is stale: provider statistics request failed',
+    );
+    expect(listing.lastSyncAt).not.toBeNull();
+  });
+
   it('records a marketplace sync error and rethrows when the adapter fails (C5)', async () => {
     const adapter = fakeAdapter({
       sync: jest.fn(async () => {

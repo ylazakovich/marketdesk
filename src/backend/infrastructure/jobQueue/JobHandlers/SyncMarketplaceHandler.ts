@@ -155,6 +155,9 @@ export class SyncMarketplaceHandler {
         messages: s.messages,
         remoteStatus: s.remoteStatus ?? null,
       });
+      if (s.messageMetricStatus === 'unavailable') {
+        listing.recordMessagesUnavailable();
+      }
       if (s.externalUrl !== undefined) {
         listing.recordExternalUrl(s.externalUrl);
       }
@@ -164,6 +167,12 @@ export class SyncMarketplaceHandler {
         mismatchCandidates.push({ listing, currentCategory: s.marketplaceCategory, proposedCategory });
       }
       await this.reconcileStatus(listing, s);
+      if (s.messageMetricStatus === 'error') {
+        const messageMetricNote = 'Message metric is stale: provider statistics request failed';
+        listing.recordSyncStatusNote(
+          listing.syncError ? `${listing.syncError}; ${messageMetricNote}` : messageMetricNote,
+        );
+      }
       updated.push(listing);
     }
 

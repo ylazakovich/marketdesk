@@ -110,6 +110,7 @@ describe('OLXAdapter', () => {
       views: null,
       watchers: null,
       messages: null,
+      messageMetricStatus: 'unavailable',
       marketplaceCategory: null,
     });
   });
@@ -174,7 +175,7 @@ describe('OLXAdapter', () => {
     });
   });
 
-  it('maps OLX statistics-shaped engagement counters from live advert sync responses', async () => {
+  it('does not misclassify OLX phone views as buyer messages', async () => {
     const http = mockClient((config) => ({
       status: 200,
       data: config.url.endsWith('/statistics')
@@ -197,7 +198,42 @@ describe('OLXAdapter', () => {
       remoteStatus: 'active',
       views: 2,
       watchers: 0,
-      messages: 0,
+      messages: null,
+      messageMetricStatus: 'unavailable',
+    });
+  });
+
+  it('maps an explicit provider message counter when one is exposed', async () => {
+    const http = mockClient((config) => ({
+      status: 200,
+      data: config.url.endsWith('/statistics')
+        ? { data: { advert_views: 2, users_observing: 0, phone_views: 0 } }
+        : { data: { id: 1085783130, status: 'active', statistics: { messages: 1 } } },
+    }));
+    const adapter = new OLXAdapter(http, fastOptions);
+
+    const [synced] = await adapter.sync(['1085783130']);
+
+    expect(synced).toMatchObject({
+      messages: 1,
+      messageMetricStatus: 'available',
+    });
+  });
+
+  it('marks messages stale when the statistics request fails', async () => {
+    const http = mockClient((config) => {
+      if (config.url.endsWith('/statistics')) {
+        throw new HttpError(503, 'statistics unavailable');
+      }
+      return { status: 200, data: { data: { id: 1085783130, status: 'active' } } };
+    });
+    const adapter = new OLXAdapter(http, fastOptions);
+
+    const [synced] = await adapter.sync(['1085783130']);
+
+    expect(synced).toMatchObject({
+      messages: undefined,
+      messageMetricStatus: 'error',
     });
   });
 
@@ -368,7 +404,8 @@ describe('OLXAdapter', () => {
         missing: true,
         views: 0,
         watchers: 0,
-        messages: 0,
+        messages: null,
+        messageMetricStatus: 'unavailable',
       },
     ]);
     await expect(adapter.sync(['rate-limited'])).rejects.toBeInstanceOf(

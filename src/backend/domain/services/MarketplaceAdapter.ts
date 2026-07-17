@@ -35,6 +35,7 @@ export interface SyncedListing {
   views?: number | null;
   watchers?: number | null;
   messages?: number | null;
+  messageMetricStatus?: 'available' | 'unavailable' | 'error';
   marketplaceCategory?: MarketplaceCategoryMetadata | null;
 }
 

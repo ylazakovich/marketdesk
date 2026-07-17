@@ -260,6 +260,12 @@ export class Listing {
     this.touch();
   }
 
+  recordMessagesUnavailable(at: Date = new Date()): void {
+    this._messages = null;
+    this._lastSyncAt = at;
+    this.touch();
+  }
+
   recordExternalUrl(url: string | null): void {
     this._externalUrl = url;
     this.touch();

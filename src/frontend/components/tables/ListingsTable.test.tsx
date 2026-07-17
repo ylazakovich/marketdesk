@@ -39,6 +39,18 @@ describe('ListingsTable layout', () => {
     expect(html).not.toContain('>watchers<');
     expect(html).not.toContain('>messages<');
   });
+
+  it('renders unavailable message metrics explicitly while preserving a real zero', () => {
+    const unavailable = renderToStaticMarkup(
+      <ListingsTable listings={[listing({ messages: null })]} />,
+    );
+    const zero = renderToStaticMarkup(
+      <ListingsTable listings={[listing({ messages: 0 })]} />,
+    );
+
+    expect(unavailable).toContain('>—<');
+    expect(zero).toContain('>0<');
+  });
 });
 
 describe('ListingsTable product identity', () => {

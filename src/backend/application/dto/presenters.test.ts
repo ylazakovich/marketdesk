@@ -43,4 +43,17 @@ describe('presentListing', () => {
 
     expect(view.externalUrl).toBeUndefined();
   });
+
+  it('distinguishes an unavailable message metric from a real zero', () => {
+    const listing = listingWithExternalUrl('https://www.olx.pl/d/oferta/camera-123');
+    listing.recordSyncStats({ messages: 0 });
+    const zero = presentListing(listing);
+    listing.recordMessagesUnavailable();
+    const unavailable = presentListing(listing);
+
+    expect(zero.messages).toBe(0);
+    expect(zero.metricsAvailability?.messages).toBe(true);
+    expect(unavailable.messages).toBeNull();
+    expect(unavailable.metricsAvailability?.messages).toBe(false);
+  });
 });

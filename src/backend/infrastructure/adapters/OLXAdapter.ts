@@ -111,6 +111,11 @@ interface OlxAdvertStatisticsResponse extends Record<string, unknown> {
   users_observing?: unknown;
 }
 
+type OlxAdvertStatisticsResult =
+  | { status: 'success'; data: OlxAdvertStatisticsResponse }
+  | { status: 'unavailable'; data: null }
+  | { status: 'error'; data: null };
+
 interface OlxResponseEnvelope<T> {
   data: T;
 }
@@ -250,7 +255,10 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
             this.fetchAdvertStatistics(id),
           ]);
           const advert = this.unwrapAdvert(res.data);
-          return this.toSyncedListing(this.withStatistics(advert, statistics));
+          return this.toSyncedListing(
+            this.withStatistics(advert, statistics.data),
+            statistics.status,
+          );
         } catch (error) {
           if (error instanceof HttpError && error.status === 404) {
             return this.missingSyncedListing(id);
@@ -275,7 +283,10 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
       ]);
       if (!res.data) return null;
       const advert = this.unwrapAdvert(res.data);
-      return this.toSyncedListing(this.withStatistics(advert, statistics));
+      return this.toSyncedListing(
+        this.withStatistics(advert, statistics.data),
+        statistics.status,
+      );
     } catch (error) {
       if (error instanceof HttpError && error.status === 404) return null;
       throw error;
@@ -290,7 +301,8 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
       missing: true,
       views: 0,
       watchers: 0,
-      messages: 0,
+      messages: null,
+      messageMetricStatus: 'unavailable',
     };
   }
 
@@ -310,7 +322,7 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
       imported.push(
         ...(await this.mapWithConcurrency(res.data.data, 5, async (advert) => {
           const statistics = await this.fetchAdvertStatistics(String(advert.id));
-          return this.toImportedListing(this.withStatistics(advert, statistics));
+          return this.toImportedListing(this.withStatistics(advert, statistics.data));
         }))
       );
       const lastPage = res.data.meta?.last_page;
@@ -328,7 +340,7 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
 
   private async fetchAdvertStatistics(
     externalListingId: string,
-  ): Promise<OlxAdvertStatisticsResponse | null> {
+  ): Promise<OlxAdvertStatisticsResult> {
     try {
       const res = await this.http.request<
         OlxAdvertStatisticsResponse | OlxResponseEnvelope<OlxAdvertStatisticsResponse> | null
@@ -336,10 +348,16 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
         method: 'GET',
         url: `${this.baseUrl}/adverts/${externalListingId}/statistics`,
       });
-      if (!res.data) return null;
-      return ('data' in res.data ? res.data.data : res.data) as OlxAdvertStatisticsResponse;
-    } catch {
-      return null;
+      if (!res.data) return { status: 'unavailable', data: null };
+      return {
+        status: 'success',
+        data: ('data' in res.data ? res.data.data : res.data) as OlxAdvertStatisticsResponse,
+      };
+    } catch (error) {
+      if (error instanceof HttpError && error.status === 404) {
+        return { status: 'unavailable', data: null };
+      }
+      return { status: 'error', data: null };
     }
   }
 
@@ -347,11 +365,17 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
     advert: OlxAdvertResponse,
     statistics: OlxAdvertStatisticsResponse | null,
   ): OlxAdvertResponse {
-    return statistics ? { ...advert, statistics } : advert;
+    return statistics
+      ? { ...advert, statistics: { ...advert.statistics, ...statistics } }
+      : advert;
   }
 
-  private async toSyncedListing(data: OlxAdvertResponse): Promise<SyncedListing> {
+  private async toSyncedListing(
+    data: OlxAdvertResponse,
+    statisticsStatus: OlxAdvertStatisticsResult['status'],
+  ): Promise<SyncedListing> {
     const remoteStatus = String(data.status ?? 'unknown').toLowerCase();
+    const messages = this.extractMessages(data);
     return {
       externalListingId: String(data.id),
       externalUrl: this.extractPublicUrl(data),
@@ -359,7 +383,9 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
       remoteStatus,
       views: this.extractViews(data),
       watchers: this.extractWatchers(data),
-      messages: this.extractMessages(data),
+      messages: messages ?? (statisticsStatus === 'error' ? undefined : null),
+      messageMetricStatus:
+        messages !== null ? 'available' : statisticsStatus === 'error' ? 'error' : 'unavailable',
       marketplaceCategory: await this.extractMarketplaceCategory(data),
     };
   }
@@ -465,11 +491,6 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
       'messages',
       'message_count',
       'messages_count',
-      'contacts',
-      'contact_count',
-      'phone_views',
-      'replies',
-      'leads',
     ]);
   }
 

@@ -464,7 +464,7 @@ describe('Presentation API', () => {
     });
 
     it('returns an honest development fallback when release metadata is absent', async () => {
-      const { app } = await buildTestApp({ applicationVersion: 'Development' });
+      const { app } = await buildTestApp();
 
       const res = await request(app).get('/api/application-info');
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.11.1](https://github.com/ylazakovich/marketdesk/compare/hermes-marketdesk-v0.11.0...hermes-marketdesk-v0.11.1) (2026-07-17)
+
+
+### 🐛 Bug Fixes
+
+* **olx:** stop treating phone views as messages ([#212](https://github.com/ylazakovich/marketdesk/issues/212)) ([42f8c86](https://github.com/ylazakovich/marketdesk/commit/42f8c86c055b5b7dbd7d21bc3eb73100d65b17f0))
+
 ## [0.11.0](https://github.com/ylazakovich/marketdesk/compare/hermes-marketdesk-v0.10.1...hermes-marketdesk-v0.11.0) (2026-07-17)
 
 

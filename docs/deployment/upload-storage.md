@@ -54,9 +54,35 @@ The initializer uses `mkdir -p` and `chown`, not deletion, so workspace-scoped f
 This probe uses an already-issued short-lived MarketDesk bearer token and a local valid JPEG/PNG/WebP. It embeds no credentials. Keep the token in the environment and do not enable shell tracing.
 
 ```bash
+set -euo pipefail
 export MARKETDESK_BASE_URL='http://127.0.0.1:3000'
 export MARKETDESK_TOKEN='set-a-short-lived-token-outside-git'
 export PROBE_IMAGE='/absolute/path/to/disposable-valid-image.jpg'
+UPLOAD_ROOT=$(realpath ./uploads)
+
+assert_deleted_upload() {
+  local url=$1 candidate headers
+  case "$url" in
+    /uploads/workspaces/*) ;;
+    *) return 1 ;;
+  esac
+  candidate=$(realpath -m "${UPLOAD_ROOT}/${url#/uploads/}")
+  case "$candidate" in
+    "${UPLOAD_ROOT}"/workspaces/*) ;;
+    *) return 1 ;;
+  esac
+  test ! -e "$candidate"
+  headers=$(mktemp)
+  if ! curl -sS -D "$headers" -o /dev/null "${MARKETDESK_BASE_URL}${url}"; then
+    rm -f "$headers"
+    return 1
+  fi
+  if grep -qi '^content-type:[[:space:]]*image/' "$headers"; then
+    rm -f "$headers"
+    return 1
+  fi
+  rm -f "$headers"
+}
 
 UPLOAD_RESPONSE=$(curl -fsS \
   -H "Authorization: Bearer ${MARKETDESK_TOKEN}" \
@@ -88,19 +114,20 @@ test -s /tmp/marketdesk-upload-probe-second.jpg
 curl -fsS -X DELETE \
   -H "Authorization: Bearer ${MARKETDESK_TOKEN}" \
   "${MARKETDESK_BASE_URL}/api/uploads/images/${IMAGE_ID}"
-! curl -fsS "${MARKETDESK_BASE_URL}${IMAGE_URL}" -o /dev/null
+assert_deleted_upload "$IMAGE_URL"
 curl -fsS -X DELETE \
   -H "Authorization: Bearer ${MARKETDESK_TOKEN}" \
   "${MARKETDESK_BASE_URL}/api/uploads/images/${SECOND_IMAGE_ID}"
-! curl -fsS "${MARKETDESK_BASE_URL}${SECOND_IMAGE_URL}" -o /dev/null
+assert_deleted_upload "$SECOND_IMAGE_URL"
 rm -f /tmp/marketdesk-upload-probe-read.jpg \
   /tmp/marketdesk-upload-probe-after-restart.jpg \
   /tmp/marketdesk-upload-probe-second.jpg
 unset MARKETDESK_TOKEN UPLOAD_RESPONSE IMAGE_ID IMAGE_URL \
-  SECOND_UPLOAD_RESPONSE SECOND_IMAGE_ID SECOND_IMAGE_URL
+  SECOND_UPLOAD_RESPONSE SECOND_IMAGE_ID SECOND_IMAGE_URL UPLOAD_ROOT
+unset -f assert_deleted_upload
 ```
 
-Use a matching `Content-Type` when `PROBE_IMAGE` is PNG or WebP. The two failed public reads are expected and prove API deletion removed both objects. This scenario does not require or perform a database migration.
+Use a matching `Content-Type` when `PROBE_IMAGE` is PNG or WebP. After each deletion, the probe verifies that the allowlisted workspace file is absent and that any HTTP fallback is not an image response. This handles deployments where the SPA fallback returns `200 text/html` for an absent upload path. This scenario does not require or perform a database migration.
 
 Run the static Compose safety regression with:
 

@@ -132,6 +132,36 @@ try {
     'inherited Compose control variables must not override the canonical release deployment',
   );
 
+  const interpolationDir = join(tempRoot, 'interpolation-contract');
+  const interpolationEnv = join(interpolationDir, 'deployment.env');
+  mkdirSync(interpolationDir);
+  writeFileSync(
+    join(interpolationDir, 'docker-compose.yml'),
+    'x-contract: "${SNAPSHOT_VALUE:-${NESTED_VALUE:-fallback}} $BARE_VALUE $${DOCKER_HOST}"\n',
+  );
+  writeFileSync(interpolationEnv, 'SNAPSHOT_VALUE=snapshot\n', { mode: 0o600 });
+  const isolatedEnvironment = buildReleaseComposeEnvironment(
+    'hermes-marketdesk-v0.10.0',
+    {
+      PATH: process.env.PATH,
+      DOCKER_HOST: 'unix:///preserved-docker.sock',
+      SNAPSHOT_VALUE: 'ambient-snapshot',
+      NESTED_VALUE: 'ambient-nested',
+      BARE_VALUE: 'ambient-bare',
+      UNRELATED_TRANSPORT_VALUE: 'preserved',
+    },
+    interpolationDir,
+    interpolationEnv,
+  );
+  assert.equal(isolatedEnvironment.SNAPSHOT_VALUE, undefined);
+  assert.equal(isolatedEnvironment.NESTED_VALUE, undefined);
+  assert.equal(isolatedEnvironment.BARE_VALUE, undefined);
+  assert.equal(isolatedEnvironment.DOCKER_HOST, 'unix:///preserved-docker.sock');
+  assert.equal(isolatedEnvironment.UNRELATED_TRANSPORT_VALUE, 'preserved');
+  assert.equal(isolatedEnvironment.MARKETDESK_RELEASE_TAG, 'hermes-marketdesk-v0.10.0');
+  assert.equal(isolatedEnvironment.MARKETDESK_BUILD_CONTEXT, interpolationDir);
+  assert.equal(isolatedEnvironment.MARKETDESK_ENV_FILE, interpolationEnv);
+
 
   mkdirSync(gitDir);
   mkdirSync(composeDir);

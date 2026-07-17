@@ -259,10 +259,10 @@ export function buildReleaseComposeEnvironment(
   }
   if (releaseContext) {
     const composeSource = readFileSync(resolve(releaseContext, 'docker-compose.yml'), 'utf8');
-    for (const match of composeSource.matchAll(/\$\{([A-Za-z_][A-Za-z0-9_]*)/g)) {
+    for (const match of composeSource.matchAll(/(?<!\$)\$\{([A-Za-z_][A-Za-z0-9_]*)/g)) {
       interpolationNames.add(match[1]);
     }
-    for (const match of composeSource.matchAll(/(?:^|[^$])\$([A-Za-z_][A-Za-z0-9_]*)/g)) {
+    for (const match of composeSource.matchAll(/(?<!\$)\$([A-Za-z_][A-Za-z0-9_]*)/g)) {
       interpolationNames.add(match[1]);
     }
   }

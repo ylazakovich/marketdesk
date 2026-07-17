@@ -214,7 +214,7 @@ describe('OlxTaxonomyResolver', () => {
     [
       '1984',
       'Projektory',
-      ['Elektronika', 'Sprzęt  video', 'Projektory'],
+      ['Elektronika', 'Sprzęt video', 'Projektory'],
     ],
     [
       '5091',
@@ -233,7 +233,7 @@ describe('OlxTaxonomyResolver', () => {
       { id: 110, name: 'Sprzęt audio', parent_id: 100, is_leaf: false },
       { id: 111, name: 'Słuchawki', parent_id: 110, is_leaf: false },
       { id: 1973, name: 'Słuchawki bezprzewodowe', parent_id: 111, is_leaf: true },
-      { id: 120, name: 'Sprzęt  video', parent_id: 100, is_leaf: false },
+      { id: 120, name: 'Sprzęt video', parent_id: 100, is_leaf: false },
       { id: 1984, name: 'Projektory', parent_id: 120, is_leaf: true },
       { id: 200, name: 'Firma i Przemysł', parent_id: 0, is_leaf: false },
       { id: 210, name: 'Wyposażenie salonów', parent_id: 200, is_leaf: false },
@@ -258,6 +258,7 @@ describe('OlxTaxonomyResolver', () => {
       isLeaf: true,
       source: 'provider_taxonomy',
     });
+    expect(request).toHaveBeenCalledTimes(2);
     expect(request).toHaveBeenNthCalledWith(1, {
       method: 'GET',
       url: `https://example.test/api/categories/${categoryId}`,

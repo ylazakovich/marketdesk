@@ -4,6 +4,7 @@ import { Pool, type PoolClient } from 'pg';
 import dotenv from 'dotenv';
 import { migrationPoolConfig } from '../config/databaseConfig.js';
 import { concurrentIndexIdentity, quotedIndexIdentity } from './migrationSql.js';
+import { orderedMigrationFiles } from './migrationFiles.js';
 import pino from 'pino';
 
 dotenv.config();
@@ -40,15 +41,7 @@ async function runMigrations() {
     logger.info('Starting database migrations...');
 
     // Get all migration files
-    const files = fs
-      .readdirSync(migrationsDir)
-      .filter((f) => f.endsWith('.sql'))
-      .sort();
-
-    if (files.length === 0) {
-      logger.warn('No migration files found');
-      return;
-    }
+    const files = orderedMigrationFiles(migrationsDir);
 
     client = await connectWithRetry(pool);
     await client.query('SELECT pg_advisory_lock(hashtext($1))', [MIGRATION_LOCK_KEY]);

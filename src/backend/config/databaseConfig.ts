@@ -44,7 +44,11 @@ export function connectionStringWithoutSslOptions(connectionString: string): str
 }
 
 function positivePort(value: string | undefined): number {
-  const port = Number.parseInt(value || '5432', 10);
+  const rawPort = value?.trim() || '5432';
+  if (!/^\d+$/.test(rawPort)) {
+    throw new Error('DB_PORT must be a valid TCP port');
+  }
+  const port = Number(rawPort);
   if (!Number.isSafeInteger(port) || port <= 0 || port > 65535) {
     throw new Error('DB_PORT must be a valid TCP port');
   }

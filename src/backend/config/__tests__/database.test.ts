@@ -56,4 +56,15 @@ describe('migrationPoolConfig', () => {
   it('fails closed when production TLS mode is missing', () => {
     expect(() => migrationPoolConfig({ NODE_ENV: 'production' })).toThrow(/DB_SSL_MODE/);
   });
+
+  it.each(['5432junk', '1.5', '0', '65536', '-1'])(
+    'rejects malformed migration DB port %s',
+    (port) => {
+      expect(() => migrationPoolConfig({
+        NODE_ENV: 'production',
+        DB_SSL_MODE: 'disable',
+        DB_PORT: port,
+      })).toThrow(/DB_PORT/);
+    },
+  );
 });

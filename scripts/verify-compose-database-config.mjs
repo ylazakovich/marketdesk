@@ -50,6 +50,21 @@ try {
   assert.equal(internal.services.migrate.environment.JWT_SECRET, undefined);
   assert.equal(internal.services.migrate.environment.HERMES_API_KEY, undefined);
   assert.equal(internal.services.migrate.environment.MARKETPLACE_CREDENTIALS_KEY, undefined);
+  assert.equal(internal.services.migrate.env_file, undefined);
+  assert.deepEqual(
+    Object.keys(internal.services.migrate.environment).sort(),
+    [
+      'DATABASE_URL',
+      'DB_HOST',
+      'DB_NAME',
+      'DB_PASSWORD',
+      'DB_PORT',
+      'DB_SSL_MODE',
+      'DB_USER',
+      'MARKETDESK_MIGRATIONS_DIR',
+      'NODE_ENV',
+    ],
+  );
   assert.equal(internal.services.migrate.depends_on, undefined);
   assert.equal(internal.services.app.depends_on.migrate.condition, 'service_completed_successfully');
   assert.equal(internal.services.app.depends_on.postgres, undefined);

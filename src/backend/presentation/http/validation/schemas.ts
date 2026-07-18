@@ -129,6 +129,11 @@ export const publishListingSchema = z.object({
     .optional(),
 });
 
+export const delistListingToDraftSchema = z.object({
+  operationId: z.string().uuid(),
+  confirmed: z.literal(true),
+});
+
 export const marketplaceCategorySchema = z.object({
   providerCategoryId: z.string().trim().min(1).max(100),
 });

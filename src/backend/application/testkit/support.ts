@@ -96,6 +96,7 @@ export class InMemoryActivityLogRepository implements IActivityLogRepository {
   readonly entries: ActivityLogEntry[] = [];
 
   async record(entry: ActivityLogEntry): Promise<void> {
+    if (this.entries.some((existing) => existing.id === entry.id)) return;
     this.entries.push(entry);
   }
   async findByWorkspace(workspaceId: string): Promise<ActivityLogEntry[]> {

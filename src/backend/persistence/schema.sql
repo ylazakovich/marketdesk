@@ -351,7 +351,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_hermes_events_workspace_idempotency
 CREATE TABLE IF NOT EXISTS category_correction_operations (
   id UUID PRIMARY KEY,
   workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-  recommendation_event_id UUID NOT NULL REFERENCES hermes_events(id) ON DELETE RESTRICT,
+  recommendation_event_id UUID REFERENCES hermes_events(id) ON DELETE RESTRICT,
   listing_id UUID NOT NULL REFERENCES listings(id) ON DELETE RESTRICT,
   marketplace_id UUID NOT NULL REFERENCES marketplaces(id) ON DELETE RESTRICT,
   kind VARCHAR(20) NOT NULL,
@@ -367,6 +367,8 @@ CREATE TABLE IF NOT EXISTS category_correction_operations (
   failed_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT category_correction_operations_kind_valid CHECK (kind IN ('delist', 'recreate')),
+  CONSTRAINT category_correction_operation_recommendation_check
+    CHECK (kind = 'delist' OR recommendation_event_id IS NOT NULL),
   CONSTRAINT category_correction_operations_state_valid
     CHECK (state IN ('requested', 'approved', 'executing', 'executed', 'failed')),
   CONSTRAINT category_correction_operations_target_valid CHECK (

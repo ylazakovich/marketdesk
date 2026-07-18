@@ -179,12 +179,18 @@ export class MarketplaceImportService {
         input.listing.productId,
         input.workspaceId,
       );
+      const account = await this.accountRepo.findByMarketplaceId(input.listing.marketplaceId);
+      if (!account || account.status !== 'connected') {
+        return;
+      }
       await this.createCategoryMismatchRecommendation(
         input.listing,
         product,
         input.currentCategory,
         input.proposedCategory,
         input.workspaceId,
+        account.id,
+        account.revision,
         repos.activityLog,
         repos.eventRepo,
         repos.correctionOperations,
@@ -245,6 +251,7 @@ export class MarketplaceImportService {
               item.proposed,
               input.workspaceId,
               context.value.account.id,
+              context.value.account.revision,
               input.actorId,
               repos
             );
@@ -276,6 +283,8 @@ export class MarketplaceImportService {
             item.proposed.marketplaceCategory ?? null,
             null,
             input.workspaceId,
+            context.value.account.id,
+            context.value.account.revision,
             repos.activityLog,
             repos.eventRepo,
             repos.correctionOperations,
@@ -667,6 +676,7 @@ export class MarketplaceImportService {
     remote: ImportedMarketplaceListing,
     workspaceId: string,
     marketplaceAccountId: string,
+    marketplaceAccountRevision: number,
     actorId: string | undefined,
     repos: MarketplaceImportRepositories
   ): Promise<void> {
@@ -738,6 +748,8 @@ export class MarketplaceImportService {
         remote.marketplaceCategory,
         proposedCategory,
         workspaceId,
+        marketplaceAccountId,
+        marketplaceAccountRevision,
         repos.activityLog,
         repos.eventRepo,
         repos.correctionOperations,
@@ -760,6 +772,8 @@ export class MarketplaceImportService {
     currentCategory: ImportedMarketplaceListing['marketplaceCategory'],
     proposedCategory: ImportedMarketplaceListing['marketplaceCategory'],
     workspaceId: string,
+    marketplaceAccountId: string,
+    marketplaceAccountRevision: number,
     activityLog: IActivityLogRepository | undefined,
     transactionEventRepo: IEventRepository,
     transactionCorrectionOperations: ICategoryCorrectionOperationRepository,
@@ -814,7 +828,13 @@ export class MarketplaceImportService {
           id: delistIntentId, workspaceId, recommendationEventId: eventId,
           listingId: listing.id, marketplaceId: listing.marketplaceId, kind: 'delist',
           state: 'requested', targetCategory: null, paidOverrideReason: null,
-          requestedBy: null, approvedBy: null, result: null, requestedAt,
+          requestedBy: null, approvedBy: null, result: {
+            externalListingId: listing.marketplaceListingId,
+            externalUrl: listing.externalUrl,
+            requestedListingUpdatedAt: listing.updatedAt.toISOString(),
+            marketplaceAccountId,
+            marketplaceAccountRevision,
+          }, requestedAt,
           approvedAt: null, executedAt: null, failedAt: null, updatedAt: requestedAt,
         },
         {

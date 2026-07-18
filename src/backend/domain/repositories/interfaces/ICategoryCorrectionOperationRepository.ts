@@ -11,7 +11,7 @@ export type CategoryCorrectionOperationState =
 export interface CategoryCorrectionOperation {
   id: string;
   workspaceId: string;
-  recommendationEventId: string;
+  recommendationEventId: string | null;
   listingId: string;
   marketplaceId: string;
   kind: CategoryCorrectionOperationKind;
@@ -29,6 +29,7 @@ export interface CategoryCorrectionOperation {
 }
 
 export interface ICategoryCorrectionOperationRepository {
+  create(operation: CategoryCorrectionOperation): Promise<CategoryCorrectionOperation>;
   createPair(delist: CategoryCorrectionOperation, recreate: CategoryCorrectionOperation): Promise<void>;
   findByIdForWorkspace(id: string, workspaceId: string): Promise<CategoryCorrectionOperation | null>;
   findByRecommendationForWorkspace(

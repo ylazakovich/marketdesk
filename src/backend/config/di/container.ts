@@ -427,12 +427,16 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     listingRepo,
     productRepo,
     marketplaceRepo,
+    marketplaceAccountRepo,
     olxPublicationQuotaService,
     {
-      resolve: async (marketplace) => {
+      resolve: async (marketplace, expectedAccount) => {
         if (env.marketplaces.olx.adapterMode !== 'real')
           return adapterFactory.create(marketplace.key);
-        const accessToken = await marketplaceOAuthService.getValidAccessToken(marketplace.id);
+        const accessToken = await marketplaceOAuthService.getValidAccessToken(
+          marketplace.id,
+          expectedAccount,
+        );
         return adapterFactory.create(
           marketplace.key,
           new FetchMarketplaceHttpClient({

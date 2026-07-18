@@ -5,6 +5,7 @@
 export type MarketplaceErrorCode =
   | 'AUTHENTICATION'
   | 'NOT_FOUND'
+  | 'PROVIDER_REJECTION'
   | 'RATE_LIMIT'
   | 'NOT_IMPLEMENTED'
   | 'TRANSIENT'
@@ -39,6 +40,12 @@ export class MarketplaceAuthenticationError extends MarketplaceError {
 export class MarketplaceNotFoundError extends MarketplaceError {
   constructor(message: string, cause?: unknown) {
     super(message, 'NOT_FOUND', false, cause);
+  }
+}
+
+export class MarketplaceProviderRejectionError extends MarketplaceError {
+  constructor(message: string, cause?: unknown) {
+    super(message, 'PROVIDER_REJECTION', false, cause);
   }
 }
 

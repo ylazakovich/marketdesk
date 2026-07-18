@@ -26,7 +26,8 @@ export class ActivityLogRepository implements IActivityLogRepository {
       `INSERT INTO activity_log
          (id, workspace_id, entity_type, entity_id, actor_type, actor_id,
           action, metadata, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       ON CONFLICT (id) DO NOTHING`,
       [
         entry.id,
         entry.workspaceId,

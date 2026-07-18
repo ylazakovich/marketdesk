@@ -77,6 +77,28 @@ export interface PublishListingInput {
   };
 }
 
+export interface DelistListingToDraftInput {
+  id: string;
+  operationId: string;
+  confirmed: true;
+}
+
+export interface ListingDelistOperation {
+  id: string;
+  listingId: string;
+  marketplaceId: string;
+  state: 'requested' | 'approved' | 'executing' | 'executed' | 'failed';
+  result: ({
+    failureKind?: 'authentication' | 'validation' | 'provider_rejection' | 'ambiguous' | 'dependency';
+    errorCode?: string;
+    message?: string;
+    retrySafe?: boolean;
+    manualReconciliationRequired?: boolean;
+    externalListingId?: string;
+    externalUrl?: string | null;
+  } & Record<string, unknown>) | null;
+}
+
 export interface PublishListingPreview {
   dryRun: true;
   canPublish: boolean;

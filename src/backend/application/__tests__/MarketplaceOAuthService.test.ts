@@ -305,6 +305,87 @@ describe('MarketplaceOAuthService', () => {
     expect(savedTokens.refreshToken).toBe('rotated-refresh-token');
   });
 
+  it('rejects access-token resolution when the reviewed account identity changed', async () => {
+    const { service, marketplace, accountRepo, refreshAccessToken } = setup();
+    await accountRepo.upsert({
+      id: 'account-2',
+      marketplaceId: marketplace.id,
+      handle: 'Different OLX account',
+      credentials: { payload: initialTokens },
+      status: 'connected',
+      scopes: ['basic'],
+    });
+
+    await expect(service.getValidAccessToken(marketplace.id, {
+      id: 'account-1',
+      revision: 1,
+    })).rejects.toThrow(
+      'OLX account changed after the operation was reviewed'
+    );
+    expect(refreshAccessToken).not.toHaveBeenCalled();
+  });
+
+  it('rejects access-token resolution when the reviewed account revision changed', async () => {
+    const { service, marketplace, accountRepo, refreshAccessToken } = setup();
+    const reviewed = await accountRepo.upsert({
+      id: 'account-1',
+      marketplaceId: marketplace.id,
+      handle: 'OLX account',
+      credentials: { payload: initialTokens },
+      status: 'connected',
+      scopes: ['basic'],
+    });
+    await accountRepo.upsert({
+      id: reviewed.id,
+      marketplaceId: marketplace.id,
+      handle: 'Reconnected OLX account',
+      credentials: { payload: initialTokens },
+      status: 'connected',
+      scopes: ['basic'],
+    });
+
+    await expect(service.getValidAccessToken(marketplace.id, {
+      id: reviewed.id,
+      revision: reviewed.revision,
+    })).rejects.toThrow('OLX account changed after the operation was reviewed');
+    expect(refreshAccessToken).not.toHaveBeenCalled();
+  });
+
+  it('rechecks the reviewed account identity after acquiring the refresh lock', async () => {
+    let accountRepo: InMemoryAccountRepository;
+    const refreshLock = {
+      withLock: jest.fn(async (_marketplaceId: string, work: () => Promise<string>) => {
+        await accountRepo.upsert({
+          id: 'account-2',
+          marketplaceId: 'marketplace-olx',
+          handle: 'Reconnected OLX account',
+          credentials: { payload: initialTokens },
+          status: 'connected',
+          scopes: ['basic'],
+        });
+        return work();
+      }),
+    };
+    const context = setup(refreshLock);
+    accountRepo = context.accountRepo;
+    const reviewed = await accountRepo.upsert({
+      id: 'account-1',
+      marketplaceId: context.marketplace.id,
+      handle: 'Reviewed OLX account',
+      credentials: {
+        payload: { ...initialTokens, expiresAt: new Date('2026-07-14T11:00:00.000Z') },
+      },
+      status: 'connected',
+      scopes: ['basic'],
+    });
+
+    await expect(context.service.getValidAccessToken(context.marketplace.id, {
+      id: reviewed.id,
+      revision: reviewed.revision,
+    })).rejects.toThrow('OLX account changed after the operation was reviewed');
+    expect(context.refreshAccessToken).not.toHaveBeenCalled();
+  });
+
   it('rejects a genuinely stale account revision after a concurrent write', async () => {
     const { marketplace, accountRepo } = setup();
     const original = await accountRepo.upsert({

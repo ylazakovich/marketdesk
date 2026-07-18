@@ -1,7 +1,38 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-describe('OLX category correction migrations', () => {
+describe('category correction operation migration', () => {
+  it('allows standalone delist audit rows without weakening the listing or workspace foreign keys', () => {
+    const migration = readMigration('031_standalone_listing_delist_operations.sql');
+    const schema = fs.readFileSync(path.resolve(process.cwd(), 'src/backend/persistence/schema.sql'), 'utf8');
+
+    expect(migration).toContain('ALTER COLUMN recommendation_event_id DROP NOT NULL');
+    expect(schema).toContain('recommendation_event_id UUID REFERENCES hermes_events(id) ON DELETE RESTRICT');
+    expect(schema).toContain('listing_id UUID NOT NULL REFERENCES listings(id) ON DELETE RESTRICT');
+    expect(schema).toContain('workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE');
+  });
+
+  it('keeps recreation rows coupled to a recommendation and allows only standalone delist to omit it', () => {
+    const migration = readMigration('031_standalone_listing_delist_operations.sql');
+    const validation = readMigration('032_validate_standalone_listing_delist_operations.sql');
+    const schema = fs.readFileSync(path.resolve(process.cwd(), 'src/backend/persistence/schema.sql'), 'utf8');
+
+    expect(migration).toContain("CHECK (kind = 'delist' OR recommendation_event_id IS NOT NULL)");
+    expect(migration).toContain('NOT VALID');
+    expect(migration).not.toContain('VALIDATE CONSTRAINT');
+    expect(migration).toContain("conname = 'category_correction_operation_recommendation_check'");
+    expect(migration).toContain('IF NOT EXISTS');
+    expect(validation).toContain(
+      'VALIDATE CONSTRAINT category_correction_operation_recommendation_check',
+    );
+    expect(validation).toContain('IF NOT FOUND THEN');
+    expect(validation).toContain('ELSIF NOT constraint_validated THEN');
+    expect(schema).toContain("CONSTRAINT category_correction_operation_recommendation_check");
+    expect(schema).toContain("CHECK (kind = 'delist' OR recommendation_event_id IS NOT NULL)");
+    expect(schema).toContain("UNIQUE (recommendation_event_id, kind)");
+    expect(migration).toContain('ALTER COLUMN recommendation_event_id DROP NOT NULL');
+  });
+
   const readMigration = (name: string) => fs.readFileSync(
     path.join(process.cwd(), 'src/backend/persistence/migrations', name),
     'utf8',

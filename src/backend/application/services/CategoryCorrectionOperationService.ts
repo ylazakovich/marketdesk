@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import type { IActivityLogRepository } from '../../domain/repositories/interfaces/IActivityLogRepository';
 import type {
   CategoryCorrectionOperation,
@@ -17,6 +19,7 @@ import {
 } from '../../domain/shared/DomainError';
 import type { IdGenerator } from '../ports/IdGenerator';
 import type { OlxPublicationQuotaService } from './OlxPublicationQuotaService';
+import type { MarketplaceAccountRepository } from './MarketplaceOAuthService';
 import type { Marketplace } from '../../domain/entities/Marketplace';
 import type { HermesEventView } from '../dto/presenters';
 import type {
@@ -26,7 +29,10 @@ import type {
 } from '../../../shared/types';
 
 export interface CategoryCorrectionAdapterResolver {
-  resolve(marketplace: Marketplace): Promise<IMarketplaceAdapter>;
+  resolve(
+    marketplace: Marketplace,
+    expectedAccount?: { id: string; revision: number },
+  ): Promise<IMarketplaceAdapter>;
 }
 
 export interface CategoryCorrectionPublishAttemptStore {
@@ -62,6 +68,7 @@ export class CategoryCorrectionOperationService {
     private readonly listings: IListingRepository,
     private readonly products: IProductRepository,
     private readonly marketplaces: IMarketplaceRepository,
+    private readonly marketplaceAccounts: MarketplaceAccountRepository,
     private readonly quota: OlxPublicationQuotaService,
     private readonly adapters: CategoryCorrectionAdapterResolver,
     private readonly activity: IActivityLogRepository,
@@ -76,6 +83,120 @@ export class CategoryCorrectionOperationService {
     const event = await this.events.findByIdForWorkspace(recommendationEventId, workspaceId);
     if (!event) throw new NotFoundError(`Hermes event not found: ${recommendationEventId}`);
     return this.operations.findByRecommendationForWorkspace(recommendationEventId, workspaceId);
+  }
+
+  async requestStandaloneDelist(input: {
+    operationId: string;
+    listingId: string;
+    workspaceId: string;
+    actorId: string;
+  }): Promise<CategoryCorrectionOperation> {
+    if (!input.actorId.trim()) throw new ValidationError('Authenticated actor is required');
+    const existing = await this.operations.findByIdForWorkspace(input.operationId, input.workspaceId);
+    if (existing) {
+      const listing = await this.listings.findByIdForWorkspace(input.listingId, input.workspaceId);
+      if (!listing) throw new NotFoundError(`Listing not found: ${input.listingId}`);
+      if (
+        existing.kind !== 'delist'
+        || existing.listingId !== input.listingId
+        || existing.marketplaceId !== listing.marketplaceId
+        || existing.recommendationEventId !== null
+      ) {
+        throw new ValidationError('Operation ID is already bound to another action');
+      }
+      const existingAccountId = typeof existing.result?.marketplaceAccountId === 'string'
+        ? existing.result.marketplaceAccountId
+        : null;
+      const existingAccountRevision = typeof existing.result?.marketplaceAccountRevision === 'number'
+        ? existing.result.marketplaceAccountRevision
+        : null;
+      const currentAccount = await this.marketplaceAccounts.findByMarketplaceId(listing.marketplaceId);
+      if (!existingAccountId
+        || existingAccountRevision === null
+        || !currentAccount
+        || currentAccount.status !== 'connected'
+        || currentAccount.id !== existingAccountId
+        || currentAccount.revision !== existingAccountRevision) {
+        throw new ValidationError('Operation ID is bound to a different OLX account');
+      }
+      if (!existing.requestedBy) throw new InvalidStateError('Standalone delist has no requesting actor');
+      await this.audit(
+        existing,
+        existing.requestedBy,
+        'olx.listing_delist.requested',
+        {
+          externalListingId:
+            typeof existing.result?.externalListingId === 'string' ? existing.result.externalListingId : null,
+          externalUrl: typeof existing.result?.externalUrl === 'string' ? existing.result.externalUrl : null,
+          destructive: true,
+          automaticRepublish: false,
+        },
+        this.makeStandaloneRequestedAuditId(existing.id),
+        existing.requestedAt,
+      );
+      return existing;
+    }
+    const listing = await this.listings.findByIdForWorkspace(input.listingId, input.workspaceId);
+    if (!listing) throw new NotFoundError(`Listing not found: ${input.listingId}`);
+    if (listing.status !== 'live' || !listing.marketplaceListingId) {
+      throw new InvalidStateError('Only a live listing with an active remote identity can be delisted');
+    }
+    const marketplace = await this.marketplaces.findByIdForWorkspace(listing.marketplaceId, input.workspaceId);
+    if (!marketplace) throw new NotFoundError(`Marketplace not found: ${listing.marketplaceId}`);
+    if (marketplace.key !== 'olx') {
+      throw new InvalidStateError('Category correction operations are only supported for OLX');
+    }
+    const marketplaceAccount = await this.marketplaceAccounts.findByMarketplaceId(marketplace.id);
+    if (!marketplaceAccount || marketplaceAccount.status !== 'connected') {
+      throw new InvalidStateError('OLX account is not connected');
+    }
+
+    const at = this.now();
+    const operation: CategoryCorrectionOperation = {
+      id: input.operationId,
+      workspaceId: input.workspaceId,
+      recommendationEventId: null,
+      listingId: listing.id,
+      marketplaceId: marketplace.id,
+      kind: 'delist',
+      state: 'requested',
+      targetCategory: null,
+      paidOverrideReason: null,
+      requestedBy: input.actorId,
+      approvedBy: null,
+      result: {
+        externalListingId: listing.marketplaceListingId,
+        externalUrl: listing.externalUrl,
+        requestedListingUpdatedAt: listing.updatedAt.toISOString(),
+        marketplaceAccountId: marketplaceAccount.id,
+        marketplaceAccountRevision: marketplaceAccount.revision,
+      },
+      requestedAt: at,
+      approvedAt: null,
+      executedAt: null,
+      failedAt: null,
+      updatedAt: at,
+    };
+    const created = await this.operations.create(operation);
+    if (
+      created.workspaceId !== input.workspaceId
+      || created.kind !== 'delist'
+      || created.listingId !== listing.id
+      || created.marketplaceId !== marketplace.id
+      || created.recommendationEventId !== null
+      || created.requestedBy !== input.actorId
+      || created.result?.marketplaceAccountId !== marketplaceAccount.id
+      || created.result?.marketplaceAccountRevision !== marketplaceAccount.revision
+    ) {
+      throw new ValidationError('Operation ID is already bound to another action');
+    }
+    await this.audit(created, created.requestedBy, 'olx.listing_delist.requested', {
+      externalListingId: listing.marketplaceListingId,
+      externalUrl: listing.externalUrl,
+      destructive: true,
+      automaticRepublish: false,
+    }, this.makeStandaloneRequestedAuditId(created.id), created.requestedAt);
+    return created;
   }
 
   async hydrateEvent(event: HermesEventView, workspaceId: string): Promise<HermesEventView> {
@@ -182,6 +303,9 @@ export class CategoryCorrectionOperationService {
       );
     }
     if (current.kind === 'recreate') {
+      if (!current.recommendationEventId) {
+        throw new InvalidStateError('Recreate requires a paired Hermes recommendation');
+      }
       const pair = await this.operations.findByRecommendationForWorkspace(
         current.recommendationEventId,
         input.workspaceId,
@@ -213,7 +337,9 @@ export class CategoryCorrectionOperationService {
       if (!product) throw new NotFoundError(`Product not found: ${listing.productId}`);
       const marketplace = await this.marketplaces.findByIdForWorkspace(operation.marketplaceId, input.workspaceId);
       if (!marketplace) throw new NotFoundError(`Marketplace not found: ${operation.marketplaceId}`);
-      if (marketplace.key !== 'olx') throw new InvalidStateError('Category correction operations are only supported for OLX');
+      if (marketplace.key !== 'olx') {
+        throw new InvalidStateError('Category correction operations are only supported for OLX');
+      }
       if (recoveringPublishedCheckpoint
         && recoveryCheckpoint?.externalListingId
         && listing.status === 'live'
@@ -239,25 +365,84 @@ export class CategoryCorrectionOperationService {
       }
       let result: Record<string, unknown>;
       if (operation.kind === 'delist') {
-        if (!listing.marketplaceListingId) throw new InvalidStateError('Delist requires an external listing id');
-        const adapter = await this.adapters.resolve(marketplace);
-        await adapter.delist(listing.marketplaceListingId);
+        const capturedExternalListingId = typeof operation.result?.externalListingId === 'string'
+          ? operation.result.externalListingId
+          : null;
+        if (!capturedExternalListingId) {
+          throw new InvalidStateError('Delist has no captured external listing identity');
+        }
+        if (listing.marketplaceListingId !== capturedExternalListingId) {
+          throw new InvalidStateError('Listing identity changed before delist; delist requires a new review');
+        }
+        const externalListingId = capturedExternalListingId;
+        const capturedMarketplaceAccountId = typeof operation.result?.marketplaceAccountId === 'string'
+          ? operation.result.marketplaceAccountId
+          : null;
+        const capturedMarketplaceAccountRevision = typeof operation.result?.marketplaceAccountRevision === 'number'
+          ? operation.result.marketplaceAccountRevision
+          : null;
+        if (!capturedMarketplaceAccountId || capturedMarketplaceAccountRevision === null) {
+          throw new InvalidStateError('Delist has no captured OLX account identity');
+        }
+        const currentMarketplaceAccount = await this.marketplaceAccounts.findByMarketplaceId(marketplace.id);
+        if (!currentMarketplaceAccount
+          || currentMarketplaceAccount.status !== 'connected'
+          || currentMarketplaceAccount.id !== capturedMarketplaceAccountId
+          || currentMarketplaceAccount.revision !== capturedMarketplaceAccountRevision) {
+          throw new InvalidStateError('OLX account changed after delist review; create a new operation');
+        }
+        const expectedListingUpdatedAt = listing.updatedAt;
+        const externalUrl = listing.externalUrl;
+        const publishedAt = listing.publishedAt;
+        const remoteStatus = listing.remoteStatus;
+        const adapter = await this.adapters.resolve(marketplace, {
+          id: capturedMarketplaceAccountId,
+          revision: capturedMarketplaceAccountRevision,
+        });
+        providerCheckpoint = {
+          providerEffect: 'delist_started',
+          externalListingId,
+          externalUrl,
+        };
+        providerCallStarted = true;
+        await adapter.delist(externalListingId);
         providerCheckpoint = {
           providerEffect: 'delisted',
-          externalListingId: listing.marketplaceListingId,
+          externalListingId,
+          externalUrl,
         };
-        const expired = listing.expire();
-        if (expired.isErr()) throw expired.error;
-        listing.recordSyncStatusNote('Remote advert delisted for category correction');
-        await this.listings.save(listing);
+        const currentListing = await this.listings.findByIdForWorkspace(operation.listingId, input.workspaceId);
+        if (!currentListing
+          || currentListing.marketplaceListingId !== capturedExternalListingId
+          || currentListing.updatedAt.getTime() !== expectedListingUpdatedAt.getTime()) {
+          throw new InvalidStateError(
+            'Listing changed while provider delist was in flight; preserve current state and reconcile the remote result',
+          );
+        }
+        const transitioned = operation.recommendationEventId
+          ? currentListing.expire()
+          : currentListing.returnToDraftAfterDelist(capturedExternalListingId);
+        if (transitioned.isErr()) throw transitioned.error;
+        if (operation.recommendationEventId) {
+          currentListing.recordSyncStatusNote('Remote advert delisted for category correction');
+        }
+        await this.listings.saveAfterConfirmedDelist(currentListing, capturedExternalListingId);
         result = {
-          externalListingId: listing.marketplaceListingId,
+          externalListingId,
+          externalUrl,
+          publishedAt: publishedAt?.toISOString() ?? null,
+          remoteStatus,
+          localStatus: currentListing.status,
           quotaUnitsRestored: 0,
           deletionRestoresQuota: false,
+          automaticRepublish: false,
         };
       } else {
         if (listing.status !== 'expired') {
           throw new InvalidStateError(`Recreate requires an expired listing; found ${listing.status}`);
+        }
+        if (!operation.recommendationEventId) {
+          throw new InvalidStateError('Recreate requires a paired Hermes recommendation');
         }
         const pair = await this.operations.findByRecommendationForWorkspace(
           operation.recommendationEventId,
@@ -421,14 +606,56 @@ export class CategoryCorrectionOperationService {
       const failure = {
         errorCode: error instanceof Error && 'code' in error ? String(error.code) : 'DEPENDENCY_FAILURE',
         message: error instanceof Error ? error.message : 'Unknown category correction failure',
+        failureKind: this.classifyFailure(error, providerCallStarted, providerCheckpoint),
         retrySafe: false,
-        manualReconciliationRequired: true,
+        manualReconciliationRequired: this.requiresManualReconciliation(
+          error,
+          providerCallStarted,
+          providerCheckpoint,
+        ),
         ...providerCheckpoint,
       };
       const failed = await this.operations.markFailed(operation.id, input.workspaceId, failure, this.now());
-      if (failed) await this.audit(failed, input.actorId, 'olx.category_correction.failed', failure);
+      if (failed) {
+        await this.audit(failed, input.actorId, 'olx.category_correction.failed', failure);
+        // Standalone delist is an operator workflow whose client must render the
+        // persisted typed terminal result. Returning it avoids an unsafe automatic
+        // HTTP replay while preserving thrown failures for paired correction jobs.
+        if (operation.kind === 'delist' && operation.recommendationEventId === null) return failed;
+      }
       throw error;
     }
+  }
+
+  private classifyFailure(
+    error: unknown,
+    providerCallStarted: boolean,
+    providerCheckpoint: Record<string, unknown>,
+  ): 'authentication' | 'validation' | 'provider_rejection' | 'ambiguous' | 'dependency' {
+    const code = error instanceof Error && 'code' in error ? String(error.code) : undefined;
+    if (['delisted', 'published'].includes(String(providerCheckpoint.providerEffect ?? ''))) {
+      return 'ambiguous';
+    }
+    if (code === 'AUTHENTICATION') return 'authentication';
+    if (code === 'PROVIDER_REJECTION' || (code === 'NOT_FOUND' && providerCallStarted)) {
+      return 'provider_rejection';
+    }
+    if (code === 'VALIDATION_ERROR' || code === 'INVALID_STATE' || code === 'GUARDRAIL_VIOLATION') {
+      return 'validation';
+    }
+    if (providerCallStarted) return 'ambiguous';
+    return 'dependency';
+  }
+
+  private requiresManualReconciliation(
+    error: unknown,
+    providerCallStarted: boolean,
+    providerCheckpoint: Record<string, unknown>,
+  ): boolean {
+    const code = error instanceof Error && 'code' in error ? String(error.code) : undefined;
+    if (['delisted', 'published'].includes(String(providerCheckpoint.providerEffect ?? ''))) return true;
+    if (['AUTHENTICATION', 'NOT_FOUND', 'PROVIDER_REJECTION'].includes(code ?? '')) return false;
+    return providerCallStarted;
   }
 
   private presentOperation(
@@ -508,12 +735,19 @@ export class CategoryCorrectionOperationService {
     actorId: string,
     action: string,
     metadata: Record<string, unknown>,
+    id?: string,
+    createdAt?: Date,
   ): Promise<void> {
     await this.activity.record({
-      id: this.idGenerator(), workspaceId: operation.workspaceId, entityType: 'listing',
+      id: id ?? this.idGenerator(), workspaceId: operation.workspaceId, entityType: 'listing',
       entityId: operation.listingId, actorType: 'user', actorId, action,
       metadata: { operationId: operation.id, recommendationEventId: operation.recommendationEventId,
-        kind: operation.kind, state: operation.state, ...metadata }, createdAt: this.now(),
+        kind: operation.kind, state: operation.state, ...metadata }, createdAt: createdAt ?? this.now(),
     });
+  }
+
+  private makeStandaloneRequestedAuditId(operationId: string): string {
+    const namespace = createHash('sha256').update(`olx.listing_delist.requested:${operationId}`).digest('hex');
+    return `${namespace.slice(0, 8)}-${namespace.slice(8, 12)}-${namespace.slice(12, 16)}-${namespace.slice(16, 20)}-${namespace.slice(20, 32)}`;
   }
 }

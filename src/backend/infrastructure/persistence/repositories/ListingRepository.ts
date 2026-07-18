@@ -98,6 +98,31 @@ export class ListingRepository implements IListingRepository {
     await withTransaction((client) => this.persist(listing, client));
   }
 
+  async saveAfterConfirmedDelist(listing: Listing, expectedExternalListingId: string): Promise<void> {
+    const run = async (client: PoolClient): Promise<void> => {
+      const result = await query(
+        `UPDATE listings SET
+           marketplace_listing_id = $2, external_url = $3, status = $4, remote_status = $5,
+           published_at = $6, expires_at = $7, sync_error = $8, last_sync_at = $9, updated_at = $10
+         WHERE id = $1 AND marketplace_listing_id = $11 AND status = 'live'
+         RETURNING id`,
+        [
+          listing.id, listing.marketplaceListingId, listing.externalUrl, listing.status,
+          listing.remoteStatus, listing.publishedAt, listing.expiresAt, listing.syncError,
+          listing.lastSyncAt, listing.updatedAt, expectedExternalListingId,
+        ],
+        client,
+      );
+      if (result.rowCount !== 1) {
+        throw new InvalidStateError(
+          `Listing remote identity changed concurrently; reconcile delist: ${listing.id}`,
+        );
+      }
+    };
+    if (this.client) return run(this.client);
+    await withTransaction(run);
+  }
+
   async saveAll(listings: Listing[]): Promise<void> {
     const run = async (client: PoolClient): Promise<void> => {
       for (const listing of listings) {

@@ -414,10 +414,17 @@ export class MarketplaceOAuthService {
     }
   }
 
-  async getValidAccessToken(marketplaceId: string): Promise<string> {
+  async getValidAccessToken(
+    marketplaceId: string,
+    expectedAccount?: { id: string; revision: number },
+  ): Promise<string> {
     const account = await this.deps.accountRepo.findByMarketplaceId(marketplaceId);
     if (!account || account.status !== 'connected') {
       throw new InvalidStateError('OLX account is not connected');
+    }
+    if (expectedAccount
+      && (account.id !== expectedAccount.id || account.revision !== expectedAccount.revision)) {
+      throw new InvalidStateError('OLX account changed after the operation was reviewed');
     }
 
     const tokens = this.decryptTokens(account);
@@ -426,7 +433,7 @@ export class MarketplaceOAuthService {
     }
 
     const refresh = (lease?: MarketplaceOAuthRefreshLease) =>
-      this.refreshAccessToken(marketplaceId, lease);
+      this.refreshAccessToken(marketplaceId, lease, expectedAccount);
     return this.deps.refreshLock
       ? this.deps.refreshLock.withLock(marketplaceId, refresh)
       : refresh();
@@ -434,11 +441,16 @@ export class MarketplaceOAuthService {
 
   private async refreshAccessToken(
     marketplaceId: string,
-    lease?: MarketplaceOAuthRefreshLease
+    lease?: MarketplaceOAuthRefreshLease,
+    expectedAccount?: { id: string; revision: number }
   ): Promise<string> {
     const account = await this.deps.accountRepo.findByMarketplaceId(marketplaceId);
     if (!account || account.status !== 'connected') {
       throw new InvalidStateError('OLX account is not connected');
+    }
+    if (expectedAccount
+      && (account.id !== expectedAccount.id || account.revision !== expectedAccount.revision)) {
+      throw new InvalidStateError('OLX account changed after the operation was reviewed');
     }
 
     // Another worker may have refreshed while this worker waited for the lock.

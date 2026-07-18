@@ -195,6 +195,7 @@ export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
       marketplaceRepo: deps.marketplaceRepo,
       olxTaxonomyResolver: deps.olxTaxonomyResolver,
       olxQuotaService: deps.olxPublicationQuotaService,
+      categoryCorrectionOperationService: deps.categoryCorrectionOperationService,
     }),
     marketplaces: new MarketplaceController(
       deps.marketplaceRepo,

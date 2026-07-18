@@ -6,7 +6,7 @@ import type { SelectChangeEvent } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import type { Listing, ListingStatus } from '@shared/types';
 import { LISTING_STATUS_LIST } from '@shared/constants';
-import { useListings } from '../services/hooks/index.js';
+import { useDelistListingToDraft, useListings } from '../services/hooks/index.js';
 import type { ListingListParams } from '../state/api/index.js';
 import { useMarketplaceLookup } from '../hooks/useMarketplaceLookup.js';
 import { useAppSelector } from '../state/hooks.js';
@@ -17,7 +17,7 @@ import { ListingsTable } from '../components/tables/index.js';
 const ListingsPage: React.FC = () => {
   const navigate = useNavigate();
   const currency = useAppSelector((s) => s.workspace.currency);
-  const { resolveMarketplaceName } = useMarketplaceLookup();
+  const { resolveMarketplaceName, resolveMarketplaceKey } = useMarketplaceLookup();
 
   const [statusFilter, setStatusFilter] = useState<ListingStatus[]>([]);
 
@@ -28,6 +28,7 @@ const ListingsPage: React.FC = () => {
   }, [statusFilter]);
 
   const { data, isLoading, isFetching, isError, error, refetch } = useListings(params);
+  const [delistToDraft, { isLoading: delisting }] = useDelistListingToDraft();
 
 
   const handleStatusChange = (e: SelectChangeEvent<ListingStatus[]>) => {
@@ -39,6 +40,11 @@ const ListingsPage: React.FC = () => {
     navigate(`/products/${listing.productId}`, {
       state: { publicationReview: { listingId: listing.id, mode: 'relist' } },
     });
+  };
+
+  const handleDelistToDraft = async (listing: Listing, operationId: string) => {
+    const operation = await delistToDraft({ id: listing.id, operationId, confirmed: true }).unwrap();
+    return operation;
   };
 
   return (
@@ -80,9 +86,12 @@ const ListingsPage: React.FC = () => {
           onRetry={refetch}
           currency={currency}
           resolveMarketplaceName={resolveMarketplaceName}
+          resolveMarketplaceKey={resolveMarketplaceKey}
           productHref={(l) => `/products/${l.productId}`}
           onRowClick={(l) => navigate(`/products/${l.productId}`)}
           onRelist={handleRelist}
+          onDelistToDraft={handleDelistToDraft}
+          actionsDisabled={delisting}
         />
       </Card>
     </Box>

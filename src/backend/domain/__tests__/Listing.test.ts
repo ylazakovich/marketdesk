@@ -71,6 +71,69 @@ describe('Listing publish rules', () => {
 });
 
 describe('Listing lifecycle', () => {
+  it('returns a confirmed remote listing to draft and clears only its active remote identity', () => {
+    const listing = makeListing();
+    unwrap(
+      listing.publish(
+        makeProduct(false),
+        makeMarketplace(true),
+        'ext-1',
+        'https://www.olx.pl/d/oferta/ext-1',
+      ),
+    );
+
+    expect(listing.returnToDraftAfterDelist().isOk()).toBe(true);
+    expect(listing.status).toBe('draft');
+    expect(listing.marketplaceListingId).toBeNull();
+    expect(listing.externalUrl).toBeNull();
+    expect(listing.publishedAt).toBeNull();
+
+    unwrap(listing.publish(makeProduct(false), makeMarketplace(true), 'ext-2'));
+    expect(listing.marketplaceListingId).toBe('ext-2');
+    expect(listing.marketplaceListingId).not.toBe('ext-1');
+  });
+
+  it('refuses to clear remote identity for a listing that is not live', () => {
+    const listing = makeListing();
+
+    expect(listing.returnToDraftAfterDelist().isErr()).toBe(true);
+    expect(listing.status).toBe('draft');
+  });
+
+  it('rejects returning a non-live listing with a confirmed remote identity and preserves identity', () => {
+    const listing = makeListing();
+    unwrap(
+      listing.publish(
+        makeProduct(false),
+        makeMarketplace(true),
+        'ext-1',
+        'https://www.olx.pl/d/oferta/ext-1',
+      ),
+    );
+    unwrap(listing.expire());
+
+    expect(listing.returnToDraftAfterDelist('ext-1').isErr()).toBe(true);
+    expect(listing.status).toBe('expired');
+    expect(listing.marketplaceListingId).toBe('ext-1');
+    expect(listing.externalUrl).toBe('https://www.olx.pl/d/oferta/ext-1');
+  });
+
+  it('refuses to clear remote identity when the external listing id changed while still live', () => {
+    const listing = makeListing();
+    unwrap(
+      listing.publish(
+        makeProduct(false),
+        makeMarketplace(true),
+        'ext-1',
+        'https://www.olx.pl/d/oferta/ext-1',
+      ),
+    );
+
+    expect(listing.returnToDraftAfterDelist('ext-2').isErr()).toBe(true);
+    expect(listing.status).toBe('live');
+    expect(listing.marketplaceListingId).toBe('ext-1');
+  });
+
   it('detects expiry from a past expiresAt', () => {
     const listing = unwrap(
       Listing.create({

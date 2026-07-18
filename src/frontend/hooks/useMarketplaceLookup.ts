@@ -3,6 +3,7 @@
 import { useCallback, useMemo } from 'react';
 import { useMarketplaces } from '../services/hooks/index.js';
 import { MARKETPLACE_NAMES } from '@shared/constants';
+import type { Marketplace } from '@shared/types';
 
 export function useMarketplaceLookup() {
   const { data: marketplaces } = useMarketplaces();
@@ -15,10 +16,21 @@ export function useMarketplaceLookup() {
     return map;
   }, [marketplaces]);
 
+  const keyById = useMemo(() => {
+    const map = new Map<string, Marketplace['key']>();
+    for (const marketplace of marketplaces ?? []) map.set(marketplace.id, marketplace.key);
+    return map;
+  }, [marketplaces]);
+
   const resolveMarketplaceName = useCallback(
     (marketplaceId: string) => byId.get(marketplaceId) ?? marketplaceId,
     [byId],
   );
 
-  return { marketplaces, resolveMarketplaceName };
+  const resolveMarketplaceKey = useCallback(
+    (marketplaceId: string) => keyById.get(marketplaceId),
+    [keyById],
+  );
+
+  return { marketplaces, resolveMarketplaceName, resolveMarketplaceKey };
 }

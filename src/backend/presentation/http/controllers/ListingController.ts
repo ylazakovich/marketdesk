@@ -21,6 +21,7 @@ import { evaluatePublishEligibility } from '../../../application/usecases/Publis
 import type { OlxPublicationQuotaService } from '../../../application/services/OlxPublicationQuotaService';
 import { evaluateOlxCategory } from '../../../domain/services/OlxCategoryGuard';
 import type { OlxTrustedTaxonomyResolver } from '../../../infrastructure/adapters/OlxTaxonomyResolver';
+import type { CategoryCorrectionOperationService } from '../../../application/services/CategoryCorrectionOperationService';
 import { ok, paginated } from '../formatters/ResponseFormatter';
 
 
@@ -44,6 +45,7 @@ export interface ListingControllerDeps {
   marketplaceRepo?: IMarketplaceRepository;
   olxQuotaService?: OlxPublicationQuotaService;
   olxTaxonomyResolver?: (marketplaceId: string) => Promise<OlxTrustedTaxonomyResolver>;
+  categoryCorrectionOperationService?: CategoryCorrectionOperationService;
 }
 
 export class ListingController {
@@ -195,6 +197,27 @@ export class ListingController {
     });
     if (result.isErr()) return next(result.error);
     ok(res, result.value);
+  };
+
+  delistToDraft = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const service = this.deps.categoryCorrectionOperationService;
+    if (!service) return next(new NotFoundError('Listing delist workflow is unavailable'));
+    const listingId = routeParam(req.params.id);
+    const workspaceId = req.user!.workspaceId!;
+    const actorId = req.user!.userId!;
+    const requested = await service.requestStandaloneDelist({
+      operationId: req.body.operationId,
+      listingId,
+      workspaceId,
+      actorId,
+    });
+    const approved = requested.state === 'requested'
+      ? await service.approve({ operationId: requested.id, workspaceId, actorId })
+      : requested;
+    const completed = approved.state === 'approved'
+      ? await service.execute({ operationId: approved.id, workspaceId, actorId })
+      : approved;
+    ok(res, completed);
   };
 
   update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {

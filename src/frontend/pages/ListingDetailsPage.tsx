@@ -22,6 +22,7 @@ import {
   useUpdateProduct,
   useUpdateListing,
   useRelistListing,
+  useDelistListingToDraft,
   usePublishListingPreview,
   usePublishListing,
   useCreateProductListing,
@@ -215,11 +216,12 @@ const ListingDetailsPage: React.FC = () => {
     { productId, status: ['pending_review'], sort: '-createdAt', limit: 20 },
     { skip: !productId },
   );
-  const { marketplaces, resolveMarketplaceName } = useMarketplaceLookup();
+  const { marketplaces, resolveMarketplaceName, resolveMarketplaceKey } = useMarketplaceLookup();
 
   const [updateProduct, { isLoading: updating }] = useUpdateProduct();
   const [updateListing, { isLoading: pricing }] = useUpdateListing();
   const [relistListing, { isLoading: relisting }] = useRelistListing();
+  const [delistToDraft, { isLoading: delisting }] = useDelistListingToDraft();
   const [publishListingPreview] = usePublishListingPreview();
   const [publishListing, { isLoading: publishing }] = usePublishListing();
   const [createListing, { isLoading: creatingListing }] = useCreateProductListing();
@@ -256,7 +258,7 @@ const ListingDetailsPage: React.FC = () => {
     : 'Marketplace';
   const remoteMarketplace = remoteMarketplacePresentation(primaryListing, primaryMarketplaceName);
   const recommendations = selectProductRecommendations(hermesEvents.data?.items ?? [], productId);
-  const publicationBusy = previewingPublication || submittingPublication || publishing || relisting;
+  const publicationBusy = previewingPublication || submittingPublication || publishing || relisting || delisting;
   const publicationActionsLocked = publicationBusy || Boolean(publishCandidate);
 
   const closePublicationReview = () => {
@@ -468,9 +470,24 @@ const ListingDetailsPage: React.FC = () => {
               onRetry={listings.refetch}
               currency={currency}
               resolveMarketplaceName={resolveMarketplaceName}
+              resolveMarketplaceKey={resolveMarketplaceKey}
               onRowClick={(listing) => setPriceListing(listing)}
               onRelist={handleRelist}
               onPublish={handlePublish}
+              onDelistToDraft={async (listing, operationId) => {
+                const operation = await delistToDraft({
+                  id: listing.id,
+                  operationId,
+                  confirmed: true,
+                }).unwrap();
+                if (operation.state === 'executed') {
+                  dispatch(enqueueToast({
+                    message: 'Remote advert removed; listing returned to draft. Nothing was republished.',
+                    severity: 'success',
+                  }));
+                }
+                return operation;
+              }}
               actionsDisabled={publicationActionsLocked}
             />
           </Card>

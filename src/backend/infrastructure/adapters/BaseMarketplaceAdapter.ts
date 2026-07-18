@@ -215,6 +215,9 @@ export abstract class BaseMarketplaceAdapter implements IMarketplaceAdapter {
       if (raw.status === 404) {
         return new MarketplaceNotFoundError(`${label}: resource not found`, raw);
       }
+      if (raw.status === 408) {
+        return new MarketplaceTransientError(`${label}: request timed out`, raw);
+      }
       if (raw.status === 429) {
         return new MarketplaceRateLimitError(`${label}: rate limit exceeded`, raw);
       }

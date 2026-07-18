@@ -151,6 +151,7 @@ describe('ListingsTable destructive delist action', () => {
     const live = renderToStaticMarkup(
       <ListingsTable
         listings={[listing()]}
+        resolveMarketplaceKey={() => 'olx'}
         onDelistToDraft={async () => ({
           id: 'operation-1', listingId: 'listing-1', marketplaceId: 'marketplace-1',
           state: 'executed', result: null,
@@ -166,9 +167,30 @@ describe('ListingsTable destructive delist action', () => {
         })}
       />,
     );
+    const unresolved = renderToStaticMarkup(
+      <ListingsTable
+        listings={[listing()]}
+        onDelistToDraft={async () => ({
+          id: 'operation-3', listingId: 'listing-1', marketplaceId: 'marketplace-1',
+          state: 'executed', result: null,
+        })}
+      />,
+    );
+    const nonOlx = renderToStaticMarkup(
+      <ListingsTable
+        listings={[listing()]}
+        resolveMarketplaceKey={() => 'ebay'}
+        onDelistToDraft={async () => ({
+          id: 'operation-4', listingId: 'listing-1', marketplaceId: 'marketplace-1',
+          state: 'executed', result: null,
+        })}
+      />,
+    );
 
     expect(live).toContain('Снять с площадки и вернуть в черновики');
     expect(draft).not.toContain('Снять с площадки и вернуть в черновики');
+    expect(unresolved).not.toContain('Снять с площадки и вернуть в черновики');
+    expect(nonOlx).not.toContain('Снять с площадки и вернуть в черновики');
   });
 
   it('retains an ambiguous operation until reconciliation, then starts with a fresh UUID', () => {

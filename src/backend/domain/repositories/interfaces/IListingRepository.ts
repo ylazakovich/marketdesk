@@ -10,6 +10,7 @@ export interface IListingRepository {
   // Listings that are live and expire before the given cutoff.
   findExpiring(before: Date): Promise<Listing[]>;
   save(listing: Listing): Promise<void>;
+  saveAfterConfirmedDelist(listing: Listing, expectedExternalListingId: string): Promise<void>;
   saveAll(listings: Listing[]): Promise<void>;
   delete(id: string): Promise<void>;
 }

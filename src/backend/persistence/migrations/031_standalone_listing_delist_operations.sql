@@ -6,4 +6,5 @@ ALTER TABLE category_correction_operations
 
 ALTER TABLE category_correction_operations
   ADD CONSTRAINT category_correction_operation_recommendation_check
-  CHECK (kind = 'delist' OR recommendation_event_id IS NOT NULL);
+  CHECK (kind = 'delist' OR recommendation_event_id IS NOT NULL)
+  NOT VALID;

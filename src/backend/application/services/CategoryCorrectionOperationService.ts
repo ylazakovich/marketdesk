@@ -99,9 +99,10 @@ export class CategoryCorrectionOperationService {
       ) {
         throw new ValidationError('Operation ID is already bound to another action');
       }
+      if (!existing.requestedBy) throw new InvalidStateError('Standalone delist has no requesting actor');
       await this.audit(
         existing,
-        input.actorId,
+        existing.requestedBy,
         'olx.listing_delist.requested',
         {
           externalListingId:
@@ -111,6 +112,7 @@ export class CategoryCorrectionOperationService {
           automaticRepublish: false,
         },
         this.makeStandaloneRequestedAuditId(existing.id),
+        existing.requestedAt,
       );
       return existing;
     }
@@ -150,12 +152,22 @@ export class CategoryCorrectionOperationService {
       updatedAt: at,
     };
     const created = await this.operations.create(operation);
-    await this.audit(created, input.actorId, 'olx.listing_delist.requested', {
+    if (
+      created.workspaceId !== input.workspaceId
+      || created.kind !== 'delist'
+      || created.listingId !== listing.id
+      || created.marketplaceId !== marketplace.id
+      || created.recommendationEventId !== null
+      || created.requestedBy !== input.actorId
+    ) {
+      throw new ValidationError('Operation ID is already bound to another action');
+    }
+    await this.audit(created, created.requestedBy, 'olx.listing_delist.requested', {
       externalListingId: listing.marketplaceListingId,
       externalUrl: listing.externalUrl,
       destructive: true,
       automaticRepublish: false,
-    }, this.makeStandaloneRequestedAuditId(created.id));
+    }, this.makeStandaloneRequestedAuditId(created.id), created.requestedAt);
     return created;
   }
 
@@ -334,7 +346,8 @@ export class CategoryCorrectionOperationService {
         if (listing.marketplaceListingId !== capturedExternalListingId) {
           throw new InvalidStateError('Listing identity changed before delist; delist requires a new review');
         }
-        const externalListingId = listing.marketplaceListingId;
+        const externalListingId = capturedExternalListingId;
+        const expectedListingUpdatedAt = listing.updatedAt;
         const externalUrl = listing.externalUrl;
         const publishedAt = listing.publishedAt;
         const remoteStatus = listing.remoteStatus;
@@ -351,20 +364,28 @@ export class CategoryCorrectionOperationService {
           externalListingId,
           externalUrl,
         };
+        const currentListing = await this.listings.findByIdForWorkspace(operation.listingId, input.workspaceId);
+        if (!currentListing
+          || currentListing.marketplaceListingId !== capturedExternalListingId
+          || currentListing.updatedAt.getTime() !== expectedListingUpdatedAt.getTime()) {
+          throw new InvalidStateError(
+            'Listing changed while provider delist was in flight; preserve current state and reconcile the remote result',
+          );
+        }
         const transitioned = operation.recommendationEventId
-          ? listing.expire()
-          : listing.returnToDraftAfterDelist(capturedExternalListingId);
+          ? currentListing.expire()
+          : currentListing.returnToDraftAfterDelist(capturedExternalListingId);
         if (transitioned.isErr()) throw transitioned.error;
         if (operation.recommendationEventId) {
-          listing.recordSyncStatusNote('Remote advert delisted for category correction');
+          currentListing.recordSyncStatusNote('Remote advert delisted for category correction');
         }
-        await this.listings.save(listing);
+        await this.listings.saveAfterConfirmedDelist(currentListing, capturedExternalListingId);
         result = {
           externalListingId,
           externalUrl,
           publishedAt: publishedAt?.toISOString() ?? null,
           remoteStatus,
-          localStatus: listing.status,
+          localStatus: currentListing.status,
           quotaUnitsRestored: 0,
           deletionRestoresQuota: false,
           automaticRepublish: false,
@@ -565,12 +586,17 @@ export class CategoryCorrectionOperationService {
     providerCheckpoint: Record<string, unknown>,
   ): 'authentication' | 'validation' | 'provider_rejection' | 'ambiguous' | 'dependency' {
     const code = error instanceof Error && 'code' in error ? String(error.code) : undefined;
+    if (['delisted', 'published'].includes(String(providerCheckpoint.providerEffect ?? ''))) {
+      return 'ambiguous';
+    }
     if (code === 'AUTHENTICATION') return 'authentication';
-    if (code === 'NOT_FOUND' || code === 'PROVIDER_REJECTION') return 'provider_rejection';
+    if (code === 'PROVIDER_REJECTION' || (code === 'NOT_FOUND' && providerCallStarted)) {
+      return 'provider_rejection';
+    }
     if (code === 'VALIDATION_ERROR' || code === 'INVALID_STATE' || code === 'GUARDRAIL_VIOLATION') {
       return 'validation';
     }
-    if (providerCallStarted || Object.keys(providerCheckpoint).length > 0) return 'ambiguous';
+    if (providerCallStarted) return 'ambiguous';
     return 'dependency';
   }
 
@@ -580,8 +606,9 @@ export class CategoryCorrectionOperationService {
     providerCheckpoint: Record<string, unknown>,
   ): boolean {
     const code = error instanceof Error && 'code' in error ? String(error.code) : undefined;
+    if (['delisted', 'published'].includes(String(providerCheckpoint.providerEffect ?? ''))) return true;
     if (['AUTHENTICATION', 'NOT_FOUND', 'PROVIDER_REJECTION'].includes(code ?? '')) return false;
-    return providerCallStarted || Object.keys(providerCheckpoint).length > 0;
+    return providerCallStarted;
   }
 
   private presentOperation(
@@ -662,12 +689,13 @@ export class CategoryCorrectionOperationService {
     action: string,
     metadata: Record<string, unknown>,
     id?: string,
+    createdAt?: Date,
   ): Promise<void> {
     await this.activity.record({
       id: id ?? this.idGenerator(), workspaceId: operation.workspaceId, entityType: 'listing',
       entityId: operation.listingId, actorType: 'user', actorId, action,
       metadata: { operationId: operation.id, recommendationEventId: operation.recommendationEventId,
-        kind: operation.kind, state: operation.state, ...metadata }, createdAt: this.now(),
+        kind: operation.kind, state: operation.state, ...metadata }, createdAt: createdAt ?? this.now(),
     });
   }
 

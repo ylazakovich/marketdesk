@@ -667,6 +667,20 @@ describe('OLXAdapter', () => {
     expect(calls).toBe(1);
   });
 
+  it('classifies an HTTP 408 delist as an ambiguous transient failure without retrying DELETE', async () => {
+    let calls = 0;
+    const http = mockClient(() => {
+      calls += 1;
+      throw new HttpError(408, 'request timeout');
+    });
+    const adapter = new OLXAdapter(http, fastOptions);
+
+    await expect(adapter.delist('olx-timeout-408')).rejects.toBeInstanceOf(
+      MarketplaceTransientError,
+    );
+    expect(calls).toBe(1);
+  });
+
   it('does NOT retry delist on timeout transport errors (no duplicate DELETE)', async () => {
     let calls = 0;
     const timeout = new Error('connection timed out') as Error & { code: string };

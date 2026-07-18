@@ -219,6 +219,7 @@ describe('CategoryCorrectionOperationService', () => {
     const existing = operation('delist');
     existing.id = 'standalone-existing';
     existing.recommendationEventId = null;
+    existing.requestedBy = 'user-1';
     existing.result = {
       externalListingId: 'old-advert-1',
       externalUrl: context.listing.externalUrl,
@@ -280,11 +281,29 @@ describe('CategoryCorrectionOperationService', () => {
     })).rejects.toThrow('activity store unavailable');
 
     await context.service.requestStandaloneDelist({
-      operationId: 'standalone-audit-retry', listingId: 'listing-1', workspaceId: 'ws-1', actorId: 'user-1',
+      operationId: 'standalone-audit-retry', listingId: 'listing-1', workspaceId: 'ws-1', actorId: 'user-2',
     });
 
     expect(record).toHaveBeenCalledTimes(2);
     expect(record.mock.calls[0][0].id).toBe(record.mock.calls[1][0].id);
+    expect(record.mock.calls[1][0]).toMatchObject({ actorId: 'user-1', createdAt: now });
+  });
+
+  it('rejects a conflicting operation returned by an idempotent create race before audit', async () => {
+    const context = setup();
+    const conflicting = operation('delist');
+    Object.assign(conflicting, {
+      id: 'standalone-create-race',
+      listingId: 'another-listing',
+      recommendationEventId: null,
+      requestedBy: 'user-1',
+    });
+    jest.spyOn(context.operations, 'create').mockResolvedValueOnce(conflicting);
+
+    await expect(context.service.requestStandaloneDelist({
+      operationId: 'standalone-create-race', listingId: 'listing-1', workspaceId: 'ws-1', actorId: 'user-1',
+    })).rejects.toThrow('Operation ID is already bound to another action');
+    expect(context.activity.entries).toHaveLength(0);
   });
 
   it('keeps a standalone listing live after an ambiguous provider failure and does not blindly retry it', async () => {
@@ -373,6 +392,62 @@ describe('CategoryCorrectionOperationService', () => {
     expect(context.delist).not.toHaveBeenCalled();
     expect(context.listing.marketplaceListingId).toBe('new-advert-2');
     expect(context.listing.status).toBe('live');
+  });
+
+  it('preserves a newer remote identity installed while provider delist is in flight', async () => {
+    const context = setup();
+    const requested = await context.service.requestStandaloneDelist({
+      operationId: 'standalone-concurrent-publish', listingId: 'listing-1', workspaceId: 'ws-1', actorId: 'user-1',
+    });
+    await context.service.approve({ operationId: requested.id, workspaceId: 'ws-1', actorId: 'user-1' });
+    const newer = unwrap(Listing.create({
+      id: context.listing.id,
+      productId: context.product.id,
+      marketplaceId: context.marketplace.id,
+      price: money(299),
+      status: 'live',
+      marketplaceListingId: 'new-advert-during-delist',
+      marketplaceCategory: category,
+      updatedAt: new Date(context.listing.updatedAt.getTime() + 1),
+    }));
+    context.delist.mockImplementationOnce(async () => {
+      context.listingRepo.items.set(newer.id, newer);
+    });
+
+    const failed = await context.service.execute({
+      operationId: requested.id, workspaceId: 'ws-1', actorId: 'user-1',
+    });
+
+    expect(context.delist).toHaveBeenCalledWith('old-advert-1');
+    expect(context.listingRepo.items.get('listing-1')).toBe(newer);
+    expect(newer).toMatchObject({ status: 'live', marketplaceListingId: 'new-advert-during-delist' });
+    expect(failed).toMatchObject({
+      state: 'failed',
+      result: {
+        providerEffect: 'delisted',
+        failureKind: 'ambiguous',
+        manualReconciliationRequired: true,
+      },
+    });
+  });
+
+  it('classifies a missing local listing before provider dispatch as a dependency failure', async () => {
+    const context = setup();
+    const requested = await context.service.requestStandaloneDelist({
+      operationId: 'standalone-local-missing', listingId: 'listing-1', workspaceId: 'ws-1', actorId: 'user-1',
+    });
+    await context.service.approve({ operationId: requested.id, workspaceId: 'ws-1', actorId: 'user-1' });
+    context.listingRepo.items.delete('listing-1');
+
+    const failed = await context.service.execute({
+      operationId: requested.id, workspaceId: 'ws-1', actorId: 'user-1',
+    });
+
+    expect(context.delist).not.toHaveBeenCalled();
+    expect(failed).toMatchObject({
+      state: 'failed',
+      result: { failureKind: 'dependency', manualReconciliationRequired: false },
+    });
   });
 
   it('blocks standalone delist for non-OLX marketplaces', async () => {

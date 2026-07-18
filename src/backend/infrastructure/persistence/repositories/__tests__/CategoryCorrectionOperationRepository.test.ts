@@ -13,7 +13,9 @@ function operation(overrides: Partial<CategoryCorrectionOperation>): CategoryCor
   return {
     id: overrides.id ?? 'op-1',
     workspaceId: overrides.workspaceId ?? 'ws-1',
-    recommendationEventId: overrides.recommendationEventId ?? 'event-1',
+    recommendationEventId: overrides.recommendationEventId === undefined
+      ? 'event-1'
+      : overrides.recommendationEventId,
     listingId: overrides.listingId ?? 'listing-1',
     marketplaceId: overrides.marketplaceId ?? 'marketplace-1',
     kind: overrides.kind ?? 'delist',

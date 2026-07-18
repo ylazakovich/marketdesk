@@ -305,7 +305,11 @@ export const ListingsTable: React.FC<ListingsTableProps> = ({
                         </IconButton>
                       </Tooltip>
                     )}
-                    {onDelistToDraft && listing.status === 'live' && Boolean(listing.marketplaceListingId) && (
+                    {onDelistToDraft
+                      && listing.status === 'live'
+                      && Boolean(listing.marketplaceListingId)
+                      && resolveMarketplaceKey?.(listing.marketplaceId) === 'olx'
+                      && (
                       <Tooltip title="Снять с площадки и вернуть в черновики">
                         <IconButton
                           size="small"

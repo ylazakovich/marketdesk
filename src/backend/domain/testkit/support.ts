@@ -102,6 +102,10 @@ export class InMemoryListingRepository implements IListingRepository {
   async save(listing: Listing): Promise<void> {
     this.items.set(listing.id, listing);
   }
+  async saveAfterConfirmedDelist(listing: Listing, expectedExternalListingId: string): Promise<void> {
+    void expectedExternalListingId;
+    this.items.set(listing.id, listing);
+  }
   async saveAll(listings: Listing[]): Promise<void> {
     for (const l of listings) await this.save(l);
   }

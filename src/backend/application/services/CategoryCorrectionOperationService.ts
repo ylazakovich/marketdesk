@@ -29,7 +29,10 @@ import type {
 } from '../../../shared/types';
 
 export interface CategoryCorrectionAdapterResolver {
-  resolve(marketplace: Marketplace, expectedAccountId?: string): Promise<IMarketplaceAdapter>;
+  resolve(
+    marketplace: Marketplace,
+    expectedAccount?: { id: string; revision: number },
+  ): Promise<IMarketplaceAdapter>;
 }
 
 export interface CategoryCorrectionPublishAttemptStore {
@@ -104,11 +107,16 @@ export class CategoryCorrectionOperationService {
       const existingAccountId = typeof existing.result?.marketplaceAccountId === 'string'
         ? existing.result.marketplaceAccountId
         : null;
+      const existingAccountRevision = typeof existing.result?.marketplaceAccountRevision === 'number'
+        ? existing.result.marketplaceAccountRevision
+        : null;
       const currentAccount = await this.marketplaceAccounts.findByMarketplaceId(listing.marketplaceId);
       if (!existingAccountId
+        || existingAccountRevision === null
         || !currentAccount
         || currentAccount.status !== 'connected'
-        || currentAccount.id !== existingAccountId) {
+        || currentAccount.id !== existingAccountId
+        || currentAccount.revision !== existingAccountRevision) {
         throw new ValidationError('Operation ID is bound to a different OLX account');
       }
       if (!existing.requestedBy) throw new InvalidStateError('Standalone delist has no requesting actor');
@@ -161,6 +169,7 @@ export class CategoryCorrectionOperationService {
         externalUrl: listing.externalUrl,
         requestedListingUpdatedAt: listing.updatedAt.toISOString(),
         marketplaceAccountId: marketplaceAccount.id,
+        marketplaceAccountRevision: marketplaceAccount.revision,
       },
       requestedAt: at,
       approvedAt: null,
@@ -177,6 +186,7 @@ export class CategoryCorrectionOperationService {
       || created.recommendationEventId !== null
       || created.requestedBy !== input.actorId
       || created.result?.marketplaceAccountId !== marketplaceAccount.id
+      || created.result?.marketplaceAccountRevision !== marketplaceAccount.revision
     ) {
       throw new ValidationError('Operation ID is already bound to another action');
     }
@@ -368,20 +378,27 @@ export class CategoryCorrectionOperationService {
         const capturedMarketplaceAccountId = typeof operation.result?.marketplaceAccountId === 'string'
           ? operation.result.marketplaceAccountId
           : null;
-        if (!capturedMarketplaceAccountId) {
+        const capturedMarketplaceAccountRevision = typeof operation.result?.marketplaceAccountRevision === 'number'
+          ? operation.result.marketplaceAccountRevision
+          : null;
+        if (!capturedMarketplaceAccountId || capturedMarketplaceAccountRevision === null) {
           throw new InvalidStateError('Delist has no captured OLX account identity');
         }
         const currentMarketplaceAccount = await this.marketplaceAccounts.findByMarketplaceId(marketplace.id);
         if (!currentMarketplaceAccount
           || currentMarketplaceAccount.status !== 'connected'
-          || currentMarketplaceAccount.id !== capturedMarketplaceAccountId) {
+          || currentMarketplaceAccount.id !== capturedMarketplaceAccountId
+          || currentMarketplaceAccount.revision !== capturedMarketplaceAccountRevision) {
           throw new InvalidStateError('OLX account changed after delist review; create a new operation');
         }
         const expectedListingUpdatedAt = listing.updatedAt;
         const externalUrl = listing.externalUrl;
         const publishedAt = listing.publishedAt;
         const remoteStatus = listing.remoteStatus;
-        const adapter = await this.adapters.resolve(marketplace, capturedMarketplaceAccountId);
+        const adapter = await this.adapters.resolve(marketplace, {
+          id: capturedMarketplaceAccountId,
+          revision: capturedMarketplaceAccountRevision,
+        });
         providerCheckpoint = {
           providerEffect: 'delist_started',
           externalListingId,

@@ -190,6 +190,7 @@ export class MarketplaceImportService {
         input.proposedCategory,
         input.workspaceId,
         account.id,
+        account.revision,
         repos.activityLog,
         repos.eventRepo,
         repos.correctionOperations,
@@ -250,6 +251,7 @@ export class MarketplaceImportService {
               item.proposed,
               input.workspaceId,
               context.value.account.id,
+              context.value.account.revision,
               input.actorId,
               repos
             );
@@ -282,6 +284,7 @@ export class MarketplaceImportService {
             null,
             input.workspaceId,
             context.value.account.id,
+            context.value.account.revision,
             repos.activityLog,
             repos.eventRepo,
             repos.correctionOperations,
@@ -673,6 +676,7 @@ export class MarketplaceImportService {
     remote: ImportedMarketplaceListing,
     workspaceId: string,
     marketplaceAccountId: string,
+    marketplaceAccountRevision: number,
     actorId: string | undefined,
     repos: MarketplaceImportRepositories
   ): Promise<void> {
@@ -745,6 +749,7 @@ export class MarketplaceImportService {
         proposedCategory,
         workspaceId,
         marketplaceAccountId,
+        marketplaceAccountRevision,
         repos.activityLog,
         repos.eventRepo,
         repos.correctionOperations,
@@ -768,6 +773,7 @@ export class MarketplaceImportService {
     proposedCategory: ImportedMarketplaceListing['marketplaceCategory'],
     workspaceId: string,
     marketplaceAccountId: string,
+    marketplaceAccountRevision: number,
     activityLog: IActivityLogRepository | undefined,
     transactionEventRepo: IEventRepository,
     transactionCorrectionOperations: ICategoryCorrectionOperationRepository,
@@ -827,6 +833,7 @@ export class MarketplaceImportService {
             externalUrl: listing.externalUrl,
             requestedListingUpdatedAt: listing.updatedAt.toISOString(),
             marketplaceAccountId,
+            marketplaceAccountRevision,
           }, requestedAt,
           approvedAt: null, executedAt: null, failedAt: null, updatedAt: requestedAt,
         },

@@ -316,9 +316,38 @@ describe('MarketplaceOAuthService', () => {
       scopes: ['basic'],
     });
 
-    await expect(service.getValidAccessToken(marketplace.id, 'account-1')).rejects.toThrow(
+    await expect(service.getValidAccessToken(marketplace.id, {
+      id: 'account-1',
+      revision: 1,
+    })).rejects.toThrow(
       'OLX account changed after the operation was reviewed'
     );
+    expect(refreshAccessToken).not.toHaveBeenCalled();
+  });
+
+  it('rejects access-token resolution when the reviewed account revision changed', async () => {
+    const { service, marketplace, accountRepo, refreshAccessToken } = setup();
+    const reviewed = await accountRepo.upsert({
+      id: 'account-1',
+      marketplaceId: marketplace.id,
+      handle: 'OLX account',
+      credentials: { payload: initialTokens },
+      status: 'connected',
+      scopes: ['basic'],
+    });
+    await accountRepo.upsert({
+      id: reviewed.id,
+      marketplaceId: marketplace.id,
+      handle: 'Reconnected OLX account',
+      credentials: { payload: initialTokens },
+      status: 'connected',
+      scopes: ['basic'],
+    });
+
+    await expect(service.getValidAccessToken(marketplace.id, {
+      id: reviewed.id,
+      revision: reviewed.revision,
+    })).rejects.toThrow('OLX account changed after the operation was reviewed');
     expect(refreshAccessToken).not.toHaveBeenCalled();
   });
 

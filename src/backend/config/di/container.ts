@@ -430,12 +430,12 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     marketplaceAccountRepo,
     olxPublicationQuotaService,
     {
-      resolve: async (marketplace, expectedAccountId) => {
+      resolve: async (marketplace, expectedAccount) => {
         if (env.marketplaces.olx.adapterMode !== 'real')
           return adapterFactory.create(marketplace.key);
         const accessToken = await marketplaceOAuthService.getValidAccessToken(
           marketplace.id,
-          expectedAccountId,
+          expectedAccount,
         );
         return adapterFactory.create(
           marketplace.key,

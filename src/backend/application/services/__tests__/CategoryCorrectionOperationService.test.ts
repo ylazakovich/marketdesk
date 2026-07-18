@@ -193,6 +193,7 @@ async function addAndApprove(setupResult: ReturnType<typeof setup>, kind: 'delis
       externalUrl: setupResult.listing.externalUrl,
       requestedListingUpdatedAt: setupResult.listing.updatedAt.toISOString(),
       marketplaceAccountId: setupResult.marketplaceAccount.id,
+      marketplaceAccountRevision: setupResult.marketplaceAccount.revision,
     };
   }
   setupResult.operations.items.set(value.id, value);
@@ -249,6 +250,23 @@ describe('CategoryCorrectionOperationService', () => {
     });
   });
 
+  it('fences a reconnect that keeps the OLX account row id but changes its revision', async () => {
+    const context = setup();
+    const requested = await context.service.requestStandaloneDelist({
+      operationId: 'standalone-account-reconnected', listingId: 'listing-1', workspaceId: 'ws-1', actorId: 'user-1',
+    });
+    await context.service.approve({ operationId: requested.id, workspaceId: 'ws-1', actorId: 'user-1' });
+    context.marketplaceAccount.revision += 1;
+
+    const failed = await context.service.execute({
+      operationId: requested.id, workspaceId: 'ws-1', actorId: 'user-1',
+    });
+
+    expect(context.delist).not.toHaveBeenCalled();
+    expect(context.resolveAdapter).not.toHaveBeenCalled();
+    expect(failed).toMatchObject({ state: 'failed', result: { failureKind: 'validation' } });
+  });
+
   it('adds standalone delist request evidence even when operation was already created', async () => {
     const context = setup();
     const existing = operation('delist');
@@ -260,6 +278,7 @@ describe('CategoryCorrectionOperationService', () => {
       externalUrl: context.listing.externalUrl,
       requestedListingUpdatedAt: context.listing.updatedAt.toISOString(),
       marketplaceAccountId: context.marketplaceAccount.id,
+      marketplaceAccountRevision: context.marketplaceAccount.revision,
     };
     context.operations.items.set(existing.id, existing);
 
@@ -293,6 +312,7 @@ describe('CategoryCorrectionOperationService', () => {
       externalUrl: context.listing.externalUrl,
       requestedListingUpdatedAt: context.listing.updatedAt.toISOString(),
       marketplaceAccountId: context.marketplaceAccount.id,
+      marketplaceAccountRevision: context.marketplaceAccount.revision,
     };
     context.operations.items.set(existing.id, existing);
 

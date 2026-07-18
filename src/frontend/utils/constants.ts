@@ -38,8 +38,9 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { label: 'Settings', path: APP_ROUTE_PATHS.settings, icon: SettingsIcon },
 ];
 
-export const SIDEBAR_WIDTH = 248;
+export const SIDEBAR_WIDTH = 260;
 export const SIDEBAR_COLLAPSED_WIDTH = 76;
 export const TOPBAR_HEIGHT = 64;
+export const APP_SHELL_CONTENT_INSET = 32;
 
 export const APP_NAME = 'MarketDesk';

@@ -36,6 +36,73 @@ const SEVERITY_LABELS: Record<HermesSeverity, string> = {
   critical: 'Critical',
 };
 
+export type HermesRunState =
+  | { status: 'idle' }
+  | { status: 'running' }
+  | { status: 'success'; message: string }
+  | { status: 'error'; message: string };
+
+export const HERMES_SETTINGS_PATH = '/settings#hermes';
+
+export const HermesHero: React.FC<{
+  runState: HermesRunState;
+  onConfigure: () => void;
+  onRun: () => void;
+}> = ({ runState, onConfigure, onRun }) => (
+  <Card
+    sx={{ mb: 2.5, background: (t) => `linear-gradient(135deg, ${t.palette.primary.dark}, ${t.palette.primary.main})`, color: 'primary.contrastText' }}
+    contentSx={{ p: 3 }}
+  >
+    <Stack spacing={2}>
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ md: 'center' }}>
+        <Stack spacing={1}>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <AutoAwesomeIcon />
+            <Typography variant="h5" sx={{ fontWeight: 800 }}>Hermes AI agent</Typography>
+            <Chip size="small" label="Ready on demand" sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'inherit' }} />
+          </Stack>
+          <Typography variant="body2" sx={{ opacity: 0.9 }}>
+            Review recorded suggestions and run a new analysis without implying unverified marketplace completion.
+          </Typography>
+        </Stack>
+        <Stack direction="row" spacing={1}>
+          <Button variant="contained" color="secondary" onClick={onConfigure}>Configure</Button>
+          <Button variant="outlined" color="inherit" startIcon={<AutoAwesomeIcon />} onClick={onRun} disabled={runState.status === 'running'}>
+            {runState.status === 'running' ? 'Running…' : 'Run Hermes'}
+          </Button>
+        </Stack>
+      </Stack>
+      {runState.status !== 'idle' && (
+        <Alert severity={runState.status === 'error' ? 'error' : runState.status === 'success' ? 'success' : 'info'} sx={{ bgcolor: 'rgba(255,255,255,0.92)' }}>
+          {runState.status === 'running'
+            ? 'Hermes analysis is running. Results will appear in the activity feed when the request completes.'
+            : runState.message}
+        </Alert>
+      )}
+    </Stack>
+  </Card>
+);
+
+export const HermesMetrics: React.FC<{ awaitingReview?: number }> = ({ awaitingReview }) => {
+  const metrics = [
+    { label: 'Actions today', value: 'Unavailable', help: 'The current API does not expose a day-scoped aggregate.' },
+    { label: 'Awaiting review', value: awaitingReview == null ? 'Unavailable' : String(awaitingReview), help: awaitingReview == null ? 'The authoritative pending-review total could not be loaded.' : 'Authoritative total across all pending-review events.' },
+    { label: 'Listings created', value: 'Unavailable', help: 'The current API does not expose a verified created-listing aggregate.' },
+    { label: 'Time saved', value: 'Unavailable', help: 'No defensible time-saved measurement is available.' },
+  ];
+  return (
+    <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 2.5 }}>
+      {metrics.map(({ label, value, help }) => (
+        <Card key={label} sx={{ flex: 1 }} contentSx={{ p: 2 }}>
+          <Typography variant="caption" color="text.secondary">{label}</Typography>
+          <Typography variant="h5" sx={{ fontWeight: 800 }}>{value}</Typography>
+          <Typography variant="caption" color="text.secondary">{help}</Typography>
+        </Card>
+      ))}
+    </Stack>
+  );
+};
+
 function errorMessage(err: unknown): string {
   if (err && typeof err === 'object') {
     const e = err as { data?: { error?: { message?: string } }; message?: string };
@@ -51,6 +118,7 @@ const HermesActivityPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<HermesEventStatus[]>([]);
   const [severityFilter, setSeverityFilter] = useState<HermesSeverity[]>([]);
   const [activityTab, setActivityTab] = useState<'all' | 'suggestions' | 'alerts' | 'completed'>('all');
+  const [runState, setRunState] = useState<HermesRunState>({ status: 'idle' });
 
   const params = useMemo<HermesEventListParams>(() => {
     const p: HermesEventListParams = { sort: '-createdAt', limit: 50 };
@@ -60,7 +128,8 @@ const HermesActivityPage: React.FC = () => {
   }, [statusFilter, severityFilter]);
 
   const { data, isLoading, isFetching, isError, error, refetch } = useHermesEvents(params);
-  const [runHermes, { isLoading: running }] = useRunHermes();
+  const { data: pendingReviewData } = useHermesEvents({ sort: '-createdAt', limit: 1, status: ['pending_review'] });
+  const [runHermes] = useRunHermes();
 
   const events: HermesEvent[] = data?.items ?? [];
   const isCompletedEvent = (event: HermesEvent): boolean =>
@@ -73,10 +142,7 @@ const HermesActivityPage: React.FC = () => {
     if (activityTab === 'suggestions') return events.filter(isPendingSuggestion);
     return events;
   }, [activityTab, events]);
-  const pendingCount = events.filter((event) => event.status === 'pending_review').length;
   const completedCount = events.filter(isCompletedEvent).length;
-  const listingSuggestionCount = events.filter((event) => event.type === 'create_listing').length;
-  const estimatedReviewMinutes = events.length === 0 ? 0 : events.length * 6;
 
   const handleStatus = (e: SelectChangeEvent<HermesEventStatus[]>) => {
     const value = e.target.value;
@@ -89,60 +155,28 @@ const HermesActivityPage: React.FC = () => {
   };
 
   const handleRun = async () => {
+    setRunState({ status: 'running' });
     try {
       const events = await runHermes({ trigger: 'manual' }).unwrap();
+      const message = `Hermes run complete — ${events.length} new suggestion(s) recorded.`;
+      setRunState({ status: 'success', message });
       dispatch(
         enqueueToast({
-          message: `Hermes run complete — ${events.length} new suggestion(s).`,
+          message,
           severity: 'success',
         }),
       );
     } catch (err) {
-      dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
+      const message = errorMessage(err);
+      setRunState({ status: 'error', message });
+      dispatch(enqueueToast({ message, severity: 'error' }));
     }
   };
 
   return (
     <Box>
-      <Card
-        sx={{ mb: 2.5, background: (t) => `linear-gradient(135deg, ${t.palette.primary.dark}, ${t.palette.primary.main})`, color: 'primary.contrastText' }}
-        contentSx={{ p: 3 }}
-      >
-        <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} justifyContent="space-between" alignItems={{ md: 'center' }}>
-          <Stack spacing={1}>
-            <Stack direction="row" spacing={1} alignItems="center">
-              <AutoAwesomeIcon />
-              <Typography variant="h5" sx={{ fontWeight: 800 }}>Hermes AI agent</Typography>
-              <Chip size="small" label="Active" sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'inherit' }} />
-            </Stack>
-            <Typography variant="body2" sx={{ opacity: 0.9 }}>
-              Monitoring listings and surfacing suggestions that need review before marketplace side effects.
-            </Typography>
-          </Stack>
-          <Stack direction="row" spacing={1}>
-            <Button variant="contained" color="secondary" onClick={() => navigate('/settings')}>
-              Configure
-            </Button>
-            <Button variant="outlined" color="inherit" startIcon={<AutoAwesomeIcon />} onClick={handleRun} disabled={running}>
-              {running ? 'Running…' : 'Run Hermes'}
-            </Button>
-          </Stack>
-        </Stack>
-      </Card>
-
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} sx={{ mb: 2.5 }}>
-        {[
-          ['Loaded feed actions', String(events.length)],
-          ['Awaiting review', String(pendingCount)],
-          ['Loaded listing suggestions', String(listingSuggestionCount)],
-          ['Estimated review effort', `${estimatedReviewMinutes} min`],
-        ].map(([label, value]) => (
-          <Card key={label} sx={{ flex: 1 }} contentSx={{ p: 2 }}>
-            <Typography variant="caption" color="text.secondary">{label}</Typography>
-            <Typography variant="h5" sx={{ fontWeight: 800 }}>{value}</Typography>
-          </Card>
-        ))}
-      </Stack>
+      <HermesHero runState={runState} onConfigure={() => navigate(HERMES_SETTINGS_PATH)} onRun={() => void handleRun()} />
+      <HermesMetrics awaitingReview={pendingReviewData?.total} />
 
       <Card sx={{ mb: 2.5 }} contentSx={{ p: 2 }}>
         <Stack
@@ -209,6 +243,11 @@ const HermesActivityPage: React.FC = () => {
             ))}
           </Select>
           </Stack>
+          {(statusFilter.length > 0 || severityFilter.length > 0) && (
+            <Button size="small" onClick={() => { setStatusFilter([]); setSeverityFilter([]); }}>
+              Clear filters ({statusFilter.length + severityFilter.length})
+            </Button>
+          )}
         </Stack>
       </Card>
 

@@ -4,6 +4,16 @@ import React from 'react';
 import { Alert, Box, Button, Card, Chip, Divider, Stack, Typography } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import CategoryIcon from '@mui/icons-material/CategoryOutlined';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
+import DescriptionIcon from '@mui/icons-material/DescriptionOutlined';
+import EditIcon from '@mui/icons-material/EditOutlined';
+import PhotoIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
+import ReplayIcon from '@mui/icons-material/Replay';
+import RuleIcon from '@mui/icons-material/RuleOutlined';
+import StorefrontIcon from '@mui/icons-material/StorefrontOutlined';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import type {
   CategoryRecreationChangePayload,
   CategoryRecreationOperationAction,
@@ -34,6 +44,56 @@ function truncate(value: string, max = 60): string {
 }
 
 const operationStatusLabel = (status: string) => status.replace(/_/g, ' ');
+
+const EVENT_ICONS: Record<HermesEvent['type'], React.ElementType> = {
+  suggested_lower_price: TrendingDownIcon,
+  suggested_higher_price: TrendingUpIcon,
+  needs_relisting: ReplayIcon,
+  competitor_price_detected: CompareArrowsIcon,
+  suggested_better_title: EditIcon,
+  suggested_more_photos: PhotoIcon,
+  create_listing: StorefrontIcon,
+  update_description: DescriptionIcon,
+  olx_category_mismatch: CategoryIcon,
+  product_category_conflict: RuleIcon,
+  relist: ReplayIcon,
+};
+
+export const HermesEventTypeIcon: React.FC<Pick<HermesEvent, 'type' | 'severity'>> = ({ type, severity }) => {
+  const Icon = EVENT_ICONS[type] ?? AutoAwesomeIcon;
+  const paletteColor = severity === 'critical' ? 'error' : severity;
+  return (
+    <Box
+      role="img"
+      aria-label={`${hermesTypeLabel(type)}, ${severity} severity`}
+      sx={{
+        width: 36,
+        height: 36,
+        borderRadius: 2,
+        flexShrink: 0,
+        display: 'grid',
+        placeItems: 'center',
+        color: `${paletteColor}.contrastText`,
+        bgcolor: `${paletteColor}.main`,
+      }}
+    >
+      <Icon fontSize="small" aria-hidden="true" />
+    </Box>
+  );
+};
+
+export function hermesLifecycleCopy(status: HermesEvent['status']): string {
+  switch (status) {
+    case 'pending_decision': return 'Hermes is evaluating whether this change requires review.';
+    case 'pending_review': return 'A recorded decision is required before MarketDesk can continue.';
+    case 'applying': return 'The approved change is queued or applying; provider completion is not yet confirmed.';
+    case 'applied': return 'MarketDesk recorded this action as completed.';
+    case 'dismissed': return 'This suggestion was dismissed without applying the proposed change.';
+    case 'failed': return 'The action failed. Review the details before deciding what to do next.';
+    case 'reverting': return 'The reversal is in progress; completion is not yet confirmed.';
+    case 'reverted': return 'MarketDesk recorded the action as reverted.';
+  }
+}
 
 export interface CategoryRecreationReviewProps {
   change: CategoryRecreationChangePayload;
@@ -258,6 +318,8 @@ export const HermesEventCard: React.FC<HermesEventCardProps> = ({
     operation: 'delist' | 'recreate';
   } | null>(null);
   const isCategoryRecreation = event.proposedChange?.kind === 'category_recreation';
+  const canReview = event.status === 'pending_review';
+  const dismissOnly = event.type === 'create_listing' || event.type === 'product_category_conflict';
 
   const confirmOperation = async () => {
     if (!pendingOperation) return;
@@ -286,21 +348,7 @@ export const HermesEventCard: React.FC<HermesEventCardProps> = ({
   return (
     <Card sx={{ p: 2.25 }}>
       <Stack direction="row" spacing={1.5} alignItems="flex-start">
-        <Box
-          sx={{
-            width: 36,
-            height: 36,
-            borderRadius: 2,
-            flexShrink: 0,
-            display: 'grid',
-            placeItems: 'center',
-            color: 'primary.contrastText',
-            background: (t) =>
-              `linear-gradient(135deg, ${t.palette.primary.light}, ${t.palette.primary.dark})`,
-          }}
-        >
-          <AutoAwesomeIcon fontSize="small" />
-        </Box>
+        <HermesEventTypeIcon type={event.type} severity={event.severity} />
 
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mb: 0.5 }}>
@@ -313,6 +361,27 @@ export const HermesEventCard: React.FC<HermesEventCardProps> = ({
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>{event.title}</Typography>
           {event.detail && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>{event.detail}</Typography>
+          )}
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
+            {hermesLifecycleCopy(event.status)}
+          </Typography>
+
+          {event.productId && (
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              justifyContent="space-between"
+              sx={{ mt: 1.25, p: 1.25, borderRadius: 2, bgcolor: 'action.hover' }}
+            >
+              <Box>
+                <Typography variant="caption" color="text.secondary">Product context</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>Related MarketDesk product</Typography>
+              </Box>
+              <Button component="a" href={`/products/${encodeURIComponent(event.productId)}`} size="small" variant="text">
+                View product
+              </Button>
+            </Stack>
           )}
 
           <ProposedChangeDiff
@@ -332,13 +401,13 @@ export const HermesEventCard: React.FC<HermesEventCardProps> = ({
             flexWrap="wrap"
           >
             <Typography variant="caption" color="text.secondary">{formatRelativeTime(event.createdAt)}</Typography>
-            {showActions && !isCategoryRecreation && (
+            {showActions && canReview && !isCategoryRecreation && (
               <ApprovalButtons
                 event={event}
                 onResolved={onResolved}
                 approveLabel={approveLabel}
                 successMessage={successMessage}
-                dismissOnly={event.type === 'product_category_conflict'}
+                dismissOnly={dismissOnly}
               />
             )}
           </Stack>

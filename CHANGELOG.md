@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.14.0](https://github.com/ylazakovich/marketdesk/compare/marketdesk-v0.13.0...marketdesk-v0.14.0) (2026-07-18)
+
+
+### ✨ Features
+
+* **products:** redesign catalogue ([#223](https://github.com/ylazakovich/marketdesk/issues/223)) ([596102a](https://github.com/ylazakovich/marketdesk/commit/596102a11750e64a777911eb4d967b5a2e55d115))
+
+
+### 🐛 Bug Fixes
+
+* **release:** anchor renamed component history ([#228](https://github.com/ylazakovich/marketdesk/issues/228)) ([c41c7f3](https://github.com/ylazakovich/marketdesk/commit/c41c7f3f4c6d17c08b7fe98a78d0d32f5dd55aa9))
+* **release:** use MarketDesk tag prefix ([#226](https://github.com/ylazakovich/marketdesk/issues/226)) ([9688f27](https://github.com/ylazakovich/marketdesk/commit/9688f27be27b5826fd3936184fcd8ebda62b1436))
+
 ## [0.13.0](https://github.com/ylazakovich/marketdesk/compare/hermes-marketdesk-v0.12.1...hermes-marketdesk-v0.13.0) (2026-07-17)
 
 

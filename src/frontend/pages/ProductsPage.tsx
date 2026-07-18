@@ -7,20 +7,32 @@ import {
   Box,
   Button,
   Chip,
+  Collapse,
+  Divider,
+  IconButton,
   InputAdornment,
   MenuItem,
   Select,
   Stack,
   TablePagination,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
+  Typography,
 } from '@mui/material';
-import type { SelectChangeEvent } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
+import DownloadIcon from '@mui/icons-material/Download';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import FilterListIcon from '@mui/icons-material/FilterList';
+import GridViewIcon from '@mui/icons-material/GridView';
+import ListIcon from '@mui/icons-material/ViewList';
+import LocalOfferOutlinedIcon from '@mui/icons-material/LocalOfferOutlined';
 import SearchIcon from '@mui/icons-material/Search';
 import { useBlocker, useLocation, useNavigate } from 'react-router-dom';
 import type { BlockerFunction } from 'react-router-dom';
-import type { Marketplace, Product, ProductStatus } from '@shared/types';
-import { PRODUCT_STATUS_LIST } from '@shared/constants';
+import type { Marketplace, Product } from '@shared/types';
 import {
   useCreateProduct,
   useGenerateProductAIDraft,
@@ -36,8 +48,21 @@ import { enqueueToast } from '../state/slices/uiSlice.js';
 import { Card } from '../components/common/Card.js';
 import { Modal } from '../components/common/Modal.js';
 import { ConfirmDialog } from '../components/common/ConfirmDialog.js';
-import { ProductStatusBadge } from '../components/common/Badge.js';
-import { ProductsTable } from '../components/tables/index.js';
+import { ProductsCards, ProductsTable } from '../components/tables/index.js';
+import {
+  hasCatalogueFilters,
+  parseProductsCatalogueState,
+  PRODUCTS_PAGE_SIZE,
+  PRODUCT_SEARCH_DEBOUNCE_MS,
+  productsToCsv,
+  tabStatus,
+  updateProductsCatalogueSearch,
+} from './productsCatalogueState.js';
+import type {
+  ProductsCatalogueState,
+  ProductsTab,
+  ProductsView,
+} from './productsCatalogueState.js';
 import {
   ProductWizardForm,
   hasMeaningfulProductWizardDraft,
@@ -52,8 +77,6 @@ import type {
   ProductWizardDraftState,
 } from '../components/forms/index.js';
 
-const PAGE_SIZE = 20;
-
 export function shouldBlockProductWizardNavigation(
   wizardOpen: boolean,
   draftDirty: boolean,
@@ -62,6 +85,14 @@ export function shouldBlockProductWizardNavigation(
   nextUrl: string
 ): boolean {
   return wizardOpen && draftDirty && !navigationAllowed && currentUrl !== nextUrl;
+}
+
+export function shouldDebounceCatalogueSearch(
+  wizardOpen: boolean,
+  searchInput: string,
+  committedSearch: string
+): boolean {
+  return !wizardOpen && searchInput !== committedSearch;
 }
 
 function browserStorage(): Storage | null {
@@ -88,17 +119,40 @@ const ProductsPage: React.FC = () => {
   const userId = useAppSelector((s) => s.auth.user?.id);
   const currency = useAppSelector((s) => s.workspace.currency);
 
-  const [statusFilter, setStatusFilter] = useState<ProductStatus[]>([]);
-  const [tags, setTags] = useState<string[]>([]);
-  const [priceMin, setPriceMin] = useState<string>('');
-  const [priceMax, setPriceMax] = useState<string>('');
   const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const [search, setSearch] = useState(() => query.get('search') ?? '');
-  const [sort, setSort] = useState(() => query.get('sort') ?? '-updatedAt');
-  const [page, setPage] = useState(() =>
-    Math.max(0, Number.parseInt(query.get('page') ?? '1', 10) - 1 || 0)
-  );
+  const catalogue = useMemo(() => parseProductsCatalogueState(location.search), [location.search]);
+  const [searchInput, setSearchInput] = useState(catalogue.search);
+  const lastUrlSearchRef = useRef(catalogue.search);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const wizardOpen = query.get('newProduct') === '1';
+
+  const navigateCatalogue = useCallback(
+    (patch: Partial<ProductsCatalogueState>, replace = false) => {
+      navigate(
+        {
+          pathname: location.pathname,
+          search: updateProductsCatalogueSearch(location.search, patch),
+        },
+        { replace }
+      );
+    },
+    [location.pathname, location.search, navigate]
+  );
+
+  useEffect(() => {
+    if (catalogue.search === lastUrlSearchRef.current) return;
+    lastUrlSearchRef.current = catalogue.search;
+    setSearchInput(catalogue.search);
+  }, [catalogue.search]);
+  useEffect(() => {
+    if (!shouldDebounceCatalogueSearch(wizardOpen, searchInput, catalogue.search)) return undefined;
+    const timer = window.setTimeout(
+      () => navigateCatalogue({ search: searchInput, page: 0 }, true),
+      PRODUCT_SEARCH_DEBOUNCE_MS
+    );
+    return () => window.clearTimeout(timer);
+  }, [catalogue.search, navigateCatalogue, searchInput, wizardOpen]);
   const draftKey = useMemo(
     () => (workspaceId && userId ? productWizardDraftStorageKey(workspaceId, userId) : null),
     [userId, workspaceId]
@@ -147,20 +201,51 @@ const ProductsPage: React.FC = () => {
     setLoadedDraftKey(draftKey);
     setDraftDirty(Boolean(restored && hasMeaningfulProductWizardDraft(restored)));
     setDraftSaveError(false);
-    navigate('/products?newProduct=1');
+    const next = new URLSearchParams(location.search);
+    next.set('newProduct', '1');
+    navigate({ pathname: location.pathname, search: `?${next.toString()}` });
   };
-  const closeWizard = useCallback(() => navigate('/products', { replace: true }), [navigate]);
+  const closeWizard = useCallback(() => {
+    const next = new URLSearchParams(location.search);
+    next.delete('newProduct');
+    const search = next.toString();
+    navigate(
+      { pathname: location.pathname, search: search ? `?${search}` : '' },
+      { replace: true }
+    );
+  }, [location.pathname, location.search, navigate]);
 
   const params = useMemo<ProductListParams>(() => {
-    const p: ProductListParams = { sort, limit: PAGE_SIZE, offset: page * PAGE_SIZE };
-    if (statusFilter.length) p.status = statusFilter;
-    if (tags.length) p.tags = tags;
-    if (priceMin.trim() !== '' && !Number.isNaN(Number(priceMin))) p.priceMin = Number(priceMin);
-    if (priceMax.trim() !== '' && !Number.isNaN(Number(priceMax))) p.priceMax = Number(priceMax);
+    const p: ProductListParams = {
+      sort: catalogue.sort,
+      limit: PRODUCTS_PAGE_SIZE,
+      offset: catalogue.page * PRODUCTS_PAGE_SIZE,
+    };
+    const status = tabStatus(catalogue.tab);
+    if (status) p.status = status;
+    if (catalogue.search.trim()) p.search = catalogue.search.trim();
+    if (catalogue.tags.length) p.tags = catalogue.tags;
+    if (catalogue.priceMin.trim() !== '' && !Number.isNaN(Number(catalogue.priceMin))) {
+      p.priceMin = Number(catalogue.priceMin);
+    }
+    if (catalogue.priceMax.trim() !== '' && !Number.isNaN(Number(catalogue.priceMax))) {
+      p.priceMax = Number(catalogue.priceMax);
+    }
     return p;
-  }, [statusFilter, tags, priceMin, priceMax, sort, page]);
+  }, [catalogue]);
 
   const { data, isLoading, isFetching, isError, error, refetch } = useProducts(params);
+  const allCount = useProducts({ limit: 1, offset: 0 });
+  const activeCount = useProducts({ status: ['active'], limit: 1, offset: 0 });
+  const attentionCount = useProducts({ status: ['attention'], limit: 1, offset: 0 });
+  const draftCount = useProducts({ status: ['draft'], limit: 1, offset: 0 });
+  const totalPages = data ? Math.ceil(data.total / PRODUCTS_PAGE_SIZE) : 0;
+  const pageOutOfRange = Boolean(data && catalogue.page > Math.max(0, totalPages - 1));
+  const paginationPage = totalPages > 0 ? Math.min(catalogue.page, totalPages - 1) : 0;
+  useEffect(() => {
+    if (!data || !pageOutOfRange) return;
+    navigateCatalogue({ page: Math.max(0, totalPages - 1) }, true);
+  }, [data, navigateCatalogue, pageOutOfRange, totalPages]);
   const marketplaces = useMarketplaces();
   const [checkMarketplace] = useCheckMarketplace();
   const [verifiedMarketplaces, setVerifiedMarketplaces] = useState<Marketplace[]>();
@@ -311,19 +396,37 @@ const ProductsPage: React.FC = () => {
     wizardOpen,
   ]);
 
-  const items = data?.items ?? [];
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return items;
-    return items.filter(
-      (p: Product) => p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
-    );
-  }, [items, search]);
+  const items = useMemo<Product[]>(() => data?.items ?? [], [data?.items]);
+  useEffect(() => {
+    const visible = new Set(items.map((product) => product.id));
+    setSelectedIds((current) => {
+      const next = new Set([...current].filter((id) => visible.has(id)));
+      return next.size === current.size ? current : next;
+    });
+  }, [items]);
 
-  const handleStatusChange = (e: SelectChangeEvent<ProductStatus[]>) => {
-    const value = e.target.value;
-    setStatusFilter(typeof value === 'string' ? (value.split(',') as ProductStatus[]) : value);
-    setPage(0);
+  const selectedProducts = useMemo(
+    () => items.filter((product) => selectedIds.has(product.id)),
+    [items, selectedIds]
+  );
+  const clearFilters = () => {
+    setSearchInput('');
+    navigateCatalogue({ tab: 'all', search: '', tags: [], priceMin: '', priceMax: '', page: 0 });
+  };
+  const exportSelected = () => {
+    const csv = productsToCsv(selectedProducts, currency);
+    const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `marketdesk-products-${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    dispatch(
+      enqueueToast({
+        message: `Exported ${selectedProducts.length} selected products.`,
+        severity: 'success',
+      })
+    );
   };
 
   const handleCreate = async (values: ProductSubmissionValues) => {
@@ -352,125 +455,310 @@ const ProductsPage: React.FC = () => {
   };
 
   return (
-    <Box>
-      <Card sx={{ mb: 2.5 }} contentSx={{ p: 2 }}>
-        <Stack
-          direction={{ xs: 'column', md: 'row' }}
-          spacing={1.5}
-          alignItems={{ xs: 'stretch', md: 'center' }}
-          flexWrap="wrap"
-          useFlexGap
+    <Box sx={{ maxWidth: 1440, mx: 'auto' }}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between"
+        spacing={2}
+        sx={{ mb: 2.5 }}
+      >
+        <Box>
+          <Typography component="h1" variant="h4" sx={{ fontWeight: 800 }}>
+            Your catalogue
+          </Typography>
+          <Typography color="text.secondary">
+            Find, compare and safely update products from one operator surface.
+          </Typography>
+        </Box>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={openWizard}
+          sx={{ alignSelf: { xs: 'stretch', sm: 'center' } }}
         >
-          <TextField
-            size="small"
-            placeholder="Search name or SKU"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ minWidth: 220, flexGrow: 1 }}
-          />
-          <Select
-            size="small"
-            multiple
-            displayEmpty
-            value={statusFilter}
-            onChange={handleStatusChange}
-            renderValue={(selected) =>
-              selected.length === 0 ? (
-                'All statuses'
-              ) : (
-                <Stack direction="row" spacing={0.5} flexWrap="wrap">
-                  {selected.map((s) => (
-                    <ProductStatusBadge key={s} status={s} />
-                  ))}
-                </Stack>
-              )
-            }
-            sx={{ minWidth: 180 }}
+          New product
+        </Button>
+      </Stack>
+
+      <Card sx={{ mb: 2 }} contentSx={{ p: 2 }}>
+        <Stack spacing={1.5}>
+          <Stack
+            direction={{ xs: 'column', lg: 'row' }}
+            spacing={1.25}
+            alignItems={{ xs: 'stretch', lg: 'center' }}
+            useFlexGap
           >
-            {PRODUCT_STATUS_LIST.map((s) => (
-              <MenuItem key={s} value={s}>
-                <ProductStatusBadge status={s} />
-              </MenuItem>
-            ))}
-          </Select>
-          <TextField
-            size="small"
-            type="number"
-            label="Min price"
-            value={priceMin}
-            onChange={(e) => {
-              setPriceMin(e.target.value);
-              setPage(0);
-            }}
-            sx={{ width: 120 }}
-          />
-          <TextField
-            size="small"
-            type="number"
-            label="Max price"
-            value={priceMax}
-            onChange={(e) => {
-              setPriceMax(e.target.value);
-              setPage(0);
-            }}
-            sx={{ width: 120 }}
-          />
-          <Autocomplete
-            multiple
-            freeSolo
-            size="small"
-            options={[]}
-            value={tags}
-            onChange={(_e, next) => {
-              setTags(next as string[]);
-              setPage(0);
-            }}
-            renderTags={(value, getTagProps) =>
-              value.map((option, index) => (
-                <Chip variant="outlined" size="small" label={option} {...getTagProps({ index })} />
-              ))
-            }
-            renderInput={(p) => <TextField {...p} label="Tags" />}
-            sx={{ minWidth: 200, flexGrow: 1 }}
-          />
+            <ToggleButtonGroup
+              exclusive
+              size="small"
+              value={catalogue.tab}
+              onChange={(_event, value: ProductsTab | null) =>
+                value && navigateCatalogue({ tab: value, page: 0 })
+              }
+              aria-label="Product status"
+              sx={{
+                overflowX: 'auto',
+                '& .MuiToggleButton-root': {
+                  whiteSpace: 'nowrap',
+                  textTransform: 'none',
+                  fontWeight: 700,
+                },
+              }}
+            >
+              {(
+                [
+                  ['all', 'All', allCount],
+                  ['active', 'Active', activeCount],
+                  ['attention', 'Attention', attentionCount],
+                  ['draft', 'Drafts', draftCount],
+                ] as const
+              ).map(([value, label, countQuery]) => (
+                <ToggleButton key={value} value={value} aria-label={`${label} products`}>
+                  {label}
+                  <Chip
+                    component="span"
+                    size="small"
+                    label={
+                      countQuery.isLoading || countQuery.isError
+                        ? '—'
+                        : (countQuery.data?.total ?? 0)
+                    }
+                    sx={{ ml: 0.75, height: 20, pointerEvents: 'none' }}
+                  />
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+            <Box sx={{ flex: 1 }} />
+            <TextField
+              size="small"
+              placeholder="Search name, SKU, description or tag"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              inputProps={{ 'aria-label': 'Search products' }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ minWidth: { xs: 0, sm: 260 } }}
+            />
+            <Button
+              variant={
+                filtersOpen || catalogue.tags.length > 0 || catalogue.priceMin || catalogue.priceMax
+                  ? 'contained'
+                  : 'outlined'
+              }
+              color="inherit"
+              startIcon={<FilterListIcon />}
+              onClick={() => setFiltersOpen((open) => !open)}
+              aria-expanded={filtersOpen}
+            >
+              Filters
+            </Button>
+            <Select
+              size="small"
+              value={catalogue.sort}
+              onChange={(event) => navigateCatalogue({ sort: event.target.value, page: 0 })}
+              inputProps={{ 'aria-label': 'Sort products' }}
+              sx={{ minWidth: 165 }}
+            >
+              <MenuItem value="-updatedAt">Updated: newest</MenuItem>
+              <MenuItem value="updatedAt">Updated: oldest</MenuItem>
+              <MenuItem value="name">Name: A–Z</MenuItem>
+              <MenuItem value="-name">Name: Z–A</MenuItem>
+              <MenuItem value="sellingPrice">Price: low to high</MenuItem>
+              <MenuItem value="-sellingPrice">Price: high to low</MenuItem>
+              <MenuItem value="costPrice">Cost: low to high</MenuItem>
+              <MenuItem value="-costPrice">Cost: high to low</MenuItem>
+            </Select>
+            <ToggleButtonGroup
+              exclusive
+              size="small"
+              value={catalogue.view}
+              onChange={(_event, value: ProductsView | null) =>
+                value && navigateCatalogue({ view: value })
+              }
+              aria-label="Catalogue view"
+            >
+              <ToggleButton value="list" aria-label="List view">
+                <ListIcon />
+              </ToggleButton>
+              <ToggleButton value="card" aria-label="Card view">
+                <GridViewIcon />
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Stack>
+          <Collapse in={filtersOpen}>
+            <Divider sx={{ mb: 2 }} />
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.25}
+              alignItems={{ xs: 'stretch', sm: 'center' }}
+            >
+              <TextField
+                size="small"
+                type="number"
+                label="Minimum price"
+                value={catalogue.priceMin}
+                onChange={(event) =>
+                  navigateCatalogue({ priceMin: event.target.value, page: 0 }, true)
+                }
+                inputProps={{ min: 0 }}
+              />
+              <TextField
+                size="small"
+                type="number"
+                label="Maximum price"
+                value={catalogue.priceMax}
+                onChange={(event) =>
+                  navigateCatalogue({ priceMax: event.target.value, page: 0 }, true)
+                }
+                inputProps={{ min: 0 }}
+              />
+              <Autocomplete
+                multiple
+                freeSolo
+                size="small"
+                options={[]}
+                value={catalogue.tags}
+                onChange={(_event, next) => navigateCatalogue({ tags: next as string[], page: 0 })}
+                renderTags={(value, getTagProps) =>
+                  value.map((tag, index) => (
+                    <Chip variant="outlined" size="small" label={tag} {...getTagProps({ index })} />
+                  ))
+                }
+                renderInput={(params) => (
+                  <TextField {...params} label="Tags" placeholder="Type and press Enter" />
+                )}
+                sx={{ minWidth: 240, flex: 1 }}
+              />
+              <Button onClick={clearFilters} disabled={!hasCatalogueFilters(catalogue)}>
+                Clear filters
+              </Button>
+            </Stack>
+            <Alert severity="info" sx={{ mt: 1.5 }}>
+              Marketplace, margin and updated-date filters are not shown because the catalogue API
+              does not expose those filters yet.
+            </Alert>
+          </Collapse>
         </Stack>
       </Card>
 
-      <Card disablePadding>
-        <ProductsTable
-          products={filtered}
-          loading={isLoading || isFetching}
-          error={isError ? error : undefined}
-          onRetry={refetch}
-          currency={currency}
-          sort={sort}
-          onSortChange={(next) => {
-            setSort(next);
-            setPage(0);
+      {selectedIds.size > 0 && (
+        <Box
+          role="region"
+          aria-label="Bulk product actions"
+          sx={{
+            position: 'sticky',
+            top: 72,
+            zIndex: 5,
+            mb: 2,
+            p: 1.25,
+            borderRadius: 2,
+            bgcolor: 'primary.main',
+            color: 'primary.contrastText',
+            boxShadow: 4,
           }}
-          onRowClick={(p) => navigate(`/products/${p.id}`)}
-          onEdit={(p) => navigate(`/products/${p.id}`)}
-          emptyAction={
-            <Button variant="contained" startIcon={<AddIcon />} onClick={openWizard}>
-              New product
+        >
+          <Stack
+            direction={{ xs: 'column', md: 'row' }}
+            spacing={1}
+            alignItems={{ xs: 'stretch', md: 'center' }}
+          >
+            <Typography sx={{ px: 1, fontWeight: 800 }}>
+              {selectedIds.size} selected on this page
+            </Typography>
+            <Divider
+              orientation="vertical"
+              flexItem
+              sx={{ borderColor: 'rgba(255,255,255,.3)', display: { xs: 'none', md: 'block' } }}
+            />
+            {[
+              [<LocalOfferOutlinedIcon key="tag" />, 'Add tag'],
+              [<EditOutlinedIcon key="price" />, 'Edit price'],
+              [<DeleteOutlineIcon key="delete" />, 'Delete'],
+            ].map(([icon, label]) => (
+              <Tooltip
+                key={String(label)}
+                title="Unavailable safely: the API has no atomic bulk mutation contract or rollback semantics."
+              >
+                <span>
+                  <Button disabled startIcon={icon} sx={{ color: 'inherit' }}>
+                    {label}
+                  </Button>
+                </span>
+              </Tooltip>
+            ))}
+            <Button color="inherit" startIcon={<DownloadIcon />} onClick={exportSelected}>
+              Export CSV
             </Button>
-          }
-        />
+            <Box sx={{ flex: 1 }} />
+            <Button color="inherit" onClick={() => setSelectedIds(new Set())}>
+              Clear selection
+            </Button>
+          </Stack>
+          <Typography variant="caption" sx={{ display: 'block', px: 1, opacity: 0.9 }}>
+            Bulk writes are disabled rather than issuing unsafe sequential requests. Single-product
+            editing keeps the existing below-cost confirmation guard.
+          </Typography>
+        </Box>
+      )}
+
+      <Card disablePadding>
+        {catalogue.view === 'list' ? (
+          <ProductsTable
+            products={items}
+            loading={isLoading || isFetching || pageOutOfRange}
+            error={isError ? error : undefined}
+            onRetry={refetch}
+            currency={currency}
+            sort={catalogue.sort}
+            onSortChange={(sort) => navigateCatalogue({ sort, page: 0 })}
+            onOpen={(product) => navigate(`/products/${product.id}`)}
+            onEdit={(product) => navigate(`/products/${product.id}`)}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            emptyFiltered={hasCatalogueFilters(catalogue) || (data?.total ?? 0) > 0}
+            clearFiltersAction={<Button onClick={clearFilters}>Clear filters</Button>}
+            emptyAction={
+              <Button variant="contained" startIcon={<AddIcon />} onClick={openWizard}>
+                Create your first product
+              </Button>
+            }
+          />
+        ) : (
+          <ProductsCards
+            products={items}
+            loading={isLoading || isFetching || pageOutOfRange}
+            error={isError ? error : undefined}
+            onRetry={refetch}
+            currency={currency}
+            onOpen={(product) => navigate(`/products/${product.id}`)}
+            onEdit={(product) => navigate(`/products/${product.id}`)}
+            selectedIds={selectedIds}
+            onSelectionChange={setSelectedIds}
+            emptyFiltered={hasCatalogueFilters(catalogue) || (data?.total ?? 0) > 0}
+            clearFiltersAction={<Button onClick={clearFilters}>Clear filters</Button>}
+            emptyAction={
+              <Button variant="contained" startIcon={<AddIcon />} onClick={openWizard}>
+                Create your first product
+              </Button>
+            }
+          />
+        )}
         {(data?.total ?? 0) > 0 && (
           <TablePagination
             component="div"
             count={data?.total ?? 0}
-            page={page}
-            onPageChange={(_e, next) => setPage(next)}
-            rowsPerPage={PAGE_SIZE}
-            rowsPerPageOptions={[PAGE_SIZE]}
+            page={paginationPage}
+            onPageChange={(_event, page) => navigateCatalogue({ page })}
+            rowsPerPage={PRODUCTS_PAGE_SIZE}
+            rowsPerPageOptions={[PRODUCTS_PAGE_SIZE]}
+            labelDisplayedRows={({ from, to, count }) =>
+              `${from}–${to} of ${count} products · 25 per page`
+            }
           />
         )}
       </Card>

@@ -27,7 +27,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       px: 2,
     }}
   >
-    <Stack spacing={1.5} alignItems="center">
+    <Stack spacing={1.5} sx={{ alignItems: 'center' }}>
       <Box sx={{ color: 'text.disabled', display: 'flex' }}>
         {icon ?? <InboxIcon sx={{ fontSize: compact ? 36 : 48 }} />}
       </Box>

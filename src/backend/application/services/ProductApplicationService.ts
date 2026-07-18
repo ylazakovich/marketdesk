@@ -68,7 +68,8 @@ export class ProductApplicationService {
     }
     if (q.search) {
       const needle = q.search.toLowerCase();
-      const haystack = `${product.name} ${product.sku} ${product.description}`.toLowerCase();
+      const haystack =
+        `${product.name} ${product.sku} ${product.description} ${product.tags.join(' ')}`.toLowerCase();
       if (!haystack.includes(needle)) return false;
     }
     return true;

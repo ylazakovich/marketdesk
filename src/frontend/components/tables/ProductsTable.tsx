@@ -1,8 +1,10 @@
-// Sortable products table with status badges, pricing, and row actions.
-// Presentational: data + sort state are owned by the page (driven by RTK Query).
-import React from 'react';
+import React, { useState } from 'react';
 import {
+  Avatar,
   Box,
+  ButtonBase,
+  Checkbox,
+  Chip,
   IconButton,
   Skeleton,
   Stack,
@@ -17,44 +19,15 @@ import {
   Typography,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/EditOutlined';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import type { Product } from '@shared/types';
 import { formatCurrency } from '../../utils/formatters.js';
-import { conditionLabel } from '../../utils/labels.js';
 import { ProductStatusBadge } from '../common/Badge.js';
 import { ErrorRetry } from '../common/ErrorRetry.js';
 import { EmptyState } from '../common/EmptyState.js';
+import { productInitials } from '../../pages/productsCatalogueState.js';
 
 type SortDir = 'asc' | 'desc';
-
-interface ColumnDef {
-  id: keyof Product | string;
-  label: string;
-  sortable?: boolean;
-  align?: 'left' | 'right';
-}
-
-const COLUMNS: ColumnDef[] = [
-  { id: 'name', label: 'Product', sortable: true },
-  { id: 'status', label: 'Status', sortable: true },
-  { id: 'condition', label: 'Condition' },
-  { id: 'category', label: 'Category' },
-  { id: 'costPrice', label: 'Cost', sortable: true, align: 'right' },
-  { id: 'sellingPrice', label: 'Price', sortable: true, align: 'right' },
-  { id: 'updatedAt', label: 'Updated', sortable: true, align: 'right' },
-];
-
-export interface ProductsTableProps {
-  products?: Product[];
-  loading?: boolean;
-  error?: unknown;
-  onRetry?: () => void;
-  onRowClick?: (product: Product) => void;
-  onEdit?: (product: Product) => void;
-  sort?: string; // e.g. "-updatedAt"
-  onSortChange?: (sort: string) => void;
-  currency?: string;
-  emptyAction?: React.ReactNode;
-}
 
 function parseSort(sort?: string): { field: string; dir: SortDir } | null {
   if (!sort) return null;
@@ -65,155 +38,269 @@ function parseSort(sort?: string): { field: string; dir: SortDir } | null {
   return { field: first, dir: 'asc' };
 }
 
-export const ProductsTable: React.FC<ProductsTableProps> = ({
-  products,
-  loading = false,
-  error,
-  onRetry,
-  onRowClick,
-  onEdit,
-  sort,
-  onSortChange,
-  currency,
-  emptyAction,
-}) => {
-  const active = parseSort(sort);
-
-  const handleSort = (field: string) => {
-    if (!onSortChange) return;
-    const nextDir: SortDir = active?.field === field && active.dir === 'asc' ? 'desc' : 'asc';
-    onSortChange(`${nextDir === 'desc' ? '-' : ''}${field}`);
-  };
-
-  if (error) return <ErrorRetry error={error} onRetry={onRetry} />;
-
-  if (!loading && (!products || products.length === 0)) {
+function ProductThumbnail({ product }: { product: Product }) {
+  const [failedImage, setFailedImage] = useState<string | null>(null);
+  const image = product.images[0];
+  if (image && image !== failedImage) {
     return (
-      <EmptyState
-        title="No products yet"
-        description="Create your first product to start listing across marketplaces."
-        action={emptyAction}
+      <Box
+        component="img"
+        src={image}
+        alt=""
+        onError={() => setFailedImage(image)}
+        sx={{ width: 44, height: 44, borderRadius: 1.5, objectFit: 'cover', flexShrink: 0 }}
       />
     );
   }
+  return (
+    <Avatar
+      variant="rounded"
+      aria-label={`${product.name} image unavailable`}
+      sx={{
+        width: 44,
+        height: 44,
+        bgcolor: 'primary.light',
+        color: 'primary.contrastText',
+        fontWeight: 800,
+      }}
+    >
+      {productInitials(product.name)}
+    </Avatar>
+  );
+}
+
+function ProductIdentity({
+  product,
+  onOpen,
+}: {
+  product: Product;
+  onOpen?: (product: Product) => void;
+}) {
+  return (
+    <ButtonBase
+      disabled={!onOpen}
+      onClick={() => onOpen?.(product)}
+      sx={{ width: '100%', justifyContent: 'flex-start', borderRadius: 1, textAlign: 'left' }}
+    >
+      <Stack direction="row" spacing={1.25} sx={{ minWidth: 0, alignItems: 'center' }}>
+        <ProductThumbnail product={product} />
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
+            {product.name}
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            noWrap
+            sx={{ fontFamily: 'monospace' }}
+          >
+            {product.sku}
+          </Typography>
+        </Box>
+      </Stack>
+    </ButtonBase>
+  );
+}
+
+function Profit({ product, currency }: { product: Product; currency?: string }) {
+  if (product.costPrice === null) {
+    return (
+      <Typography variant="body2" color="text.secondary">
+        —
+      </Typography>
+    );
+  }
+  const profit = product.sellingPrice - product.costPrice;
+  const margin = product.sellingPrice === 0 ? null : (profit / product.sellingPrice) * 100;
+  return (
+    <Box>
+      <Typography
+        variant="body2"
+        color={profit < 0 ? 'error.main' : 'success.main'}
+        sx={{ fontWeight: 700 }}
+      >
+        {formatCurrency(profit, currency)}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        {margin === null ? 'Margin unavailable' : `${margin.toFixed(1)}% margin`}
+      </Typography>
+    </Box>
+  );
+}
+
+export interface ProductsCollectionProps {
+  products?: Product[];
+  loading?: boolean;
+  error?: unknown;
+  onRetry?: () => void;
+  onOpen?: (product: Product) => void;
+  onEdit?: (product: Product) => void;
+  sort?: string;
+  onSortChange?: (sort: string) => void;
+  currency?: string;
+  emptyAction?: React.ReactNode;
+  emptyFiltered?: boolean;
+  clearFiltersAction?: React.ReactNode;
+  selectedIds?: ReadonlySet<string>;
+  onSelectionChange?: (ids: Set<string>) => void;
+}
+
+export type ProductsTableProps = ProductsCollectionProps;
+
+function CollectionState(props: ProductsCollectionProps): React.ReactNode | null {
+  if (props.error) return <ErrorRetry error={props.error} onRetry={props.onRetry} />;
+  if (!props.loading && (!props.products || props.products.length === 0)) {
+    return (
+      <EmptyState
+        icon={<Inventory2OutlinedIcon sx={{ fontSize: 52 }} />}
+        title={props.emptyFiltered ? 'No products match' : 'Your catalogue is empty'}
+        description={
+          props.emptyFiltered
+            ? 'Try clearing filters or using a broader search.'
+            : 'Create your first product to start managing marketplace listings.'
+        }
+        action={props.emptyFiltered ? props.clearFiltersAction : props.emptyAction}
+      />
+    );
+  }
+  return null;
+}
+
+function toggleSelection(selected: ReadonlySet<string>, id: string, checked: boolean): Set<string> {
+  const next = new Set(selected);
+  if (checked) next.add(id);
+  else next.delete(id);
+  return next;
+}
+
+export const ProductsTable: React.FC<ProductsCollectionProps> = (props) => {
+  const { products = [], loading = false, selectedIds = new Set(), onSelectionChange } = props;
+  const state = CollectionState(props);
+  if (state) return state;
+  const active = parseSort(props.sort);
+  const allSelected =
+    products.length > 0 && products.every((product) => selectedIds.has(product.id));
+  const someSelected = products.some((product) => selectedIds.has(product.id));
+  const handleSort = (field: string) => {
+    const nextDir: SortDir = active?.field === field && active.dir === 'asc' ? 'desc' : 'asc';
+    props.onSortChange?.(`${nextDir === 'desc' ? '-' : ''}${field}`);
+  };
+  const sortHeading = (label: string, field: string) => (
+    <TableSortLabel
+      active={active?.field === field}
+      direction={active?.field === field ? active.dir : 'asc'}
+      onClick={() => handleSort(field)}
+    >
+      {label}
+    </TableSortLabel>
+  );
 
   return (
     <TableContainer sx={{ overflowX: 'auto' }}>
-      <Table size="medium" sx={{ minWidth: 760 }}>
+      <Table size="medium" sx={{ minWidth: 1120 }} aria-label="Products catalogue">
         <TableHead>
           <TableRow>
-            {COLUMNS.map((col) => (
-              <TableCell key={col.id} align={col.align ?? 'left'} sx={{ fontWeight: 700 }}>
-                {col.sortable && onSortChange ? (
-                  <TableSortLabel
-                    active={active?.field === col.id}
-                    direction={active?.field === col.id ? active.dir : 'asc'}
-                    onClick={() => handleSort(String(col.id))}
-                  >
-                    {col.label}
-                  </TableSortLabel>
-                ) : (
-                  col.label
-                )}
-              </TableCell>
-            ))}
-            <TableCell align="right" sx={{ fontWeight: 700 }}>
-              Actions
+            <TableCell padding="checkbox">
+              <Checkbox
+                slotProps={{ input: { 'aria-label': 'Select all products on this page' } }}
+                checked={allSelected}
+                indeterminate={!allSelected && someSelected}
+                onChange={(_event, checked) =>
+                  onSelectionChange?.(
+                    checked ? new Set(products.map((product) => product.id)) : new Set()
+                  )
+                }
+              />
             </TableCell>
+            <TableCell sx={{ minWidth: 250 }}>{sortHeading('Product', 'name')}</TableCell>
+            <TableCell>{sortHeading('Status', 'status')}</TableCell>
+            <TableCell>Markets</TableCell>
+            <TableCell align="right">{sortHeading('Cost', 'costPrice')}</TableCell>
+            <TableCell align="right">{sortHeading('Price', 'sellingPrice')}</TableCell>
+            <TableCell>Profit</TableCell>
+            <TableCell sx={{ minWidth: 160 }}>Tags</TableCell>
+            <TableCell align="right">{sortHeading('Updated', 'updatedAt')}</TableCell>
+            <TableCell align="right">Actions</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
           {loading
-            ? Array.from({ length: 6 }).map((_, i) => (
-                <TableRow key={`s-${i}`}>
-                  {COLUMNS.map((col) => (
-                    <TableCell key={col.id} align={col.align ?? 'left'}>
-                      <Skeleton variant="text" width={col.id === 'name' ? 180 : 80} />
+            ? Array.from({ length: 8 }).map((_, index) => (
+                <TableRow key={`skeleton-${index}`}>
+                  {Array.from({ length: 10 }).map((__, cell) => (
+                    <TableCell key={cell}>
+                      <Skeleton width={cell === 1 ? 190 : 70} />
                     </TableCell>
                   ))}
-                  <TableCell align="right">
-                    <Skeleton variant="circular" width={28} height={28} sx={{ ml: 'auto' }} />
-                  </TableCell>
                 </TableRow>
               ))
-            : (products ?? []).map((product) => (
-                <TableRow
-                  key={product.id}
-                  hover
-                  onClick={onRowClick ? () => onRowClick(product) : undefined}
-                  sx={{ cursor: onRowClick ? 'pointer' : 'default' }}
-                >
+            : products.map((product) => (
+                <TableRow key={product.id} hover selected={selectedIds.has(product.id)}>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      slotProps={{ input: { 'aria-label': `Select ${product.name}` } }}
+                      checked={selectedIds.has(product.id)}
+                      onChange={(_event, checked) =>
+                        onSelectionChange?.(toggleSelection(selectedIds, product.id, checked))
+                      }
+                    />
+                  </TableCell>
                   <TableCell>
-                    <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
-                        {product.name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary" noWrap>
-                        {product.sku}
-                      </Typography>
-                    </Stack>
+                    <ProductIdentity product={product} onOpen={props.onOpen} />
                   </TableCell>
                   <TableCell>
                     <ProductStatusBadge status={product.status} />
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2">{conditionLabel(product.condition)}</Typography>
+                    <Tooltip title="Marketplace count is not included in the products catalogue API">
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        aria-label="Marketplace count unavailable"
+                      >
+                        —
+                      </Typography>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell align="right" sx={{ color: 'text.secondary' }}>
+                    {product.costPrice === null
+                      ? '—'
+                      : formatCurrency(product.costPrice, props.currency)}
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>
+                    {formatCurrency(product.sellingPrice, props.currency)}
                   </TableCell>
                   <TableCell>
-                    <Stack spacing={0.25} sx={{ maxWidth: 280 }}>
-                      <Typography variant="body2" color="text.secondary">
-                        {product.category || '—'}
-                      </Typography>
-                      {product.categoryProvenance?.status === 'synced' && (
-                        <Tooltip
-                          title={product.categoryProvenance.sources
-                            .map((source) => [
-                              `${source.path.join(' › ')} (${source.providerCategoryId})`,
-                              `listing ${source.listingId}`,
-                              `taxonomy verified ${source.taxonomyVerifiedAt}`,
-                              `synced ${source.syncedAt}`,
-                            ].join(' · '))
-                            .join('\n')}
-                        >
-                          <Typography variant="caption" color="success.main" noWrap>
-                            Source: {product.categoryProvenance.sources
-                              .map((source) => source.marketplaceKey.toUpperCase())
-                              .filter((key, index, keys) => keys.indexOf(key) === index)
-                              .join(', ')} · {product.categoryProvenance.sources[0]?.path.join(' › ')}
-                          </Typography>
-                        </Tooltip>
+                    <Profit product={product} currency={props.currency} />
+                  </TableCell>
+                  <TableCell>
+                    <Stack direction="row" spacing={0.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                      {product.tags.length ? (
+                        product.tags
+                          .slice(0, 3)
+                          .map((tag) => <Chip key={tag} label={tag} size="small" />)
+                      ) : (
+                        <Typography color="text.secondary">—</Typography>
                       )}
-                      {product.categoryProvenance?.status === 'conflict' && (
-                        <Typography variant="caption" color="warning.main" sx={{ fontWeight: 600 }}>
-                          Category conflict · review required
-                        </Typography>
+                      {product.tags.length > 3 && (
+                        <Chip
+                          label={`+${product.tags.length - 3}`}
+                          size="small"
+                          variant="outlined"
+                        />
                       )}
                     </Stack>
                   </TableCell>
-                  <TableCell align="right">
-                    <Typography variant="body2" color="text.secondary">
-                      {formatCurrency(product.costPrice, currency)}
-                    </Typography>
+                  <TableCell align="right" sx={{ color: 'text.secondary', whiteSpace: 'nowrap' }}>
+                    {new Date(product.updatedAt).toLocaleDateString()}
                   </TableCell>
                   <TableCell align="right">
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {formatCurrency(product.sellingPrice, currency)}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography variant="body2" color="text.secondary">
-                      {new Date(product.updatedAt).toLocaleDateString()}
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    {onEdit && (
+                    {props.onEdit && (
                       <Tooltip title="Edit product">
                         <IconButton
                           size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onEdit(product);
-                          }}
+                          aria-label={`Edit ${product.name}`}
+                          onClick={() => props.onEdit?.(product)}
                         >
                           <EditIcon fontSize="small" />
                         </IconButton>
@@ -224,8 +311,136 @@ export const ProductsTable: React.FC<ProductsTableProps> = ({
               ))}
         </TableBody>
       </Table>
-      {loading && <Box sx={{ height: 4 }} />}
     </TableContainer>
+  );
+};
+
+export const ProductsCards: React.FC<ProductsCollectionProps> = (props) => {
+  const { products = [], loading = false, selectedIds = new Set(), onSelectionChange } = props;
+  const state = CollectionState(props);
+  if (state) return state;
+  return (
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: {
+          xs: '1fr',
+          sm: 'repeat(2, minmax(0, 1fr))',
+          lg: 'repeat(3, minmax(0, 1fr))',
+        },
+        gap: 2,
+        p: 2,
+      }}
+    >
+      {(loading ? Array.from({ length: 8 }) : products).map((entry, index) => {
+        if (!entry) return <Skeleton key={index} variant="rounded" height={210} />;
+        const product = entry as Product;
+        return (
+          <Box
+            key={product.id}
+            component="article"
+            sx={{
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 2,
+              p: 2,
+              bgcolor: 'background.paper',
+            }}
+          >
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
+              <Checkbox
+                size="small"
+                slotProps={{ input: { 'aria-label': `Select ${product.name}` } }}
+                checked={selectedIds.has(product.id)}
+                onChange={(_event, checked) =>
+                  onSelectionChange?.(toggleSelection(selectedIds, product.id, checked))
+                }
+              />
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <ProductIdentity product={product} onOpen={props.onOpen} />
+              </Box>
+              <ProductStatusBadge status={product.status} />
+              {props.onEdit && (
+                <Tooltip title="Edit product">
+                  <IconButton
+                    size="small"
+                    aria-label={`Edit ${product.name}`}
+                    onClick={() => props.onEdit?.(product)}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Stack>
+            <Stack
+              direction="row"
+              spacing={0.5}
+              useFlexGap
+              sx={{ my: 2, minHeight: 24, flexWrap: 'wrap' }}
+            >
+              {product.tags.map((tag) => (
+                <Chip key={tag} label={tag} size="small" />
+              ))}
+            </Stack>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                gap: 1,
+                pt: 1.5,
+                borderTop: 1,
+                borderColor: 'divider',
+              }}
+            >
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Cost
+                </Typography>
+                <Typography variant="body2">
+                  {product.costPrice === null
+                    ? '—'
+                    : formatCurrency(product.costPrice, props.currency)}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Price
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                  {formatCurrency(product.sellingPrice, props.currency)}
+                </Typography>
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Profit
+                </Typography>
+                <Profit product={product} currency={props.currency} />
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Markets
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  aria-label="Marketplace count unavailable"
+                >
+                  —
+                </Typography>
+              </Box>
+              <Box sx={{ gridColumn: '1 / -1' }}>
+                <Typography variant="caption" color="text.secondary">
+                  Updated
+                </Typography>
+                <Typography variant="body2">
+                  {new Date(product.updatedAt).toLocaleDateString()}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+        );
+      })}
+    </Box>
   );
 };
 

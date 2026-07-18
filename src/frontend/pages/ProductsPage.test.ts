@@ -1,4 +1,4 @@
-import { shouldBlockProductWizardNavigation } from './ProductsPage';
+import { shouldBlockProductWizardNavigation, shouldDebounceCatalogueSearch } from './ProductsPage';
 
 describe('product wizard navigation guard', () => {
   it('blocks Back and cross-page navigation while a dirty wizard is open', () => {
@@ -29,5 +29,13 @@ describe('product wizard navigation guard', () => {
         '/products?newProduct=1'
       )
     ).toBe(false);
+  });
+});
+
+describe('product catalogue search debounce', () => {
+  it('schedules changed search text only while the wizard is closed', () => {
+    expect(shouldDebounceCatalogueSearch(false, 'headphones', '')).toBe(true);
+    expect(shouldDebounceCatalogueSearch(true, 'headphones', '')).toBe(false);
+    expect(shouldDebounceCatalogueSearch(false, 'headphones', 'headphones')).toBe(false);
   });
 });

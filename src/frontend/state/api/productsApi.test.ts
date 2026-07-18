@@ -1,6 +1,7 @@
 import {
   buildProductImageDeleteRequest,
   buildProductImageUploadRequest,
+  buildProductsListUrl,
 } from './productsApi';
 
 describe('product image API requests', () => {
@@ -20,5 +21,13 @@ describe('product image API requests', () => {
       url: '/uploads/images/123e4567-e89b-42d3-a456-426614174000',
       method: 'DELETE',
     });
+  });
+});
+
+describe('products list API request', () => {
+  it('serializes tags as an unambiguous JSON array so commas round-trip', () => {
+    expect(buildProductsListUrl({ tags: ['home, office', 'featured'], limit: 25 })).toBe(
+      '/products?limit=25&tags=%5B%22home%2C+office%22%2C%22featured%22%5D'
+    );
   });
 });

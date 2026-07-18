@@ -1,5 +1,12 @@
 // Products endpoints, injected into the shared baseApi (Group 8).
-import type { Product, Listing, PaginatedResponse, ApiResponse, ProductAIDraft, ProductAIDraftRequest } from '@shared/types';
+import type {
+  Product,
+  Listing,
+  PaginatedResponse,
+  ApiResponse,
+  ProductAIDraft,
+  ProductAIDraftRequest,
+} from '@shared/types';
 import { baseApi } from './baseApi.js';
 import { buildQueryString } from './queryString.js';
 import { unwrap, unwrapPaginated } from './envelope.js';
@@ -31,10 +38,18 @@ export function buildProductImageDeleteRequest(imageId: string) {
   return { url: `/uploads/images/${imageId}`, method: 'DELETE' as const };
 }
 
+export function buildProductsListUrl(params?: ProductListParams): string {
+  const { tags, ...rest } = params ?? {};
+  return `/products${buildQueryString({
+    ...rest,
+    tags: tags?.length ? JSON.stringify(tags) : undefined,
+  })}`;
+}
+
 export const productsApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
     getProducts: builder.query<PaginatedResponse<Product>, ProductListParams | void>({
-      query: (params) => `/products${buildQueryString({ ...(params ?? {}) })}`,
+      query: (params) => buildProductsListUrl(params ?? undefined),
       transformResponse: (res: PaginatedApiResponse<Product>) => unwrapPaginated(res),
       providesTags: (result) =>
         result

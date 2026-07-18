@@ -22,6 +22,7 @@ import type {
 
 export interface ProductListParams {
   workspaceId?: string;
+  search?: string;
   status?: ProductStatus[];
   priceMin?: number;
   priceMax?: number;
@@ -183,11 +184,7 @@ export interface MarketplaceImportApplyInput extends MarketplaceImportPreviewInp
 }
 
 export type MarketplaceImportPreviewItemStatus =
-  | 'new'
-  | 'already_imported'
-  | 'changed'
-  | 'unsupported'
-  | 'failed';
+  'new' | 'already_imported' | 'changed' | 'unsupported' | 'failed';
 
 export interface MarketplaceImportPreviewItem {
   status: MarketplaceImportPreviewItemStatus;

@@ -11,17 +11,13 @@ import type { IListingRepository } from '../../../domain/repositories/interfaces
 import type { IMarketplaceRepository } from '../../../domain/repositories/interfaces/IMarketplaceRepository';
 import type { CreateProductDTO } from '../../../application/dto/CreateProductDTO';
 import type { UpdateProductDTO } from '../../../application/dto/UpdateProductDTO';
-import type {
-  ListProductsQueryDTO,
-  SortKey,
-} from '../../../application/dto/ListProductsQueryDTO';
+import type { ListProductsQueryDTO, SortKey } from '../../../application/dto/ListProductsQueryDTO';
 import type { ProductStatus } from '../../../../shared/types';
 import { ConflictError, NotFoundError } from '../../../domain/shared/DomainError';
 import { Listing } from '../../../domain/entities/Listing';
 import { Money } from '../../../domain/valueObjects/Money';
 import { ok, created, paginated } from '../formatters/ResponseFormatter';
 import { presentListing } from '../../../application/dto/presenters';
-
 
 function routeParam(value: string | string[] | undefined): string {
   return Array.isArray(value) ? (value[0] ?? '') : (value ?? '');
@@ -33,6 +29,23 @@ function csv(value: unknown): string[] | undefined {
     .split(',')
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
+}
+
+export function parseStringList(value: unknown): string[] | undefined {
+  if (typeof value !== 'string' || value.length === 0) return undefined;
+  if (value.startsWith('[')) {
+    try {
+      const parsed: unknown = JSON.parse(value);
+      if (Array.isArray(parsed) && parsed.every((entry) => typeof entry === 'string')) {
+        const values = parsed.map((entry) => entry.trim()).filter(Boolean);
+        return values.length ? values : undefined;
+      }
+      return undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  return csv(value);
 }
 
 function num(value: unknown): number | undefined {
@@ -65,7 +78,7 @@ export class ProductController {
     private readonly productRepo: IProductRepository,
     private readonly listingRepo: IListingRepository,
     private readonly marketplaceRepo: IMarketplaceRepository,
-    private readonly idGenerator: () => string,
+    private readonly idGenerator: () => string
   ) {}
 
   list = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -74,7 +87,7 @@ export class ProductController {
       status: csv(req.query.status) as ProductStatus[] | undefined,
       priceMin: num(req.query.priceMin),
       priceMax: num(req.query.priceMax),
-      tags: csv(req.query.tags),
+      tags: parseStringList(req.query.tags),
       search: typeof req.query.search === 'string' ? req.query.search : undefined,
       sort: parseSort(req.query.sort),
       limit: num(req.query.limit),
@@ -93,10 +106,7 @@ export class ProductController {
 
   get = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const productId = routeParam(req.params.id);
-    const product = await this.products.getProduct(
-      productId,
-      req.user!.workspaceId!,
-    );
+    const product = await this.products.getProduct(productId, req.user!.workspaceId!);
     if (!product) return next(new NotFoundError(`Product not found: ${productId}`));
     ok(res, product);
   };
@@ -139,27 +149,31 @@ export class ProductController {
     ok(res, { id: productId, deleted: true });
   };
 
-
-
   createListing = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const productId = routeParam(req.params.id);
     const workspaceId = req.user!.workspaceId!;
     const product = await this.productRepo.findByIdForWorkspace(productId, workspaceId);
     if (!product) return next(new NotFoundError(`Product not found: ${productId}`));
 
-    const marketplace = await this.marketplaceRepo.findByKey(workspaceId, req.body.marketplaceKey ?? 'olx');
+    const marketplace = await this.marketplaceRepo.findByKey(
+      workspaceId,
+      req.body.marketplaceKey ?? 'olx'
+    );
     if (!marketplace || !marketplace.isConnected()) {
       return next(new NotFoundError(`Marketplace not found: ${req.body.marketplaceKey ?? 'olx'}`));
     }
 
     const existing = (await this.listingRepo.findByProduct(productId)).find(
-      (listing) => listing.marketplaceId === marketplace.id,
+      (listing) => listing.marketplaceId === marketplace.id
     );
     if (existing) {
       return next(new ConflictError(`Listing already exists for marketplace: ${marketplace.key}`));
     }
 
-    const money = Money.of(req.body.price ?? product.sellingPrice.amount, product.sellingPrice.currency);
+    const money = Money.of(
+      req.body.price ?? product.sellingPrice.amount,
+      product.sellingPrice.currency
+    );
     if (money.isErr()) return next(money.error);
     const listing = Listing.create({
       id: this.idGenerator(),
@@ -173,7 +187,9 @@ export class ProductController {
       await this.listingRepo.save(listing.value);
     } catch (err) {
       if (isUniqueListingConflict(err)) {
-        return next(new ConflictError(`Listing already exists for marketplace: ${marketplace.key}`));
+        return next(
+          new ConflictError(`Listing already exists for marketplace: ${marketplace.key}`)
+        );
       }
       return next(err);
     }
@@ -185,10 +201,7 @@ export class ProductController {
     const workspaceId = req.user!.workspaceId!;
     // Confirm the product belongs to the caller's workspace before exposing its
     // listings, otherwise a cross-tenant product id would leak listings (S2).
-    const product = await this.products.getProduct(
-      productId,
-      workspaceId,
-    );
+    const product = await this.products.getProduct(productId, workspaceId);
     if (!product) return next(new NotFoundError(`Product not found: ${productId}`));
     const listings = await this.listings.listByProduct(productId, workspaceId);
     ok(res, listings);

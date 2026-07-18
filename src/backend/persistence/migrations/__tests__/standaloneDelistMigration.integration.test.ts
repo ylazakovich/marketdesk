@@ -69,7 +69,7 @@ describeDb('standalone delist migration replay (PostgreSQL integration)', () => 
     const validateConstraint = readMigration('032_validate_standalone_listing_delist_operations.sql');
     await client.query(`
       ALTER TABLE category_correction_operations
-        DROP CONSTRAINT category_correction_operation_recommendation_check
+        DROP CONSTRAINT IF EXISTS category_correction_operation_recommendation_check
     `);
 
     await expect(client.query(validateConstraint)).rejects.toThrow(

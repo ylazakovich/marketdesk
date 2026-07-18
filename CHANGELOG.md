@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.16.0](https://github.com/ylazakovich/marketdesk/compare/marketdesk-v0.15.0...marketdesk-v0.16.0) (2026-07-18)
+
+
+### ✨ Features
+
+* **hermes:** polish AI activity dashboard ([#236](https://github.com/ylazakovich/marketdesk/issues/236)) ([0dae30c](https://github.com/ylazakovich/marketdesk/commit/0dae30cc44f41549e6cc61f3bb481a8f2ce23803))
+
 ## [0.15.0](https://github.com/ylazakovich/marketdesk/compare/marketdesk-v0.14.2...marketdesk-v0.15.0) (2026-07-18)
 
 

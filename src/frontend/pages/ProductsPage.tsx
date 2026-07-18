@@ -234,18 +234,18 @@ const ProductsPage: React.FC = () => {
     return p;
   }, [catalogue]);
 
-  const { data, isLoading, isFetching, isError, error, refetch } = useProducts(params);
+  const { currentData, isLoading, isFetching, isError, error, refetch } = useProducts(params);
   const allCount = useProducts({ limit: 1, offset: 0 });
   const activeCount = useProducts({ status: ['active'], limit: 1, offset: 0 });
   const attentionCount = useProducts({ status: ['attention'], limit: 1, offset: 0 });
   const draftCount = useProducts({ status: ['draft'], limit: 1, offset: 0 });
-  const totalPages = data ? Math.ceil(data.total / PRODUCTS_PAGE_SIZE) : 0;
-  const pageOutOfRange = Boolean(data && catalogue.page > Math.max(0, totalPages - 1));
+  const totalPages = currentData ? Math.ceil(currentData.total / PRODUCTS_PAGE_SIZE) : 0;
+  const pageOutOfRange = Boolean(currentData && catalogue.page > Math.max(0, totalPages - 1));
   const paginationPage = totalPages > 0 ? Math.min(catalogue.page, totalPages - 1) : 0;
   useEffect(() => {
-    if (!data || !pageOutOfRange) return;
+    if (!currentData || !pageOutOfRange) return;
     navigateCatalogue({ page: Math.max(0, totalPages - 1) }, true);
-  }, [data, navigateCatalogue, pageOutOfRange, totalPages]);
+  }, [currentData, navigateCatalogue, pageOutOfRange, totalPages]);
   const marketplaces = useMarketplaces();
   const [checkMarketplace] = useCheckMarketplace();
   const [verifiedMarketplaces, setVerifiedMarketplaces] = useState<Marketplace[]>();
@@ -396,7 +396,7 @@ const ProductsPage: React.FC = () => {
     wizardOpen,
   ]);
 
-  const items = useMemo<Product[]>(() => data?.items ?? [], [data?.items]);
+  const items = useMemo<Product[]>(() => currentData?.items ?? [], [currentData?.items]);
   useEffect(() => {
     const visible = new Set(items.map((product) => product.id));
     setSelectedIds((current) => {
@@ -720,7 +720,7 @@ const ProductsPage: React.FC = () => {
             onEdit={(product) => navigate(`/products/${product.id}`)}
             selectedIds={selectedIds}
             onSelectionChange={setSelectedIds}
-            emptyFiltered={hasCatalogueFilters(catalogue) || (data?.total ?? 0) > 0}
+            emptyFiltered={hasCatalogueFilters(catalogue) || (currentData?.total ?? 0) > 0}
             clearFiltersAction={<Button onClick={clearFilters}>Clear filters</Button>}
             emptyAction={
               <Button variant="contained" startIcon={<AddIcon />} onClick={openWizard}>
@@ -739,7 +739,7 @@ const ProductsPage: React.FC = () => {
             onEdit={(product) => navigate(`/products/${product.id}`)}
             selectedIds={selectedIds}
             onSelectionChange={setSelectedIds}
-            emptyFiltered={hasCatalogueFilters(catalogue) || (data?.total ?? 0) > 0}
+            emptyFiltered={hasCatalogueFilters(catalogue) || (currentData?.total ?? 0) > 0}
             clearFiltersAction={<Button onClick={clearFilters}>Clear filters</Button>}
             emptyAction={
               <Button variant="contained" startIcon={<AddIcon />} onClick={openWizard}>
@@ -748,10 +748,10 @@ const ProductsPage: React.FC = () => {
             }
           />
         )}
-        {(data?.total ?? 0) > 0 && (
+        {(currentData?.total ?? 0) > 0 && (
           <TablePagination
             component="div"
-            count={data?.total ?? 0}
+            count={currentData?.total ?? 0}
             page={paginationPage}
             onPageChange={(_event, page) => navigateCatalogue({ page })}
             rowsPerPage={PRODUCTS_PAGE_SIZE}

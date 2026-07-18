@@ -107,7 +107,7 @@ describeDb('AuthUserRepository / PriceHistoryRepository (integration)', () => {
         ) AND EXISTS (
           SELECT 1 FROM information_schema.tables
           WHERE table_name = 'price_history'
-        )`
+        ) AS exists`
       );
       const tablesExist = tablesCheck.rows[0]?.exists ?? false;
 

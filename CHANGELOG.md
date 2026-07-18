@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.14.2](https://github.com/ylazakovich/marketdesk/compare/marketdesk-v0.14.1...marketdesk-v0.14.2) (2026-07-18)
+
+
+### 🐛 Bug Fixes
+
+* **frontend:** finish canonical shell refinement ([#233](https://github.com/ylazakovich/marketdesk/issues/233)) ([55f3800](https://github.com/ylazakovich/marketdesk/commit/55f38000e17889af798c2e6446c354f09a0a405e))
+
+
+### 🧹 Chores
+
+* **deps:** update github/codeql-action digest to 7188fc3 ([#225](https://github.com/ylazakovich/marketdesk/issues/225)) ([8fac1d0](https://github.com/ylazakovich/marketdesk/commit/8fac1d0650f772371fab07b4b5a4b7b71245a129))
+
 ## [0.14.1](https://github.com/ylazakovich/marketdesk/compare/marketdesk-v0.14.0...marketdesk-v0.14.1) (2026-07-18)
 
 

@@ -92,6 +92,7 @@ export interface WorkspaceRow {
   name: string;
   currency: string;
   timezone: string;
+  language: string;
   autonomy_level: string;
   // JSONB column (migration 007). node-pg parses JSONB to an object; NULL when
   // unset, in which case the mapper falls back to DEFAULT_HERMES_GUARDRAILS.

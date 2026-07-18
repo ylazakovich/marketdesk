@@ -36,6 +36,7 @@ import {
   idFactory,
 } from '../../application/testkit/support';
 
+import { InMemorySettingsRepository } from '../../infrastructure/persistence/repositories/InMemorySettingsRepository';
 import { Workspace } from '../../domain/entities/Workspace';
 import { Marketplace } from '../../domain/entities/Marketplace';
 import { Listing } from '../../domain/entities/Listing';
@@ -64,10 +65,7 @@ import {
   type PublishAttemptStore,
 } from '../../infrastructure/jobQueue/JobHandlers/PublishListingHandler';
 import type { MarketplaceAdapterResolver } from '../../infrastructure/jobQueue/JobHandlers/SyncMarketplaceHandler';
-import type {
-  IMarketplaceAdapter,
-  PublishResult,
-} from '../../domain/services/MarketplaceAdapter';
+import type { IMarketplaceAdapter, PublishResult } from '../../domain/services/MarketplaceAdapter';
 
 import type { IJobQueue, PublishListingJob } from '../../application/ports/IJobQueue';
 
@@ -144,7 +142,7 @@ async function buildE2E(): Promise<E2EContext> {
   // Seed the tenant workspace + a connected marketplace + auth user.
   workspaceRepo.items.set(
     WORKSPACE_ID,
-    unwrap(Workspace.create({ id: WORKSPACE_ID, name: 'Demo Workspace', currency: 'PLN' })),
+    unwrap(Workspace.create({ id: WORKSPACE_ID, name: 'Demo Workspace', currency: 'PLN' }))
   );
   const marketplace = unwrap(
     Marketplace.create({
@@ -153,7 +151,7 @@ async function buildE2E(): Promise<E2EContext> {
       key: 'olx',
       name: 'OLX',
       connected: true,
-    }),
+    })
   );
   marketplaceRepo.items.set(marketplace.id, marketplace);
   authStore.users.push({
@@ -170,7 +168,7 @@ async function buildE2E(): Promise<E2EContext> {
     listingRepo,
     productRepo,
     marketplaceRepo,
-    events,
+    events
   );
   const hermesEngine = new HermesDecisionEngine(
     productRepo,
@@ -178,7 +176,7 @@ async function buildE2E(): Promise<E2EContext> {
     eventRepo,
     events,
     aiProvider,
-    idGenerator,
+    idGenerator
   );
 
   // Synchronous publish queue backed by the real handler + domain finalizer.
@@ -190,9 +188,16 @@ async function buildE2E(): Promise<E2EContext> {
     find: async (operationId) => checkpoints.get(operationId) ?? null,
     begin: async (operationId, listingId, marketplaceKey, listingUpdatedAt) => {
       const checkpoint: PublishAttemptCheckpoint = {
-        operationId, listingId, marketplaceKey, listingUpdatedAt, status: 'publishing',
-        externalListingId: null, externalUrl: null, publishedAt: null,
-        remoteStatus: null, remoteImageUrls: [],
+        operationId,
+        listingId,
+        marketplaceKey,
+        listingUpdatedAt,
+        status: 'publishing',
+        externalListingId: null,
+        externalUrl: null,
+        publishedAt: null,
+        remoteStatus: null,
+        remoteImageUrls: [],
       };
       checkpoints.set(operationId, checkpoint);
       return { created: true, checkpoint };
@@ -227,10 +232,15 @@ async function buildE2E(): Promise<E2EContext> {
     publishAttempts,
     {
       consumeReservation: async () => ({
-        applicable: true, marketplaceKey: 'olx', status: 'available', decision: 'allow',
-        reason: 'free_unit_available', requiresOverride: false, consumedUnit: true,
+        applicable: true,
+        marketplaceKey: 'olx',
+        status: 'available',
+        decision: 'allow',
+        reason: 'free_unit_available',
+        requiresOverride: false,
+        consumedUnit: true,
       }),
-    },
+    }
   );
   const publishQueue = new SyncPublishQueue(publishHandler);
   const syncQueue = new RecordingJobQueue();
@@ -239,7 +249,7 @@ async function buildE2E(): Promise<E2EContext> {
   const createProductUC = new CreateProductUseCase(
     productDomainService,
     workspaceRepo,
-    idGenerator,
+    idGenerator
   );
   const updateProductUC = new UpdateProductUseCase(productRepo, events);
   const publishListingUC = new PublishListingUseCase(
@@ -252,13 +262,9 @@ async function buildE2E(): Promise<E2EContext> {
     undefined,
     {
       authorize: async () => ({ decision: 'allow' }),
-    } as any,
+    } as any
   );
-  const syncMarketplaceUC = new SyncMarketplaceUseCase(
-    marketplaceRepo,
-    listingRepo,
-    syncQueue,
-  );
+  const syncMarketplaceUC = new SyncMarketplaceUseCase(marketplaceRepo, listingRepo, syncQueue);
   const runHermesUC = new RunHermesUseCase(hermesEngine, workspaceRepo);
   const approveEventUC = new ApproveHermesEventUseCase(
     eventRepo,
@@ -269,33 +275,32 @@ async function buildE2E(): Promise<E2EContext> {
     priceHistory,
     publishQueue,
     events,
-    idGenerator,
+    idGenerator
   );
-  const dismissEventUC = new DismissHermesEventUseCase(
-    eventRepo,
-    activityLog,
-    events,
-    idGenerator,
-  );
+  const dismissEventUC = new DismissHermesEventUseCase(eventRepo, activityLog, events, idGenerator);
 
   // Application services.
   const productService = new ProductApplicationService(
     productRepo,
     createProductUC,
-    updateProductUC,
+    updateProductUC
   );
   const listingService = new ListingApplicationService(
     listingRepo,
     publishListingUC,
-    syncMarketplaceUC,
+    syncMarketplaceUC
   );
   const hermesService = new HermesApplicationService(
     eventRepo,
     runHermesUC,
     approveEventUC,
-    dismissEventUC,
+    dismissEventUC
   );
-  const analyticsService = new AnalyticsApplicationService(productRepo, listingRepo, marketplaceRepo);
+  const analyticsService = new AnalyticsApplicationService(
+    productRepo,
+    listingRepo,
+    marketplaceRepo
+  );
 
   const deps: AppDeps = {
     productService,
@@ -306,6 +311,7 @@ async function buildE2E(): Promise<E2EContext> {
     listingRepo,
     marketplaceRepo,
     workspaceRepo,
+    settingsRepo: new InMemorySettingsRepository(),
     authUserStore: authStore,
     idGenerator,
   };
@@ -330,7 +336,7 @@ async function login(app: ReturnType<typeof buildApp>): Promise<string> {
 function seedListing(
   listingRepo: InMemoryListingRepository,
   productId: string,
-  status: 'draft' | 'expired' | 'error' | 'live' = 'draft',
+  status: 'draft' | 'expired' | 'error' | 'live' = 'draft'
 ): string {
   const listing = unwrap(
     Listing.create({
@@ -349,7 +355,7 @@ function seedListing(
         taxonomyVerifiedAt: new Date(Date.now() - 60_000).toISOString(),
         taxonomyStaleAt: new Date(Date.now() + 23 * 60 * 60 * 1000).toISOString(),
       },
-    }),
+    })
   );
   listingRepo.items.set(listing.id, listing);
   return listing.id;
@@ -360,9 +366,7 @@ describe('E2E product/listing/Hermes flow (in-memory, no DB)', () => {
     const { app } = await buildE2E();
     const token = await login(app);
 
-    const me = await request(app)
-      .get('/api/auth/me')
-      .set('Authorization', `Bearer ${token}`);
+    const me = await request(app).get('/api/auth/me').set('Authorization', `Bearer ${token}`);
 
     expect(me.status).toBe(200);
     expect(me.body.success).toBe(true);
@@ -392,9 +396,7 @@ describe('E2E product/listing/Hermes flow (in-memory, no DB)', () => {
     const productId = create.body.data.id as string;
     expect(productId).toBeDefined();
 
-    const list = await request(app)
-      .get('/api/products')
-      .set('Authorization', `Bearer ${token}`);
+    const list = await request(app).get('/api/products').set('Authorization', `Bearer ${token}`);
 
     expect(list.status).toBe(200);
     expect(list.body.data.map((p: { id: string }) => p.id)).toContain(productId);
@@ -555,7 +557,7 @@ describe('E2E product/listing/Hermes flow (in-memory, no DB)', () => {
           from: 'Old Name',
           to: 'New Optimized Name',
         },
-      }),
+      })
     );
     await eventRepo.save(event);
 

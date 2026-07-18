@@ -4,7 +4,7 @@ import { baseApi } from './baseApi.js';
 import { unwrap } from './envelope.js';
 
 export type WorkspacePatch = Partial<
-  Pick<Workspace, 'name' | 'currency' | 'timezone' | 'autonomyLevel'>
+  Pick<Workspace, 'name' | 'currency' | 'timezone' | 'language' | 'autonomyLevel'>
 >;
 
 export const workspacesApi = baseApi.injectEndpoints({

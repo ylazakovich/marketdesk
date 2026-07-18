@@ -3,15 +3,18 @@
 // job queue) plus a deterministic id generator.
 
 import type { Workspace } from '../../domain/entities/Workspace';
-import type { IWorkspaceRepository } from '../../domain/repositories/interfaces/IWorkspaceRepository';
+import type {
+  IWorkspaceRepository,
+  WorkspaceHermesPatch,
+  WorkspacePartialPatch,
+  WorkspaceProfilePatch,
+} from '../../domain/repositories/interfaces/IWorkspaceRepository';
+import { Workspace as WorkspaceEntity } from '../../domain/entities/Workspace';
 import type {
   IActivityLogRepository,
   ActivityLogEntry,
 } from '../../domain/repositories/interfaces/IActivityLogRepository';
-import type {
-  IPriceHistoryRecorder,
-  PriceHistoryRecord,
-} from '../ports/IPriceHistoryRecorder';
+import type { IPriceHistoryRecorder, PriceHistoryRecord } from '../ports/IPriceHistoryRecorder';
 import type { IJobQueue, JobEnqueueOptions } from '../ports/IJobQueue';
 import type { IdGenerator } from '../ports/IdGenerator';
 
@@ -26,6 +29,59 @@ export class InMemoryWorkspaceRepository implements IWorkspaceRepository {
   }
   async save(workspace: Workspace): Promise<void> {
     this.items.set(workspace.id, workspace);
+  }
+  async updateProfile(id: string, patch: WorkspaceProfilePatch): Promise<Workspace | null> {
+    const current = this.items.get(id);
+    if (!current) return null;
+    const result = WorkspaceEntity.create({
+      id,
+      name: patch.name ?? current.name,
+      currency: patch.currency ?? current.currency,
+      timezone: patch.timezone ?? current.timezone,
+      language: patch.language ?? current.language,
+      autonomyLevel: current.autonomyLevel,
+      guardrails: current.guardrails,
+      createdAt: current.createdAt,
+    });
+    if (result.isErr()) throw result.error;
+    this.items.set(id, result.value);
+    return result.value;
+  }
+  async updateHermes(id: string, patch: WorkspaceHermesPatch): Promise<Workspace | null> {
+    const current = this.items.get(id);
+    if (!current) return null;
+    const result = WorkspaceEntity.create({
+      id,
+      name: current.name,
+      currency: current.currency,
+      timezone: current.timezone,
+      language: current.language,
+      autonomyLevel: patch.autonomyLevel ?? current.autonomyLevel,
+      guardrails: { ...current.guardrails, ...patch.guardrails },
+      createdAt: current.createdAt,
+    });
+    if (result.isErr()) throw result.error;
+    const validated = result.value.updateGuardrails({});
+    if (validated.isErr()) throw validated.error;
+    this.items.set(id, result.value);
+    return result.value;
+  }
+  async updatePartial(id: string, patch: WorkspacePartialPatch): Promise<Workspace | null> {
+    const current = this.items.get(id);
+    if (!current) return null;
+    const result = WorkspaceEntity.create({
+      id,
+      name: patch.name ?? current.name,
+      currency: patch.currency ?? current.currency,
+      timezone: patch.timezone ?? current.timezone,
+      language: patch.language ?? current.language,
+      autonomyLevel: patch.autonomyLevel ?? current.autonomyLevel,
+      guardrails: { ...current.guardrails, ...patch.guardrails },
+      createdAt: current.createdAt,
+    });
+    if (result.isErr()) throw result.error;
+    this.items.set(id, result.value);
+    return result.value;
   }
   async delete(id: string): Promise<void> {
     this.items.delete(id);
@@ -42,9 +98,7 @@ export class InMemoryActivityLogRepository implements IActivityLogRepository {
     return this.entries.filter((e) => e.workspaceId === workspaceId);
   }
   async findByEntity(entityType: string, entityId: string): Promise<ActivityLogEntry[]> {
-    return this.entries.filter(
-      (e) => e.entityType === entityType && e.entityId === entityId,
-    );
+    return this.entries.filter((e) => e.entityType === entityType && e.entityId === entityId);
   }
 }
 

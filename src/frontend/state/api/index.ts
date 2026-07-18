@@ -8,6 +8,7 @@ export * from './marketplacesApi.js';
 export * from './hermesApi.js';
 export * from './analyticsApi.js';
 export * from './workspacesApi.js';
+export * from './settingsApi.js';
 export * from './authApi.js';
 export * from './applicationInfoApi.js';
 

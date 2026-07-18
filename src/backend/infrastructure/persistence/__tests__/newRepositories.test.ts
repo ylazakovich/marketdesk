@@ -6,10 +6,7 @@
 
 import { randomUUID } from 'crypto';
 import { AuthUserMapper, type AuthUserRow } from '../repositories/AuthUserRepository';
-import {
-  PriceHistoryMapper,
-  type PriceHistoryRow,
-} from '../repositories/PriceHistoryRepository';
+import { PriceHistoryMapper, type PriceHistoryRow } from '../repositories/PriceHistoryRepository';
 
 describe('AuthUserMapper', () => {
   const row: AuthUserRow = {
@@ -85,7 +82,8 @@ describe('PriceHistoryMapper', () => {
 // --- DB round-trip (skips cleanly without a reachable database) --------------
 
 const hasDbUrl = Boolean(process.env.DATABASE_URL);
-const describeDb = hasDbUrl ? describe : describe.skip;
+const requireDatabaseTests = process.env.REQUIRE_DATABASE_TESTS === 'true';
+const describeDb = hasDbUrl || requireDatabaseTests ? describe : describe.skip;
 
 describeDb('AuthUserRepository / PriceHistoryRepository (integration)', () => {
   let ready = false;
@@ -96,6 +94,7 @@ describeDb('AuthUserRepository / PriceHistoryRepository (integration)', () => {
 
   beforeAll(async () => {
     try {
+      if (!hasDbUrl) throw new Error('DATABASE_URL is required for database integration tests');
       const db = await import('../../../config/database');
       const pool = db.createPool();
       closePool = db.closePool;
@@ -113,8 +112,13 @@ describeDb('AuthUserRepository / PriceHistoryRepository (integration)', () => {
       const tablesExist = tablesCheck.rows[0]?.exists ?? false;
 
       if (!tablesExist) {
+        if (requireDatabaseTests) {
+          throw new Error('Database is missing users or price_history after migrations');
+        }
         // eslint-disable-next-line no-console
-        console.warn('[newRepositories.integration] Database missing required tables — skipping integration tests');
+        console.warn(
+          '[newRepositories.integration] Database missing required tables — skipping integration tests'
+        );
         ready = false;
         return;
       }
@@ -123,6 +127,7 @@ describeDb('AuthUserRepository / PriceHistoryRepository (integration)', () => {
       ({ PriceHistoryRepository } = await import('../repositories/PriceHistoryRepository'));
       ready = true;
     } catch (err) {
+      if (requireDatabaseTests) throw err;
       // eslint-disable-next-line no-console
       console.warn(
         `[newRepositories.integration] Database unreachable — skipping integration tests. ${(err as Error).message}`

@@ -24,7 +24,8 @@ import type { Listing as ListingType } from '../../../domain/entities/Listing';
 import type { Money as MoneyValue } from '../../../domain/valueObjects/Money';
 
 const hasDbUrl = Boolean(process.env.DATABASE_URL);
-const describeDb = hasDbUrl ? describe : describe.skip;
+const requireDatabaseTests = process.env.REQUIRE_DATABASE_TESTS === 'true';
+const describeDb = hasDbUrl || requireDatabaseTests ? describe : describe.skip;
 
 describeDb('PostgreSQL repositories (integration)', () => {
   let ready = false;
@@ -46,6 +47,7 @@ describeDb('PostgreSQL repositories (integration)', () => {
 
   beforeAll(async () => {
     try {
+      if (!hasDbUrl) throw new Error('DATABASE_URL is required for database integration tests');
       const db = await import('../../../config/database');
       pool = await db.getPool();
       closePool = db.closePool;
@@ -69,16 +71,17 @@ describeDb('PostgreSQL repositories (integration)', () => {
             id: workspaceId,
             name: 'IT Workspace',
             currency: 'PLN',
-          }),
-        ),
+          })
+        )
       );
       ready = true;
     } catch (err) {
+      if (requireDatabaseTests) throw err;
       // eslint-disable-next-line no-console
       console.warn(
         `[repositories.integration] Database unreachable — skipping integration tests. ${
           (err as Error).message
-        }`,
+        }`
       );
       ready = false;
     }
@@ -102,6 +105,8 @@ describeDb('PostgreSQL repositories (integration)', () => {
 
   function skipIfNotReady(): boolean {
     if (!ready) {
+      if (requireDatabaseTests)
+        throw new Error('Required PostgreSQL repository suite is not ready');
       // eslint-disable-next-line no-console
       console.warn('[repositories.integration] skipped (no DB)');
     }
@@ -125,7 +130,7 @@ describeDb('PostgreSQL repositories (integration)', () => {
         category: 'electronics',
         tags: ['a', 'b'],
         images: ['https://img/1.jpg', 'https://img/2.jpg'],
-      }),
+      })
     );
 
     await repo.save(product);
@@ -164,12 +169,10 @@ describeDb('PostgreSQL repositories (integration)', () => {
         name: 'OLX',
         connected: true,
         syncMode: 'hourly',
-      }),
+      })
     );
     await mktRepo.save(mkt);
-    expect((await mktRepo.findConnected(workspaceId)).some((m) => m.id === mktId)).toBe(
-      true,
-    );
+    expect((await mktRepo.findConnected(workspaceId)).some((m) => m.id === mktId)).toBe(true);
     expect((await mktRepo.findByKey(workspaceId, 'olx'))?.id).toBe(mktId);
 
     const productId = randomUUID();
@@ -185,8 +188,8 @@ describeDb('PostgreSQL repositories (integration)', () => {
           sellingPrice: money(40),
           condition: 'good',
           category: 'home',
-        }),
-      ),
+        })
+      )
     );
 
     const listingId = randomUUID();
@@ -199,22 +202,20 @@ describeDb('PostgreSQL repositories (integration)', () => {
         status: 'live',
         expiresAt: new Date(Date.now() + 60_000),
         publishedAt: new Date(),
-      }),
+      })
     );
     await listingRepo.save(listing);
 
     expect((await listingRepo.findByProduct(productId)).length).toBe(1);
     expect((await listingRepo.findByMarketplace(mktId)).length).toBe(1);
     expect((await listingRepo.findByWorkspace(workspaceId)).some((l) => l.id === listingId)).toBe(
-      true,
+      true
     );
     const expiring = await listingRepo.findExpiring(new Date(Date.now() + 120_000));
     expect(expiring.some((l) => l.id === listingId)).toBe(true);
 
     // Workspace-scoped listing read (listing -> product -> workspace) (S2).
-    expect((await listingRepo.findByIdForWorkspace(listingId, workspaceId))?.id).toBe(
-      listingId,
-    );
+    expect((await listingRepo.findByIdForWorkspace(listingId, workspaceId))?.id).toBe(listingId);
     expect(await listingRepo.findByIdForWorkspace(listingId, randomUUID())).toBeNull();
     // Workspace-scoped marketplace read (S2).
     expect((await mktRepo.findByIdForWorkspace(mktId, workspaceId))?.id).toBe(mktId);
@@ -237,7 +238,7 @@ describeDb('PostgreSQL repositories (integration)', () => {
         severity: 'warning',
         title: 'Lower price',
         proposedChange: { kind: 'price', field: 'price', from: 100, to: 80 },
-      }),
+      })
     );
     await repo.save(event);
     const pending = await repo.findPendingReview(workspaceId);

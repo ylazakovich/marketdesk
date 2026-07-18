@@ -2,7 +2,10 @@ import React from 'react';
 import { Button, Typography } from '@mui/material';
 import {
   ApplicationInfoBlock,
+  mapSettingsFieldErrors,
   SettingsSectionNavigation,
+  shouldHydrateWorkspaceDraft,
+  workspaceSettingsPatch,
   settingsSections,
   type SettingsSection,
 } from './SettingsPage';
@@ -10,7 +13,9 @@ import {
 type ElementLike = React.ReactElement<{ children?: React.ReactNode; [key: string]: unknown }>;
 
 function childrenOf(element: ElementLike): ElementLike[] {
-  return React.Children.toArray(element.props.children).filter(React.isValidElement) as ElementLike[];
+  return React.Children.toArray(element.props.children).filter(
+    React.isValidElement
+  ) as ElementLike[];
 }
 
 function findByType(element: ElementLike, type: unknown): ElementLike[] {
@@ -37,6 +42,8 @@ describe('SettingsPage shell navigation', () => {
 
     expect(buttons).toHaveLength(settingsSections.length);
     expect(buttons[0]?.props.variant).toBe('contained');
+    expect(buttons[0]?.props['aria-current']).toBe('page');
+    expect(buttons[1]?.props['aria-current']).toBeUndefined();
     expect(labels).toEqual(expect.arrayContaining(['General', 'Workspace basics']));
   });
 
@@ -48,7 +55,7 @@ describe('SettingsPage shell navigation', () => {
     }) as ElementLike;
 
     const hermesButton = findByType(tree, Button).find((button) =>
-      textContent(button).includes('Hermes AI'),
+      textContent(button).includes('Hermes AI')
     );
     hermesButton?.props.onClick?.({} as React.MouseEvent<HTMLButtonElement>);
 
@@ -62,7 +69,7 @@ describe('SettingsPage shell navigation', () => {
     }) as ElementLike;
 
     const notificationsButton = findByType(tree, Button).find((button) =>
-      textContent(button).includes('Notifications'),
+      textContent(button).includes('Notifications')
     );
 
     expect(notificationsButton?.props.variant).toBe('contained');
@@ -81,5 +88,53 @@ describe('SettingsPage shell navigation', () => {
     const tree = ApplicationInfoBlock({ isError: true }) as ElementLike;
 
     expect(textContent(tree)).toContain('Version unavailable');
+  });
+
+  it('preserves a dirty workspace draft on refetch but hydrates a changed principal', () => {
+    expect(
+      shouldHydrateWorkspaceDraft({
+        initializedPrincipal: 'workspace:user-a',
+        principalKey: 'workspace:user-a',
+        baselineSnapshot: 'old',
+        incomingSnapshot: 'new',
+        dirty: true,
+      })
+    ).toBe(false);
+    expect(
+      shouldHydrateWorkspaceDraft({
+        initializedPrincipal: 'workspace:user-a',
+        principalKey: 'workspace:user-b',
+        baselineSnapshot: 'old',
+        incomingSnapshot: 'new',
+        dirty: true,
+      })
+    ).toBe(true);
+  });
+
+  it('maps backend validation details to General field errors', () => {
+    expect(
+      mapSettingsFieldErrors({
+        data: {
+          error: {
+            details: [
+              { field: 'timezone', message: 'Invalid IANA timezone' },
+              { field: 'unknown', message: 'ignored' },
+            ],
+          },
+        },
+      })
+    ).toEqual({ timezone: 'Invalid IANA timezone' });
+  });
+
+  it('sends only fields changed from the current principal baseline', () => {
+    const baseline = {
+      name: 'Old name',
+      currency: 'PLN',
+      timezone: 'Europe/Warsaw',
+      language: 'en' as const,
+    };
+    const staleDraft = { ...baseline, name: 'New name' };
+
+    expect(workspaceSettingsPatch(baseline, staleDraft)).toEqual({ name: 'New name' });
   });
 });

@@ -18,6 +18,7 @@ import { Ok, Err } from '../../domain/shared/Result';
 import { InvalidStateError, NotFoundError } from '../../domain/shared/DomainError';
 import { Product } from '../../domain/entities/Product';
 import { Marketplace } from '../../domain/entities/Marketplace';
+import { Workspace } from '../../domain/entities/Workspace';
 import { Listing } from '../../domain/entities/Listing';
 import { Money } from '../../domain/valueObjects/Money';
 import type { ProductApplicationService } from '../../application/services/ProductApplicationService';
@@ -41,6 +42,7 @@ import {
   InMemoryMarketplaceRepository,
 } from '../../domain/testkit/support';
 import { InMemoryWorkspaceRepository } from '../../application/testkit/support';
+import { InMemorySettingsRepository } from '../../infrastructure/persistence/repositories/InMemorySettingsRepository';
 
 const iso = new Date().toISOString();
 
@@ -207,6 +209,13 @@ function stubMarketplaceOAuthService(): MarketplaceOAuthService {
     async check() {
       return status;
     },
+    async getAppCredentialStatus() {
+      return {
+        configured: true,
+        marketplaceId: 'marketplace-olx',
+        providerKey: 'olx' as const,
+      };
+    },
     async disconnect() {},
   } as unknown as MarketplaceOAuthService;
 }
@@ -218,7 +227,14 @@ function stubMarketplaceImportService(): MarketplaceImportService {
         marketplaceId: 'marketplace-olx',
         marketplaceKey: 'olx' as const,
         readOnly: true as const,
-        totals: { discovered: 1, new: 1, already_imported: 0, changed: 0, unsupported: 0, failed: 0 },
+        totals: {
+          discovered: 1,
+          new: 1,
+          already_imported: 0,
+          changed: 0,
+          unsupported: 0,
+          failed: 0,
+        },
         items: [
           {
             status: 'new' as const,
@@ -284,7 +300,9 @@ function stubOlxPublicationQuotaService(): OlxPublicationQuotaService {
     status: 'available' as const,
   };
   return {
-    async list() { return [quota]; },
+    async list() {
+      return [quota];
+    },
     async set(input) {
       return {
         ...quota,
@@ -328,29 +346,66 @@ function stubUnknownOlxPublicationQuotaService(): OlxPublicationQuotaService {
 
 function stubCategoryCorrectionOperationService(): CategoryCorrectionOperationService {
   const base = {
-    id: 'recreate-1', workspaceId: 'ws-1', recommendationEventId: 'e1', listingId: 'listing-1',
-    marketplaceId: 'marketplace-olx', kind: 'recreate' as const, state: 'requested' as const,
-    targetCategory: null, paidOverrideReason: null, requestedBy: null, approvedBy: null, result: null,
-    requestedAt: new Date(), approvedAt: null, executedAt: null, failedAt: null, updatedAt: new Date(),
+    id: 'recreate-1',
+    workspaceId: 'ws-1',
+    recommendationEventId: 'e1',
+    listingId: 'listing-1',
+    marketplaceId: 'marketplace-olx',
+    kind: 'recreate' as const,
+    state: 'requested' as const,
+    targetCategory: null,
+    paidOverrideReason: null,
+    requestedBy: null,
+    approvedBy: null,
+    result: null,
+    requestedAt: new Date(),
+    approvedAt: null,
+    executedAt: null,
+    failedAt: null,
+    updatedAt: new Date(),
   };
   return {
-    async list(_eventId: string, workspaceId: string) { return [{ ...base, workspaceId }]; },
-    async approve(input: { operationId: string; workspaceId: string; actorId: string; paidOverrideReason?: string }) {
-      return { ...base, id: input.operationId, workspaceId: input.workspaceId, state: 'approved' as const,
-        approvedBy: input.actorId, paidOverrideReason: input.paidOverrideReason ?? null, approvedAt: new Date() };
+    async list(_eventId: string, workspaceId: string) {
+      return [{ ...base, workspaceId }];
+    },
+    async approve(input: {
+      operationId: string;
+      workspaceId: string;
+      actorId: string;
+      paidOverrideReason?: string;
+    }) {
+      return {
+        ...base,
+        id: input.operationId,
+        workspaceId: input.workspaceId,
+        state: 'approved' as const,
+        approvedBy: input.actorId,
+        paidOverrideReason: input.paidOverrideReason ?? null,
+        approvedAt: new Date(),
+      };
     },
     async execute(input: { operationId: string; workspaceId: string }) {
-      return { ...base, id: input.operationId, workspaceId: input.workspaceId, state: 'executed' as const,
-        result: { externalListingId: 'new-advert' }, approvedAt: new Date(), executedAt: new Date() };
+      return {
+        ...base,
+        id: input.operationId,
+        workspaceId: input.workspaceId,
+        state: 'executed' as const,
+        result: { externalListingId: 'new-advert' },
+        approvedAt: new Date(),
+        executedAt: new Date(),
+      };
     },
   } as unknown as CategoryCorrectionOperationService;
 }
 
-async function buildTestApp(options: {
-  olxPublicationQuotaService?: OlxPublicationQuotaService;
-  disableOlxPublicationQuotaService?: boolean;
-  applicationVersion?: string;
-} = {}) {
+async function buildTestApp(
+  options: {
+    olxPublicationQuotaService?: OlxPublicationQuotaService;
+    disableOlxPublicationQuotaService?: boolean;
+    applicationVersion?: string;
+    seedWorkspace?: boolean;
+  } = {}
+) {
   const authUserStore = new InMemoryAuthStore();
   const productRepo = new InMemoryProductRepository();
   const listingRepo = new InMemoryListingRepository();
@@ -378,10 +433,11 @@ async function buildTestApp(options: {
     marketplaceImportService: stubMarketplaceImportService(),
     olxPublicationQuotaService: options.disableOlxPublicationQuotaService
       ? undefined
-      : options.olxPublicationQuotaService ?? stubOlxPublicationQuotaService(),
+      : (options.olxPublicationQuotaService ?? stubOlxPublicationQuotaService()),
     categoryCorrectionOperationService: stubCategoryCorrectionOperationService(),
     marketplaceOAuthReturnUrl: 'http://localhost:5173/marketplaces',
     workspaceRepo: workspaceRepo as IWorkspaceRepository,
+    settingsRepo: new InMemorySettingsRepository(),
     authUserStore,
     idGenerator: () => 'listing-1',
   };
@@ -412,6 +468,11 @@ async function buildTestApp(options: {
   });
   if (marketplace.isErr()) throw marketplace.error;
   await marketplaceRepo.save(marketplace.value);
+  if (options.seedWorkspace) {
+    const workspace = Workspace.create({ id: 'ws-1', name: 'Demo workspace' });
+    if (workspace.isErr()) throw workspace.error;
+    await workspaceRepo.save(workspace.value);
+  }
   return {
     app: buildApp(deps, {
       enableRateLimit: false,
@@ -427,7 +488,7 @@ async function buildTestApp(options: {
 async function seedPreviewListing(
   listingRepo: InMemoryListingRepository,
   category?: MarketplaceCategoryMetadata | null,
-  status?: ListingStatus,
+  status?: ListingStatus
 ): Promise<void> {
   const price = Money.of(20, 'PLN');
   if (price.isErr()) throw new Error('money fixture failed');
@@ -437,12 +498,19 @@ async function seedPreviewListing(
     marketplaceId: 'marketplace-olx',
     price: price.value,
     status,
-    marketplaceCategory: category === undefined ? {
-      providerCategoryId: '2000', name: 'Widgets', path: ['Home', 'Tools', 'Widgets'],
-      source: 'provider_taxonomy', confidence: 1, isLeaf: true,
-      taxonomyVerifiedAt: new Date(Date.now() - 60_000).toISOString(),
-      taxonomyStaleAt: new Date(Date.now() + 23 * 60 * 60 * 1000).toISOString(),
-    } : category,
+    marketplaceCategory:
+      category === undefined
+        ? {
+            providerCategoryId: '2000',
+            name: 'Widgets',
+            path: ['Home', 'Tools', 'Widgets'],
+            source: 'provider_taxonomy',
+            confidence: 1,
+            isLeaf: true,
+            taxonomyVerifiedAt: new Date(Date.now() - 60_000).toISOString(),
+            taxonomyStaleAt: new Date(Date.now() + 23 * 60 * 60 * 1000).toISOString(),
+          }
+        : category,
   });
   if (listing.isErr()) throw listing.error;
   await listingRepo.save(listing.value);
@@ -697,7 +765,9 @@ describe('Presentation API', () => {
 
     it('rejects duplicate listing creation for the same marketplace', async () => {
       const { app } = await buildTestApp();
-      await auth(request(app).post('/api/products/p-real/listings')).send({ marketplaceKey: 'olx' });
+      await auth(request(app).post('/api/products/p-real/listings')).send({
+        marketplaceKey: 'olx',
+      });
       const res = await auth(request(app).post('/api/products/p-real/listings')).send({
         marketplaceKey: 'olx',
       });
@@ -741,9 +811,9 @@ describe('Presentation API', () => {
   describe('marketplace OAuth', () => {
     it('starts OLX OAuth from an authenticated workspace without marking local success', async () => {
       const { app } = await buildTestApp();
-      const res = await auth(
-        request(app).post('/api/marketplaces/marketplace-olx/connect'),
-      ).send({});
+      const res = await auth(request(app).post('/api/marketplaces/marketplace-olx/connect')).send(
+        {}
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -777,14 +847,23 @@ describe('Presentation API', () => {
 
     it('previews existing OLX adverts through a read-only import endpoint', async () => {
       const { app } = await buildTestApp();
-      const res = await auth(request(app).post('/api/marketplaces/marketplace-olx/import-preview')).send({
+      const res = await auth(
+        request(app).post('/api/marketplaces/marketplace-olx/import-preview')
+      ).send({
         statuses: ['active'],
       });
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.data.readOnly).toBe(true);
-      expect(res.body.data.totals).toEqual({ discovered: 1, new: 1, already_imported: 0, changed: 0, unsupported: 0, failed: 0 });
+      expect(res.body.data.totals).toEqual({
+        discovered: 1,
+        new: 1,
+        already_imported: 0,
+        changed: 0,
+        unsupported: 0,
+        failed: 0,
+      });
       expect(res.body.data.items[0]).toMatchObject({
         status: 'new',
         externalListingId: 'olx-1',
@@ -846,7 +925,9 @@ describe('Presentation API', () => {
       const { app, listingRepo } = await buildTestApp();
       await seedPreviewListing(listingRepo);
       const before = await listingRepo.findById('listing-preview');
-      const res = await auth(request(app).post('/api/listings/listing-preview/publish-preview')).send({});
+      const res = await auth(
+        request(app).post('/api/listings/listing-preview/publish-preview')
+      ).send({});
       const after = await listingRepo.findById('listing-preview');
 
       expect(res.status).toBe(200);
@@ -869,9 +950,12 @@ describe('Presentation API', () => {
       });
       expect(res.body.data.payload.productName).toBe('Real widget');
       expect(res.body.data.payload.price).toBe(20);
-      expect(res.body.data.marketplaceCategory).toEqual(expect.objectContaining({
-        providerCategoryId: '2000', path: ['Home', 'Tools', 'Widgets'],
-      }));
+      expect(res.body.data.marketplaceCategory).toEqual(
+        expect.objectContaining({
+          providerCategoryId: '2000',
+          path: ['Home', 'Tools', 'Widgets'],
+        })
+      );
       expect(res.body.data.payload.marketplaceCategory).toEqual(res.body.data.marketplaceCategory);
       expect(before?.status).toBe('draft');
       expect(after?.status).toBe('draft');
@@ -900,7 +984,9 @@ describe('Presentation API', () => {
       const marketplace = await marketplaceRepo.findById('marketplace-olx');
       marketplace?.disconnect();
 
-      const res = await auth(request(app).post('/api/listings/listing-preview/publish-preview')).send({});
+      const res = await auth(
+        request(app).post('/api/listings/listing-preview/publish-preview')
+      ).send({});
       const after = await listingRepo.findById('listing-preview');
 
       expect(res.status).toBe(200);
@@ -918,7 +1004,9 @@ describe('Presentation API', () => {
       });
       await seedPreviewListing(listingRepo);
 
-      const res = await auth(request(app).post('/api/listings/listing-preview/publish-preview')).send({});
+      const res = await auth(
+        request(app).post('/api/listings/listing-preview/publish-preview')
+      ).send({});
 
       expect(res.status).toBe(200);
       expect(res.body.data.canPublish).toBe(false);
@@ -937,14 +1025,18 @@ describe('Presentation API', () => {
       const marketplace = await marketplaceRepo.findById('marketplace-olx');
       marketplace?.disconnect();
 
-      const res = await auth(request(app).post('/api/listings/listing-preview/publish-preview')).send({});
+      const res = await auth(
+        request(app).post('/api/listings/listing-preview/publish-preview')
+      ).send({});
 
       expect(res.status).toBe(200);
       expect(res.body.data.canPublish).toBe(false);
-      expect(res.body.data.warnings).toEqual(expect.arrayContaining([
-        expect.stringContaining('not connected'),
-        'OLX quota blocks publication: quota_unknown',
-      ]));
+      expect(res.body.data.warnings).toEqual(
+        expect.arrayContaining([
+          expect.stringContaining('not connected'),
+          'OLX quota blocks publication: quota_unknown',
+        ])
+      );
       expect(res.body.data.quotaOverrideEligibility).toEqual({
         eligible: false,
         reason: 'quota_unknown',
@@ -957,14 +1049,18 @@ describe('Presentation API', () => {
       });
       await seedPreviewListing(listingRepo, null);
 
-      const res = await auth(request(app).post('/api/listings/listing-preview/publish-preview')).send({});
+      const res = await auth(
+        request(app).post('/api/listings/listing-preview/publish-preview')
+      ).send({});
 
       expect(res.status).toBe(200);
       expect(res.body.data.canPublish).toBe(false);
-      expect(res.body.data.warnings).toEqual(expect.arrayContaining([
-        'Select an exact OLX leaf category before publishing',
-        'OLX quota blocks publication: quota_unknown',
-      ]));
+      expect(res.body.data.warnings).toEqual(
+        expect.arrayContaining([
+          'Select an exact OLX leaf category before publishing',
+          'OLX quota blocks publication: quota_unknown',
+        ])
+      );
       expect(res.body.data.quotaOverrideEligibility).toEqual({
         eligible: false,
         reason: 'quota_unknown',
@@ -975,7 +1071,9 @@ describe('Presentation API', () => {
       const { app, listingRepo } = await buildTestApp({ disableOlxPublicationQuotaService: true });
       await seedPreviewListing(listingRepo);
 
-      const res = await auth(request(app).post('/api/listings/listing-preview/publish-preview')).send({});
+      const res = await auth(
+        request(app).post('/api/listings/listing-preview/publish-preview')
+      ).send({});
 
       expect(res.status).toBe(200);
       expect(res.body.data.canPublish).toBe(false);
@@ -986,7 +1084,10 @@ describe('Presentation API', () => {
     });
 
     it.each([
-      ['confirmation is false', { confirmed: false, reason: 'This must not bypass the quota guard' }],
+      [
+        'confirmation is false',
+        { confirmed: false, reason: 'This must not bypass the quota guard' },
+      ],
       ['reason is missing', { confirmed: true }],
       ['reason is blank', { confirmed: true, reason: '   ' }],
       ['reason is too short', { confirmed: true, reason: 'too short' }],
@@ -1018,7 +1119,7 @@ describe('Presentation API', () => {
 
         expect(res.status).toBe(422);
         expect(res.body.error.code).toBe('INVALID_STATE');
-      },
+      }
     );
   });
 
@@ -1029,7 +1130,7 @@ describe('Presentation API', () => {
 
       expect(res.status).toBe(200);
       expect(res.body.data.map((event: HermesEventView) => event.status)).toEqual(
-        HERMES_EVENT_STATUSES,
+        HERMES_EVENT_STATUSES
       );
     });
 
@@ -1044,9 +1145,7 @@ describe('Presentation API', () => {
 
     it('approves a pending event (happy path)', async () => {
       const { app } = await buildTestApp();
-      const res = await auth(
-        request(app).post('/api/hermes/events/pending/approve'),
-      ).send({});
+      const res = await auth(request(app).post('/api/hermes/events/pending/approve')).send({});
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -1055,9 +1154,7 @@ describe('Presentation API', () => {
 
     it('returns 422 when approving a non-pending event', async () => {
       const { app } = await buildTestApp();
-      const res = await auth(
-        request(app).post('/api/hermes/events/applied/approve'),
-      ).send({});
+      const res = await auth(request(app).post('/api/hermes/events/applied/approve')).send({});
 
       expect(res.status).toBe(422);
       expect(res.body.success).toBe(false);
@@ -1088,31 +1185,40 @@ describe('Presentation API', () => {
         expect.objectContaining({
           success: false,
           error: expect.objectContaining({ code: 'VALIDATION_ERROR' }),
-        }),
+        })
       );
       expect(next).not.toHaveBeenCalled();
     });
 
     it('exposes separate authenticated list, approve, and execute operation workflows', async () => {
       const { app } = await buildTestApp();
-      const unauthenticated = await request(app).get('/api/hermes/events/e1/category-correction-operations');
+      const unauthenticated = await request(app).get(
+        '/api/hermes/events/e1/category-correction-operations'
+      );
       expect(unauthenticated.status).toBe(401);
 
-      const listed = await auth(request(app).get('/api/hermes/events/e1/category-correction-operations'));
+      const listed = await auth(
+        request(app).get('/api/hermes/events/e1/category-correction-operations')
+      );
       expect(listed.status).toBe(200);
-      expect(listed.body.data).toEqual([expect.objectContaining({ id: 'recreate-1', kind: 'recreate', state: 'requested' })]);
+      expect(listed.body.data).toEqual([
+        expect.objectContaining({ id: 'recreate-1', kind: 'recreate', state: 'requested' }),
+      ]);
 
-      const approved = await auth(request(app)
-        .post('/api/hermes/category-correction-operations/recreate-1/approve'))
-        .send({ paidOverrideReason: 'Operator accepts possible paid placement' });
+      const approved = await auth(
+        request(app).post('/api/hermes/category-correction-operations/recreate-1/approve')
+      ).send({ paidOverrideReason: 'Operator accepts possible paid placement' });
       expect(approved.status).toBe(200);
       expect(approved.body.data).toMatchObject({ state: 'approved', approvedBy: 'u-1' });
 
-      const executed = await auth(request(app)
-        .post('/api/hermes/category-correction-operations/recreate-1/execute'))
-        .send({});
+      const executed = await auth(
+        request(app).post('/api/hermes/category-correction-operations/recreate-1/execute')
+      ).send({});
       expect(executed.status).toBe(200);
-      expect(executed.body.data).toMatchObject({ state: 'executed', result: { externalListingId: 'new-advert' } });
+      expect(executed.body.data).toMatchObject({
+        state: 'executed',
+        result: { externalListingId: 'new-advert' },
+      });
     });
 
     it('returns a 404 error envelope for an unknown event', async () => {
@@ -1122,6 +1228,161 @@ describe('Presentation API', () => {
       expect(res.status).toBe(404);
       expect(res.body.success).toBe(false);
       expect(res.body.error.code).toBe('NOT_FOUND');
+    });
+  });
+
+  describe('persistent settings contracts', () => {
+    it('round-trips principal-scoped workspace, preferences, notifications, and Hermes settings', async () => {
+      const { app } = await buildTestApp({ seedWorkspace: true });
+
+      const workspace = await auth(request(app).patch('/api/settings/workspace')).send({
+        name: 'Polish shop',
+        currency: 'EUR',
+        timezone: 'Europe/Warsaw',
+        language: 'pl',
+      });
+      expect(workspace.status).toBe(200);
+      expect(workspace.body.data).toMatchObject({
+        name: 'Polish shop',
+        currency: 'EUR',
+        language: 'pl',
+      });
+
+      const preferences = await auth(request(app).patch('/api/settings/preferences')).send({
+        themeMode: 'dark',
+        density: 'compact',
+      });
+      expect(preferences.body.data).toMatchObject({
+        themeMode: 'dark',
+        density: 'compact',
+        revision: 1,
+      });
+
+      const notifications = await auth(request(app).patch('/api/settings/notifications')).send({
+        events: { new_sale: { telegram: true, email: false } },
+      });
+      expect(notifications.body.data.events.new_sale).toEqual({
+        email: false,
+        inApp: true,
+        telegram: true,
+      });
+
+      const hermes = await auth(request(app).patch('/api/settings/hermes')).send({
+        autonomyLevel: 'balanced',
+        guardrails: { maxAutoPriceChangePct: 5 },
+      });
+      expect(hermes.status).toBe(200);
+      expect(hermes.body.data).toMatchObject({
+        autonomyLevel: 'balanced',
+        guardrails: { maxAutoPriceChangePct: 5 },
+      });
+    });
+
+    it('rejects empty and unknown patches with structured validation details', async () => {
+      const { app } = await buildTestApp({ seedWorkspace: true });
+      for (const body of [{}, { token: 'must-not-be-accepted' }]) {
+        const response = await auth(request(app).patch('/api/settings/preferences')).send(body);
+        expect(response.status).toBe(400);
+        expect(response.body.error).toMatchObject({ code: 'VALIDATION_ERROR' });
+        expect(response.body.error.details).toEqual(expect.any(Array));
+      }
+    });
+
+    it('preserves independent workspace and Hermes fields across concurrent PATCH requests', async () => {
+      const { app } = await buildTestApp({ seedWorkspace: true });
+
+      const [profile, hermes] = await Promise.all([
+        auth(request(app).patch('/api/settings/workspace')).send({ name: 'Concurrent name' }),
+        auth(request(app).patch('/api/settings/hermes')).send({
+          guardrails: { autoRelist: true },
+        }),
+      ]);
+
+      expect(profile.status).toBe(200);
+      expect(hermes.status).toBe(200);
+      const [savedProfile, savedHermes] = await Promise.all([
+        auth(request(app).get('/api/settings/workspace')),
+        auth(request(app).get('/api/settings/hermes')),
+      ]);
+      expect(savedProfile.body.data.name).toBe('Concurrent name');
+      expect(savedHermes.body.data.guardrails.autoRelist).toBe(true);
+    });
+
+    it.each([
+      ['deleted', 401],
+      ['reassigned', 403],
+    ] as const)(
+      'rejects stale JWT authority when the current user is %s',
+      async (state, expectedStatus) => {
+        const { app, authUserStore } = await buildTestApp({ seedWorkspace: true });
+        if (state === 'deleted') authUserStore.users.splice(0);
+        else authUserStore.users[0]!.workspaceId = 'ws-other';
+
+        const requests = [
+          auth(request(app).get('/api/settings/preferences')),
+          auth(request(app).patch('/api/settings/workspace')).send({ name: 'blocked' }),
+          auth(request(app).patch('/api/settings/hermes')).send({ autonomyLevel: 'balanced' }),
+          auth(request(app).get('/api/settings/integrations')),
+          auth(request(app).patch('/api/workspaces/foreign-id')).send({ name: 'blocked' }),
+        ];
+        const responses = await Promise.all(requests);
+        expect(responses.map((response) => response.status)).toEqual(
+          Array(requests.length).fill(expectedStatus)
+        );
+      }
+    );
+
+    it('legacy workspace PATCH preserves settings fields omitted from its body', async () => {
+      const { app } = await buildTestApp({ seedWorkspace: true });
+      expect(
+        (await auth(request(app).patch('/api/settings/workspace')).send({ currency: 'EUR' })).status
+      ).toBe(200);
+
+      const legacy = await auth(request(app).patch('/api/workspaces/ignored')).send({
+        name: 'Legacy rename',
+      });
+
+      expect(legacy.status).toBe(200);
+      expect(legacy.body.data).toMatchObject({ name: 'Legacy rename', currency: 'EUR' });
+    });
+
+    it('returns redacted integration configuration without connection or credential fields', async () => {
+      const { app } = await buildTestApp({ seedWorkspace: true });
+      const response = await auth(request(app).get('/api/settings/integrations'));
+      expect(response.status).toBe(200);
+      expect(response.body.data.items).toEqual(
+        expect.arrayContaining([
+          {
+            category: 'marketplace',
+            id: 'marketplace-olx',
+            providerKey: 'olx',
+            name: 'OLX',
+            available: true,
+            configured: true,
+          },
+          {
+            category: 'telegram',
+            id: 'telegram',
+            name: 'Telegram',
+            available: false,
+            configured: false,
+          },
+          {
+            category: 'api_keys',
+            id: 'api_keys',
+            name: 'API keys',
+            available: true,
+            configured: false,
+            apiKeySummary: { total: 0, active: 0, revoked: 0 },
+          },
+        ])
+      );
+      expect(
+        response.body.data.items.map((item: { category: string }) => item.category).sort()
+      ).toEqual(['api_keys', 'marketplace', 'telegram']);
+      expect(JSON.stringify(response.body)).not.toMatch(
+        /token|secret|hash|credentials|connected|access[_-]?key|private[_-]?key/i
+      );
     });
   });
 

@@ -34,6 +34,7 @@ import {
   idFactory,
 } from '../../application/testkit/support';
 
+import { InMemorySettingsRepository } from '../../infrastructure/persistence/repositories/InMemorySettingsRepository';
 import { Workspace } from '../../domain/entities/Workspace';
 import { Marketplace } from '../../domain/entities/Marketplace';
 import { Listing } from '../../domain/entities/Listing';
@@ -104,7 +105,7 @@ async function build(): Promise<Ctx> {
   for (const id of [WS_A, WS_B]) {
     workspaceRepo.items.set(
       id,
-      unwrap(Workspace.create({ id, name: `Workspace ${id}`, currency: 'PLN' })),
+      unwrap(Workspace.create({ id, name: `Workspace ${id}`, currency: 'PLN' }))
     );
   }
 
@@ -128,7 +129,7 @@ async function build(): Promise<Ctx> {
       sellingPrice: money(20),
       condition: 'good',
       category: 'misc',
-    }),
+    })
   );
   productRepo.items.set(productB.id, productB);
 
@@ -139,7 +140,7 @@ async function build(): Promise<Ctx> {
       key: 'olx',
       name: 'OLX-B',
       connected: true,
-    }),
+    })
   );
   marketplaceRepo.items.set(marketplaceB.id, marketplaceB);
 
@@ -150,7 +151,7 @@ async function build(): Promise<Ctx> {
       marketplaceId: marketplaceB.id,
       price: money(20),
       status: 'live',
-    }),
+    })
   );
   listingRepo.items.set(listingB.id, listingB);
   // Register the tenant owner so findByIdForWorkspace enforces scoping.
@@ -165,7 +166,7 @@ async function build(): Promise<Ctx> {
       severity: 'warning',
       title: 'Lower B price',
       proposedChange: { kind: 'price', field: 'price', from: 20, to: 18 },
-    }),
+    })
   );
   eventRepo.items.set(eventB.id, eventB);
 
@@ -176,7 +177,7 @@ async function build(): Promise<Ctx> {
     eventRepo,
     events,
     aiProvider,
-    idGenerator,
+    idGenerator
   );
 
   const publishQueue = new RecordingJobQueue();
@@ -185,7 +186,7 @@ async function build(): Promise<Ctx> {
   const createProductUC = new CreateProductUseCase(
     productDomainService,
     workspaceRepo,
-    idGenerator,
+    idGenerator
   );
   const updateProductUC = new UpdateProductUseCase(productRepo, events);
   const publishListingUC = new PublishListingUseCase(
@@ -198,13 +199,9 @@ async function build(): Promise<Ctx> {
     undefined,
     {
       authorize: async () => ({ decision: 'allow' }),
-    } as any,
+    } as any
   );
-  const syncMarketplaceUC = new SyncMarketplaceUseCase(
-    marketplaceRepo,
-    listingRepo,
-    syncQueue,
-  );
+  const syncMarketplaceUC = new SyncMarketplaceUseCase(marketplaceRepo, listingRepo, syncQueue);
   const runHermesUC = new RunHermesUseCase(hermesEngine, workspaceRepo);
   const approveEventUC = new ApproveHermesEventUseCase(
     eventRepo,
@@ -215,32 +212,31 @@ async function build(): Promise<Ctx> {
     priceHistory,
     publishQueue,
     events,
-    idGenerator,
+    idGenerator
   );
-  const dismissEventUC = new DismissHermesEventUseCase(
-    eventRepo,
-    activityLog,
-    events,
-    idGenerator,
-  );
+  const dismissEventUC = new DismissHermesEventUseCase(eventRepo, activityLog, events, idGenerator);
 
   const productService = new ProductApplicationService(
     productRepo,
     createProductUC,
-    updateProductUC,
+    updateProductUC
   );
   const listingService = new ListingApplicationService(
     listingRepo,
     publishListingUC,
-    syncMarketplaceUC,
+    syncMarketplaceUC
   );
   const hermesService = new HermesApplicationService(
     eventRepo,
     runHermesUC,
     approveEventUC,
-    dismissEventUC,
+    dismissEventUC
   );
-  const analyticsService = new AnalyticsApplicationService(productRepo, listingRepo, marketplaceRepo);
+  const analyticsService = new AnalyticsApplicationService(
+    productRepo,
+    listingRepo,
+    marketplaceRepo
+  );
 
   const deps: AppDeps = {
     productService,
@@ -251,6 +247,7 @@ async function build(): Promise<Ctx> {
     listingRepo,
     marketplaceRepo,
     workspaceRepo,
+    settingsRepo: new InMemorySettingsRepository(),
     authUserStore: authStore,
     priceHistoryReader: priceHistory as never,
     priceHistoryRecorder: priceHistory,
@@ -264,6 +261,7 @@ async function build(): Promise<Ctx> {
     marketplaceBId: marketplaceB.id,
     eventBId: eventB.id,
     workspaceRepo,
+    authStore,
   };
 }
 
@@ -318,9 +316,7 @@ describe('IDOR: workspace A cannot reach workspace B resources (S2)', () => {
 
   it('POST /listings/:idB/publish -> 404 (no cross-tenant publish)', async () => {
     const { app, listingBId } = await build();
-    const res = await authA(
-      request(app).post(`/api/listings/${listingBId}/publish`),
-    ).send({});
+    const res = await authA(request(app).post(`/api/listings/${listingBId}/publish`)).send({});
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
   });
@@ -333,9 +329,7 @@ describe('IDOR: workspace A cannot reach workspace B resources (S2)', () => {
 
   it('POST /hermes/events/:idB/approve -> 404 (event untouched)', async () => {
     const { app, eventBId } = await build();
-    const res = await authA(
-      request(app).post(`/api/hermes/events/${eventBId}/approve`),
-    ).send({});
+    const res = await authA(request(app).post(`/api/hermes/events/${eventBId}/approve`)).send({});
     expect(res.status).toBe(404);
     expect(res.body.error.code).toBe('NOT_FOUND');
   });
@@ -364,5 +358,20 @@ describe('IDOR: workspace A cannot reach workspace B resources (S2)', () => {
     const res = await authA(request(app).get(`/api/workspaces/${WS_B}`));
     expect(res.status).toBe(200);
     expect(res.body.data.id).toBe(WS_A);
+  });
+
+  it('rejects stale JWT settings and legacy workspace authority after reassignment', async () => {
+    const { app, authStore } = await build();
+    authStore.users.find((user) => user.id === 'u-a')!.workspaceId = WS_B;
+
+    const responses = await Promise.all([
+      authA(request(app).get('/api/settings/preferences')),
+      authA(request(app).patch('/api/settings/workspace')).send({ name: 'blocked' }),
+      authA(request(app).patch('/api/settings/hermes')).send({ autonomyLevel: 'balanced' }),
+      authA(request(app).get('/api/settings/integrations')),
+      authA(request(app).patch(`/api/workspaces/${WS_B}`)).send({ name: 'blocked' }),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([403, 403, 403, 403, 403]);
   });
 });

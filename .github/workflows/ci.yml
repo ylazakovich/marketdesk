@@ -48,6 +48,7 @@ jobs:
     env:
       NODE_ENV: test
       DATABASE_URL: postgresql://marketdesk:marketdesk@localhost:5432/marketdesk
+      REQUIRE_DATABASE_TESTS: 'true'
       DB_HOST: localhost
       DB_PORT: '5432'
       DB_USER: marketdesk
@@ -94,6 +95,9 @@ jobs:
 
       - name: Typecheck frontend/full (tsconfig.json)
         run: npx tsc --noEmit -p tsconfig.json
+
+      - name: Apply database migrations
+        run: npm run db:migrate
 
       - name: Backend tests (jest, allure)
         run: npm run test:ci

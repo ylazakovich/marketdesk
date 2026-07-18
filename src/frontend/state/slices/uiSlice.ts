@@ -2,7 +2,20 @@
 import { createSlice, nanoid } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
 
-export type ThemeMode = 'light' | 'dark';
+export type ThemeMode = 'system' | 'light' | 'dark';
+export type ResolvedThemeMode = 'light' | 'dark';
+
+export function resolveThemeMode(mode: ThemeMode, prefersDark: boolean): ResolvedThemeMode {
+  return mode === 'system' ? (prefersDark ? 'dark' : 'light') : mode;
+}
+
+export function shouldResetThemeForPrincipal(
+  previousPrincipal: string | null,
+  nextPrincipal: string | null
+): boolean {
+  return previousPrincipal !== nextPrincipal;
+}
+
 export type ToastSeverity = 'info' | 'success' | 'warning' | 'error';
 
 export interface Toast {
@@ -17,11 +30,11 @@ const THEME_STORAGE_KEY = 'marketdesk.themeMode';
 function readStoredTheme(): ThemeMode {
   try {
     const stored = localStorage.getItem(THEME_STORAGE_KEY);
-    if (stored === 'light' || stored === 'dark') return stored;
+    if (stored === 'system' || stored === 'light' || stored === 'dark') return stored;
   } catch {
     // ignore
   }
-  return 'light';
+  return 'system';
 }
 
 function persistTheme(mode: ThemeMode): void {
@@ -52,7 +65,7 @@ const uiSlice = createSlice({
   initialState,
   reducers: {
     toggleTheme(state) {
-      state.themeMode = state.themeMode === 'light' ? 'dark' : 'light';
+      state.themeMode = state.themeMode === 'dark' ? 'light' : 'dark';
       persistTheme(state.themeMode);
     },
     setThemeMode(state, action: PayloadAction<ThemeMode>) {

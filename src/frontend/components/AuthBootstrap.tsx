@@ -1,13 +1,16 @@
 // Restores the authenticated session on load: when a persisted token exists but
 // the user isn't hydrated yet, fetches /auth/me and the active workspace, then
 // seeds the auth + workspace slices. Logs out if the token is no longer valid.
-import React, { useEffect } from 'react';
+import React, { useEffect, useLayoutEffect, useRef } from 'react';
+import { skipToken } from '@reduxjs/toolkit/query';
 import type { User, Workspace } from '@shared/types';
 import { DEFAULT_CURRENCY, DEFAULT_TIMEZONE, AUTONOMY_LEVELS } from '@shared/constants';
 import { useMe, useWorkspace } from '../services/hooks/index.js';
 import { useAppDispatch, useAppSelector } from '../state/hooks.js';
 import { setUser, logout } from '../state/slices/authSlice.js';
 import { setWorkspace } from '../state/slices/workspaceSlice.js';
+import { setThemeMode, shouldResetThemeForPrincipal } from '../state/slices/uiSlice.js';
+import { useGetUserPreferencesQuery } from '../state/api/settingsApi.js';
 import type { WorkspaceState } from '../state/slices/workspaceSlice.js';
 
 function toWorkspaceState(ws: Workspace): WorkspaceState {
@@ -30,6 +33,19 @@ export const AuthBootstrap: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const workspaceId = me.data?.workspaceId ?? user?.workspaceId;
   const workspace = useWorkspace(workspaceId ?? '', { skip: !workspaceId });
+  const settingsPrincipal = user?.id && workspaceId ? { userId: user.id, workspaceId } : null;
+  const principalKey = settingsPrincipal
+    ? `${settingsPrincipal.workspaceId}:${settingsPrincipal.userId}`
+    : null;
+  const previousPrincipal = useRef<string | null>(null);
+  const preferences = useGetUserPreferencesQuery(settingsPrincipal ?? skipToken);
+
+  useLayoutEffect(() => {
+    if (shouldResetThemeForPrincipal(previousPrincipal.current, principalKey)) {
+      dispatch(setThemeMode('system'));
+    }
+    previousPrincipal.current = principalKey;
+  }, [principalKey, dispatch]);
 
   useEffect(() => {
     if (me.isError) dispatch(logout());
@@ -52,7 +68,7 @@ export const AuthBootstrap: React.FC<{ children: React.ReactNode }> = ({ childre
           currency: DEFAULT_CURRENCY,
           timezone: DEFAULT_TIMEZONE,
           autonomyLevel: AUTONOMY_LEVELS.SUGGEST_ONLY,
-        }),
+        })
       );
     }
   }, [me.data, workspaceSliceId, dispatch]);
@@ -60,6 +76,12 @@ export const AuthBootstrap: React.FC<{ children: React.ReactNode }> = ({ childre
   useEffect(() => {
     if (workspace.data) dispatch(setWorkspace(toWorkspaceState(workspace.data)));
   }, [workspace.data, dispatch]);
+
+  const currentThemeMode = preferences.currentData?.themeMode;
+
+  useEffect(() => {
+    if (currentThemeMode) dispatch(setThemeMode(currentThemeMode));
+  }, [currentThemeMode, principalKey, dispatch]);
 
   return <>{children}</>;
 };

@@ -3,7 +3,7 @@
 
 import { Result, Ok, Err } from '../shared/Result';
 import { ValidationError } from '../shared/DomainError';
-import type { AutonomyLevel, HermesGuardrails } from '../../../shared/types';
+import type { AutonomyLevel, HermesGuardrails, WorkspaceLanguage } from '../../../shared/types';
 import {
   AUTONOMY_LEVEL_LIST,
   DEFAULT_CURRENCY,
@@ -16,6 +16,7 @@ export interface CreateWorkspaceProps {
   name: string;
   currency?: string;
   timezone?: string;
+  language?: WorkspaceLanguage;
   autonomyLevel?: AutonomyLevel;
   guardrails?: HermesGuardrails;
   createdAt?: Date;
@@ -28,10 +29,11 @@ export class Workspace {
     private _name: string,
     public readonly currency: string,
     public readonly timezone: string,
+    public readonly language: WorkspaceLanguage,
     private _autonomyLevel: AutonomyLevel,
     private _guardrails: HermesGuardrails,
     public readonly createdAt: Date,
-    private _updatedAt: Date,
+    private _updatedAt: Date
   ) {}
 
   static create(props: CreateWorkspaceProps): Result<Workspace> {
@@ -45,6 +47,10 @@ export class Workspace {
     if (!/^[A-Z]{3}$/.test(currency)) {
       return Err(new ValidationError(`Invalid currency code: ${currency}`));
     }
+    const language = props.language ?? 'en';
+    if (language !== 'en' && language !== 'pl') {
+      return Err(new ValidationError(`Invalid workspace language: ${language}`));
+    }
     const autonomyLevel = props.autonomyLevel ?? 'suggest_only';
     if (!AUTONOMY_LEVEL_LIST.includes(autonomyLevel)) {
       return Err(new ValidationError(`Invalid autonomy level: ${autonomyLevel}`));
@@ -57,11 +63,12 @@ export class Workspace {
         props.name.trim(),
         currency,
         props.timezone ?? DEFAULT_TIMEZONE,
+        language,
         autonomyLevel,
         props.guardrails ?? { ...DEFAULT_HERMES_GUARDRAILS },
         props.createdAt ?? now,
-        props.updatedAt ?? now,
-      ),
+        props.updatedAt ?? now
+      )
     );
   }
 

@@ -27,6 +27,7 @@ import { MarketplaceAppCredentialRepository } from '../../infrastructure/persist
 import { PublishAttemptRepository } from '../../infrastructure/persistence/repositories/PublishAttemptRepository';
 import { EventRepository } from '../../infrastructure/persistence/repositories/EventRepository';
 import { WorkspaceRepository } from '../../infrastructure/persistence/repositories/WorkspaceRepository';
+import { SettingsRepository } from '../../infrastructure/persistence/repositories/SettingsRepository';
 import { ActivityLogRepository } from '../../infrastructure/persistence/repositories/ActivityLogRepository';
 import { AuthUserRepository } from '../../infrastructure/persistence/repositories/AuthUserRepository';
 import { PriceHistoryRepository } from '../../infrastructure/persistence/repositories/PriceHistoryRepository';
@@ -35,7 +36,7 @@ import { CategoryCorrectionOperationRepository } from '../../infrastructure/pers
 
 async function withPoolTransaction<T>(
   pool: Pool,
-  callback: (client: PoolClient) => Promise<T>,
+  callback: (client: PoolClient) => Promise<T>
 ): Promise<T> {
   const client = await pool.connect();
   let releaseError: Error | undefined;
@@ -49,7 +50,8 @@ async function withPoolTransaction<T>(
       await client.query('ROLLBACK');
     } catch (rollbackError) {
       // Preserve the original transaction failure; rollback failure is secondary.
-      releaseError = rollbackError instanceof Error ? rollbackError : new Error('Transaction rollback failed');
+      releaseError =
+        rollbackError instanceof Error ? rollbackError : new Error('Transaction rollback failed');
     }
     throw error;
   } finally {
@@ -277,6 +279,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
   const publishAttemptRepo = new PublishAttemptRepository(pool);
   const eventRepo = new EventRepository(pool);
   const workspaceRepo = new WorkspaceRepository(pool);
+  const settingsRepo = new SettingsRepository(pool);
   const activityLogRepo = new ActivityLogRepository(pool);
   const authUserStore = new AuthUserRepository(pool);
   const priceHistoryRepo = new PriceHistoryRepository(pool);
@@ -319,7 +322,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
         const categoryId = env.marketplaces.olx.categoryIds[normalized];
         return categoryId === undefined ? null : String(categoryId);
       },
-    },
+    }
   );
 
   // 5. Job queues (application IJobQueue ports). Handlers are registered below,
@@ -359,10 +362,8 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     workspaceRepo,
     idGenerator
   );
-  const updateProductUC = new UpdateProductUseCase(
-    productRepo,
-    eventPublisher,
-    (work) => withPoolTransaction(pool, (client) => work(new ProductRepository(pool, client))),
+  const updateProductUC = new UpdateProductUseCase(productRepo, eventPublisher, (work) =>
+    withPoolTransaction(pool, (client) => work(new ProductRepository(pool, client)))
   );
   const publishListingUC = new PublishListingUseCase(
     listingRepo,
@@ -372,7 +373,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     activityLogRepo,
     idGenerator,
     marketplaceAccountRepo,
-    olxPublicationQuotaService,
+    olxPublicationQuotaService
   );
   const syncMarketplaceUC = new SyncMarketplaceUseCase(marketplaceRepo, listingRepo, syncQueue);
   const runHermesUC = new RunHermesUseCase(hermesEngine, workspaceRepo);
@@ -387,7 +388,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     eventPublisher,
     idGenerator,
     marketplaceAccountRepo,
-    olxPublicationQuotaService,
+    olxPublicationQuotaService
   );
   const dismissEventUC = new DismissHermesEventUseCase(
     eventRepo,
@@ -429,7 +430,8 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     olxPublicationQuotaService,
     {
       resolve: async (marketplace) => {
-        if (env.marketplaces.olx.adapterMode !== 'real') return adapterFactory.create(marketplace.key);
+        if (env.marketplaces.olx.adapterMode !== 'real')
+          return adapterFactory.create(marketplace.key);
         const accessToken = await marketplaceOAuthService.getValidAccessToken(marketplace.id);
         return adapterFactory.create(
           marketplace.key,
@@ -437,13 +439,13 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
             defaultHeaders: buildOlxHeaders(accessToken),
             timeoutMs: env.marketplaces.olx.requestTimeoutMs,
             livePublishEnabled: env.marketplaces.olx.livePublishEnabled,
-          }),
+          })
         );
       },
     },
     activityLogRepo,
     idGenerator,
-    publishAttemptRepo,
+    publishAttemptRepo
   );
   const productCategorySyncService = new ProductCategorySyncService(
     (work) =>
@@ -456,7 +458,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
           eventRepo: new EventRepository(pool, client),
         })
       ),
-    idGenerator,
+    idGenerator
   );
   const marketplaceImportService = new MarketplaceImportService(
     marketplaceRepo,
@@ -486,7 +488,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
       ),
     eventRepo,
     categoryCorrectionOperationRepo,
-    productCategorySyncService,
+    productCategorySyncService
   );
 
   // 9. Register job handlers now that their collaborators exist. The publish
@@ -527,7 +529,8 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
             })
         : undefined,
     eventPublisher,
-    recommendCategoryMismatch: (input) => marketplaceImportService.recommendSyncedCategoryMismatch(input),
+    recommendCategoryMismatch: (input) =>
+      marketplaceImportService.recommendSyncedCategoryMismatch(input),
     persistAndReconcileProductCategories: async ({
       marketplace,
       listings,
@@ -548,7 +551,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
         for (const productId of productIds) {
           const product = await repositories.productRepo.findByIdForWorkspaceForUpdate(
             productId,
-            marketplace.workspaceId,
+            marketplace.workspaceId
           );
           if (!product) throw new Error(`Product not found for synchronized listing: ${productId}`);
         }
@@ -556,7 +559,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
         for (const candidate of mismatchCandidates) {
           await marketplaceImportService.recommendSyncedCategoryMismatch(
             { ...candidate, workspaceId: marketplace.workspaceId },
-            repositories,
+            repositories
           );
         }
         for (const listing of selectProductCategoryTriggerListings(listings)) {
@@ -567,7 +570,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
               trigger: job.trigger ?? 'scheduled',
               actorId: job.actorId,
             },
-            repositories,
+            repositories
           );
         }
       });
@@ -622,6 +625,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     categoryCorrectionOperationService,
     marketplaceOAuthReturnUrl: env.marketplaces.olx.oauthSuccessUrl,
     workspaceRepo,
+    settingsRepo,
     authUserStore,
     priceHistoryReader: priceHistoryRepo,
     priceHistoryRecorder: priceHistoryRepo,

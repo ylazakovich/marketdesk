@@ -20,10 +20,7 @@ export type ProductCondition =
 
 export type ListingStatus = 'live' | 'draft' | 'expired' | 'error';
 
-export type MarketplaceCategorySource =
-  | 'provider_taxonomy'
-  | 'remote_import'
-  | 'user_confirmed';
+export type MarketplaceCategorySource = 'provider_taxonomy' | 'remote_import' | 'user_confirmed';
 
 export interface MarketplaceCategoryMetadata {
   providerCategoryId: string;
@@ -177,18 +174,24 @@ export interface CategoryRecreationChangePayload {
   proposedCategory: MarketplaceCategoryMetadata | null;
   operations: readonly [
     {
-      kind: 'delist'; intentId: string; status: CategoryRecreationOperationStatus;
-      providerSideEffectAllowed: boolean; quotaUnitsRestored: 0;
+      kind: 'delist';
+      intentId: string;
+      status: CategoryRecreationOperationStatus;
+      providerSideEffectAllowed: boolean;
+      quotaUnitsRestored: 0;
       availableActions?: CategoryRecreationOperationAction[];
       failureReason?: string;
     },
     {
-      kind: 'recreate'; intentId: string; status: CategoryRecreationOperationStatus;
-      providerSideEffectAllowed: boolean; quotaGuardRequired: true;
+      kind: 'recreate';
+      intentId: string;
+      status: CategoryRecreationOperationStatus;
+      providerSideEffectAllowed: boolean;
+      quotaGuardRequired: true;
       quota?: CategoryRecreationQuotaReview;
       availableActions?: CategoryRecreationOperationAction[];
       failureReason?: string;
-    }
+    },
   ];
 }
 
@@ -235,6 +238,7 @@ export interface Workspace {
   name: string;
   currency: string;
   timezone: string;
+  language: import('./settings').WorkspaceLanguage;
   autonomyLevel: AutonomyLevel;
   guardrails?: HermesGuardrails;
   createdAt: string;
@@ -436,3 +440,5 @@ export interface PaginatedResponse<T> {
   limit: number;
   totalPages: number;
 }
+
+export * from './settings';

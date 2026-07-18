@@ -1,5 +1,5 @@
 import { Workspace } from '../../../domain/entities/Workspace';
-import type { AutonomyLevel } from '../../../../shared/types';
+import type { AutonomyLevel, WorkspaceLanguage } from '../../../../shared/types';
 import type { WorkspaceRow } from './rows';
 import { toDate, unwrapPersisted } from './support';
 
@@ -14,11 +14,12 @@ export const WorkspaceMapper = {
         name: row.name,
         currency: row.currency,
         timezone: row.timezone,
+        language: row.language as WorkspaceLanguage,
         autonomyLevel: row.autonomy_level as AutonomyLevel,
         guardrails: row.guardrails ?? undefined,
         createdAt: toDate(row.created_at),
         updatedAt: toDate(row.updated_at),
-      }),
+      })
     );
   },
 };

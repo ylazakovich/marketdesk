@@ -22,6 +22,7 @@ import type { IWorkspaceRepository } from '../../domain/repositories/interfaces/
 import type { IPriceHistoryReader } from '../../application/ports/IPriceHistoryReader';
 import type { IPriceHistoryRecorder } from '../../application/ports/IPriceHistoryRecorder';
 import type { IdGenerator } from '../../application/ports/IdGenerator';
+import type { ISettingsRepository } from '../../application/ports/ISettingsRepository';
 import type { IAuthUserStore } from './ports/IAuthUserStore';
 import type { ProductImageUploadService } from '../../application/services/ProductImageUploadService';
 
@@ -35,6 +36,8 @@ import { MarketplaceController } from './controllers/MarketplaceController';
 import { HermesController } from './controllers/HermesController';
 import { AnalyticsController } from './controllers/AnalyticsController';
 import { WorkspaceController } from './controllers/WorkspaceController';
+import { SettingsController } from './controllers/SettingsController';
+
 import { AuthController } from './controllers/AuthController';
 import { ProductImageUploadController } from './controllers/ProductImageUploadController';
 import type { MarketplaceOAuthService } from '../../application/services/MarketplaceOAuthService';
@@ -64,6 +67,7 @@ export interface AppDeps {
   categoryCorrectionOperationService?: CategoryCorrectionOperationService;
   marketplaceOAuthReturnUrl: string;
   workspaceRepo: IWorkspaceRepository;
+  settingsRepo: ISettingsRepository;
   authUserStore: IAuthUserStore;
   productImageUploadService?: ProductImageUploadService;
   // Optional ports (graceful degradation until wired).
@@ -98,7 +102,7 @@ export const HELMET_OPTIONS = {
 
 function parseCorsAllowlist(
   originConfig: string | undefined,
-  isProductionMode: boolean,
+  isProductionMode: boolean
 ): Set<string> {
   const configured = (originConfig ?? '').trim();
 
@@ -110,9 +114,7 @@ function parseCorsAllowlist(
       .filter((origin) => origin !== '*');
 
     if (configuredOrigins.length === 0) {
-      throw new Error(
-        'CORS_ORIGIN in production must be an explicit, non-wildcard allowlist',
-      );
+      throw new Error('CORS_ORIGIN in production must be an explicit, non-wildcard allowlist');
     }
 
     return new Set(configuredOrigins);
@@ -126,7 +128,10 @@ function parseCorsAllowlist(
   return new Set(origins.length > 0 ? origins : [DEFAULT_CORS_ORIGIN]);
 }
 
-export function createCorsOptions(originConfig: string | undefined, isProd = isProduction): CorsOptions {
+export function createCorsOptions(
+  originConfig: string | undefined,
+  isProd = isProduction
+): CorsOptions {
   const allowlist = parseCorsAllowlist(originConfig, isProd);
   return {
     origin: (requestOrigin, callback) => {
@@ -156,9 +161,9 @@ export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
         {
           maxWorkspaceBytes: env.upload.maxWorkspaceBytes,
           maxWorkspaceFiles: env.upload.maxWorkspaceFiles,
-        },
+        }
       ),
-      maxUploadFileSize,
+      maxUploadFileSize
     );
 
   app.use(helmet(HELMET_OPTIONS));
@@ -180,7 +185,7 @@ export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
       deps.productRepo,
       deps.listingRepo,
       deps.marketplaceRepo,
-      deps.idGenerator ?? crypto.randomUUID,
+      deps.idGenerator ?? crypto.randomUUID
     ),
     listings: new ListingController(deps.listingService, deps.listingRepo, {
       priceHistoryReader: deps.priceHistoryReader,
@@ -199,11 +204,17 @@ export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
       deps.marketplaceImportService,
       deps.olxPublicationQuotaService,
       deps.marketplaceOAuthReturnUrl,
-      deps.logger,
+      deps.logger
     ),
     hermes: new HermesController(deps.hermesService, deps.categoryCorrectionOperationService),
     analytics: new AnalyticsController(deps.analyticsService),
     workspaces: new WorkspaceController(deps.workspaceRepo),
+    settings: new SettingsController(
+      deps.workspaceRepo,
+      deps.settingsRepo,
+      deps.marketplaceRepo,
+      deps.marketplaceOAuthService
+    ),
     uploads: new ProductImageUploadController(productImageUploadService),
   };
 
@@ -213,7 +224,8 @@ export function buildApp(deps: AppDeps, options: AppOptions = {}): Express {
       enableRateLimit: options.enableRateLimit,
       maxUploadFileSize,
       applicationVersion: options.applicationVersion ?? env.applicationVersion,
-    }),
+      currentUserStore: deps.authUserStore,
+    })
   );
 
   // Unmatched /api route -> 404 envelope via the central error handler.

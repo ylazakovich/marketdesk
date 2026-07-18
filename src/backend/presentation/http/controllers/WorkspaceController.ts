@@ -17,6 +17,7 @@ function presentWorkspace(ws: WorkspaceEntity): WorkspaceView {
     name: ws.name,
     currency: ws.currency,
     timezone: ws.timezone,
+    language: ws.language,
     autonomyLevel: ws.autonomyLevel,
     guardrails: ws.guardrails,
     createdAt: ws.createdAt.toISOString(),
@@ -47,10 +48,9 @@ export class WorkspaceController {
     const rebuilt = Workspace.create({
       id: current.id,
       name: typeof req.body?.name === 'string' ? req.body.name : current.name,
-      currency:
-        typeof req.body?.currency === 'string' ? req.body.currency : current.currency,
-      timezone:
-        typeof req.body?.timezone === 'string' ? req.body.timezone : current.timezone,
+      currency: typeof req.body?.currency === 'string' ? req.body.currency : current.currency,
+      timezone: typeof req.body?.timezone === 'string' ? req.body.timezone : current.timezone,
+      language: typeof req.body?.language === 'string' ? req.body.language : current.language,
       autonomyLevel:
         typeof req.body?.autonomyLevel === 'string'
           ? (req.body.autonomyLevel as AutonomyLevel)
@@ -59,7 +59,17 @@ export class WorkspaceController {
       createdAt: current.createdAt,
     });
     if (rebuilt.isErr()) return next(rebuilt.error);
-    await this.workspaceRepo.save(rebuilt.value);
-    ok(res, presentWorkspace(rebuilt.value));
+    const updated = await this.workspaceRepo.updatePartial(workspaceId, {
+      name: typeof req.body?.name === 'string' ? req.body.name : undefined,
+      currency: typeof req.body?.currency === 'string' ? req.body.currency : undefined,
+      timezone: typeof req.body?.timezone === 'string' ? req.body.timezone : undefined,
+      language: typeof req.body?.language === 'string' ? req.body.language : undefined,
+      autonomyLevel:
+        typeof req.body?.autonomyLevel === 'string'
+          ? (req.body.autonomyLevel as AutonomyLevel)
+          : undefined,
+    });
+    if (!updated) return next(new NotFoundError(`Workspace not found: ${workspaceId}`));
+    ok(res, presentWorkspace(updated));
   };
 }

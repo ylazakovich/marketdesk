@@ -6,6 +6,7 @@ import { Outlet } from 'react-router-dom';
 import { TopBar } from './TopBar.js';
 import { Sidebar } from './Sidebar.js';
 import { PageSkeleton } from '../common/Skeleton.js';
+import { APP_SHELL_CONTENT_INSET } from '../../utils/constants.js';
 
 export const AppShell: React.FC = () => (
   <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
@@ -15,7 +16,15 @@ export const AppShell: React.FC = () => (
       sx={{ flexGrow: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}
     >
       <TopBar />
-      <Box sx={{ flexGrow: 1, width: '100%', maxWidth: 1600, mx: 'auto', p: { xs: 2, md: 3 } }}>
+      <Box
+        sx={{
+          flexGrow: 1,
+          width: '100%',
+          maxWidth: 1600,
+          mx: 'auto',
+          p: { xs: 2, md: `${APP_SHELL_CONTENT_INSET}px` },
+        }}
+      >
         <Suspense fallback={<PageSkeleton />}>
           <Outlet />
         </Suspense>

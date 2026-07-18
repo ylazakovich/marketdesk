@@ -456,30 +456,6 @@ const ProductsPage: React.FC = () => {
 
   return (
     <Box sx={{ maxWidth: 1440, mx: 'auto' }}>
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        justifyContent="space-between"
-        spacing={2}
-        sx={{ mb: 2.5 }}
-      >
-        <Box>
-          <Typography component="h1" variant="h4" sx={{ fontWeight: 800 }}>
-            Your catalogue
-          </Typography>
-          <Typography color="text.secondary">
-            Find, compare and safely update products from one operator surface.
-          </Typography>
-        </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={openWizard}
-          sx={{ alignSelf: { xs: 'stretch', sm: 'center' } }}
-        >
-          New product
-        </Button>
-      </Stack>
-
       <Card sx={{ mb: 2 }} contentSx={{ p: 2 }}>
         <Stack spacing={1.5}>
           <Stack

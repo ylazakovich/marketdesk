@@ -187,7 +187,14 @@ describe('MarketplaceImportService', () => {
     const pending = await eventRepo.findPendingReview('workspace-1');
     expect(pending).toHaveLength(1);
     expect(correctionOperations.createPair).toHaveBeenCalledWith(
-      expect.objectContaining({ kind: 'delist', recommendationEventId: pending[0].id }),
+      expect.objectContaining({
+        kind: 'delist',
+        recommendationEventId: pending[0].id,
+        result: expect.objectContaining({
+          marketplaceAccountId: 'account-1',
+          marketplaceAccountRevision: 1,
+        }),
+      }),
       expect.objectContaining({ kind: 'recreate', targetCategory: null }),
     );
   });

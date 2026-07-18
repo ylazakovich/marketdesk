@@ -31,6 +31,12 @@ const category: MarketplaceCategoryMetadata = {
 
 class InMemoryOperations implements ICategoryCorrectionOperationRepository {
   readonly items = new Map<string, CategoryCorrectionOperation>();
+  async create(value: CategoryCorrectionOperation) {
+    const existing = this.items.get(value.id);
+    if (existing) return existing;
+    this.items.set(value.id, value);
+    return value;
+  }
   async createPair(delist: CategoryCorrectionOperation, recreate: CategoryCorrectionOperation) {
     this.items.set(delist.id, delist); this.items.set(recreate.id, recreate);
   }
@@ -142,6 +148,69 @@ async function addAndApprove(setupResult: ReturnType<typeof setup>, kind: 'delis
 }
 
 describe('CategoryCorrectionOperationService', () => {
+  it('requests and executes a standalone delist, preserving audit identity while returning the listing to draft', async () => {
+    const context = setup();
+    const requested = await context.service.requestStandaloneDelist({
+      operationId: 'standalone-1', listingId: 'listing-1', workspaceId: 'ws-1', actorId: 'user-1',
+    });
+    await context.service.approve({ operationId: requested.id, workspaceId: 'ws-1', actorId: 'user-1' });
+
+    const executed = await context.service.execute({
+      operationId: requested.id, workspaceId: 'ws-1', actorId: 'user-1',
+    });
+
+    expect(context.delist).toHaveBeenCalledWith('old-advert-1');
+    expect(context.listing).toMatchObject({ status: 'draft', marketplaceListingId: null, externalUrl: null });
+    expect(executed).toMatchObject({
+      state: 'executed',
+      recommendationEventId: null,
+      result: {
+        externalListingId: 'old-advert-1',
+        localStatus: 'draft',
+        deletionRestoresQuota: false,
+        automaticRepublish: false,
+      },
+    });
+    expect(context.publish).not.toHaveBeenCalled();
+  });
+
+  it('keeps a standalone listing live after an ambiguous provider failure and does not blindly retry it', async () => {
+    const context = setup();
+    context.delist.mockRejectedValueOnce(new Error('provider timeout'));
+    await context.service.requestStandaloneDelist({
+      operationId: 'standalone-timeout', listingId: 'listing-1', workspaceId: 'ws-1', actorId: 'user-1',
+    });
+    await context.service.approve({ operationId: 'standalone-timeout', workspaceId: 'ws-1', actorId: 'user-1' });
+
+    await expect(context.service.execute({
+      operationId: 'standalone-timeout', workspaceId: 'ws-1', actorId: 'user-1',
+    })).rejects.toThrow('provider timeout');
+    const replay = await context.service.execute({
+      operationId: 'standalone-timeout', workspaceId: 'ws-1', actorId: 'user-1',
+    });
+
+    expect(context.delist).toHaveBeenCalledTimes(1);
+    expect(context.listing.status).toBe('live');
+    expect(replay).toMatchObject({
+      state: 'failed',
+      result: {
+        externalListingId: 'old-advert-1',
+        providerEffect: 'delist_started',
+        retrySafe: false,
+        manualReconciliationRequired: true,
+      },
+    });
+  });
+
+  it('does not disclose or create operations for another workspace listing', async () => {
+    const context = setup();
+    await expect(context.service.requestStandaloneDelist({
+      operationId: 'cross-tenant', listingId: 'listing-1', workspaceId: 'ws-2', actorId: 'user-2',
+    })).rejects.toThrow('not found');
+    expect(context.operations.items.has('cross-tenant')).toBe(false);
+    expect(context.delist).not.toHaveBeenCalled();
+  });
+
   it('delists once, records zero restored quota, and replays the terminal result idempotently', async () => {
     const context = setup(); await addAndApprove(context, 'delist');
     const first = await context.service.execute({ operationId: 'delist-1', workspaceId: 'ws-1', actorId: 'user-1' });

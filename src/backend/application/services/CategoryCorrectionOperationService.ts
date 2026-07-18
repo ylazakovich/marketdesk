@@ -78,6 +78,62 @@ export class CategoryCorrectionOperationService {
     return this.operations.findByRecommendationForWorkspace(recommendationEventId, workspaceId);
   }
 
+  async requestStandaloneDelist(input: {
+    operationId: string;
+    listingId: string;
+    workspaceId: string;
+    actorId: string;
+  }): Promise<CategoryCorrectionOperation> {
+    if (!input.actorId.trim()) throw new ValidationError('Authenticated actor is required');
+    const existing = await this.operations.findByIdForWorkspace(input.operationId, input.workspaceId);
+    if (existing) {
+      if (existing.kind !== 'delist' || existing.listingId !== input.listingId) {
+        throw new ValidationError('Operation ID is already bound to another action');
+      }
+      return existing;
+    }
+    const listing = await this.listings.findByIdForWorkspace(input.listingId, input.workspaceId);
+    if (!listing) throw new NotFoundError(`Listing not found: ${input.listingId}`);
+    if (listing.status !== 'live' || !listing.marketplaceListingId) {
+      throw new InvalidStateError('Only a live listing with an active remote identity can be delisted');
+    }
+    const marketplace = await this.marketplaces.findByIdForWorkspace(listing.marketplaceId, input.workspaceId);
+    if (!marketplace) throw new NotFoundError(`Marketplace not found: ${listing.marketplaceId}`);
+
+    const at = this.now();
+    const operation: CategoryCorrectionOperation = {
+      id: input.operationId,
+      workspaceId: input.workspaceId,
+      recommendationEventId: null,
+      listingId: listing.id,
+      marketplaceId: marketplace.id,
+      kind: 'delist',
+      state: 'requested',
+      targetCategory: null,
+      paidOverrideReason: null,
+      requestedBy: input.actorId,
+      approvedBy: null,
+      result: {
+        externalListingId: listing.marketplaceListingId,
+        externalUrl: listing.externalUrl,
+        requestedListingUpdatedAt: listing.updatedAt.toISOString(),
+      },
+      requestedAt: at,
+      approvedAt: null,
+      executedAt: null,
+      failedAt: null,
+      updatedAt: at,
+    };
+    const created = await this.operations.create(operation);
+    await this.audit(created, input.actorId, 'olx.listing_delist.requested', {
+      externalListingId: listing.marketplaceListingId,
+      externalUrl: listing.externalUrl,
+      destructive: true,
+      automaticRepublish: false,
+    });
+    return created;
+  }
+
   async hydrateEvent(event: HermesEventView, workspaceId: string): Promise<HermesEventView> {
     const change = event.proposedChange;
     if (change?.kind !== 'category_recreation') return event;
@@ -182,6 +238,9 @@ export class CategoryCorrectionOperationService {
       );
     }
     if (current.kind === 'recreate') {
+      if (!current.recommendationEventId) {
+        throw new InvalidStateError('Recreate requires a paired Hermes recommendation');
+      }
       const pair = await this.operations.findByRecommendationForWorkspace(
         current.recommendationEventId,
         input.workspaceId,
@@ -213,7 +272,9 @@ export class CategoryCorrectionOperationService {
       if (!product) throw new NotFoundError(`Product not found: ${listing.productId}`);
       const marketplace = await this.marketplaces.findByIdForWorkspace(operation.marketplaceId, input.workspaceId);
       if (!marketplace) throw new NotFoundError(`Marketplace not found: ${operation.marketplaceId}`);
-      if (marketplace.key !== 'olx') throw new InvalidStateError('Category correction operations are only supported for OLX');
+      if (operation.recommendationEventId && marketplace.key !== 'olx') {
+        throw new InvalidStateError('Category correction operations are only supported for OLX');
+      }
       if (recoveringPublishedCheckpoint
         && recoveryCheckpoint?.externalListingId
         && listing.status === 'live'
@@ -240,24 +301,47 @@ export class CategoryCorrectionOperationService {
       let result: Record<string, unknown>;
       if (operation.kind === 'delist') {
         if (!listing.marketplaceListingId) throw new InvalidStateError('Delist requires an external listing id');
+        const externalListingId = listing.marketplaceListingId;
+        const externalUrl = listing.externalUrl;
+        const publishedAt = listing.publishedAt;
+        const remoteStatus = listing.remoteStatus;
         const adapter = await this.adapters.resolve(marketplace);
-        await adapter.delist(listing.marketplaceListingId);
+        providerCheckpoint = {
+          providerEffect: 'delist_started',
+          externalListingId,
+          externalUrl,
+        };
+        providerCallStarted = true;
+        await adapter.delist(externalListingId);
         providerCheckpoint = {
           providerEffect: 'delisted',
-          externalListingId: listing.marketplaceListingId,
+          externalListingId,
+          externalUrl,
         };
-        const expired = listing.expire();
-        if (expired.isErr()) throw expired.error;
-        listing.recordSyncStatusNote('Remote advert delisted for category correction');
+        const transitioned = operation.recommendationEventId
+          ? listing.expire()
+          : listing.returnToDraftAfterDelist();
+        if (transitioned.isErr()) throw transitioned.error;
+        if (operation.recommendationEventId) {
+          listing.recordSyncStatusNote('Remote advert delisted for category correction');
+        }
         await this.listings.save(listing);
         result = {
-          externalListingId: listing.marketplaceListingId,
+          externalListingId,
+          externalUrl,
+          publishedAt: publishedAt?.toISOString() ?? null,
+          remoteStatus,
+          localStatus: listing.status,
           quotaUnitsRestored: 0,
           deletionRestoresQuota: false,
+          automaticRepublish: false,
         };
       } else {
         if (listing.status !== 'expired') {
           throw new InvalidStateError(`Recreate requires an expired listing; found ${listing.status}`);
+        }
+        if (!operation.recommendationEventId) {
+          throw new InvalidStateError('Recreate requires a paired Hermes recommendation');
         }
         const pair = await this.operations.findByRecommendationForWorkspace(
           operation.recommendationEventId,

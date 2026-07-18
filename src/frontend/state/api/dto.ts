@@ -77,6 +77,20 @@ export interface PublishListingInput {
   };
 }
 
+export interface DelistListingToDraftInput {
+  id: string;
+  operationId: string;
+  confirmed: true;
+}
+
+export interface ListingDelistOperation {
+  id: string;
+  listingId: string;
+  marketplaceId: string;
+  state: 'requested' | 'approved' | 'executing' | 'executed' | 'failed';
+  result: Record<string, unknown> | null;
+}
+
 export interface PublishListingPreview {
   dryRun: true;
   canPublish: boolean;

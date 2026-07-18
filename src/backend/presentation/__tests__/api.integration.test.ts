@@ -365,6 +365,22 @@ function stubCategoryCorrectionOperationService(): CategoryCorrectionOperationSe
     updatedAt: new Date(),
   };
   return {
+    async requestStandaloneDelist(input: {
+      operationId: string;
+      listingId: string;
+      workspaceId: string;
+      actorId: string;
+    }) {
+      return {
+        ...base,
+        id: input.operationId,
+        listingId: input.listingId,
+        workspaceId: input.workspaceId,
+        recommendationEventId: null,
+        kind: 'delist' as const,
+        requestedBy: input.actorId,
+      };
+    },
     async list(_eventId: string, workspaceId: string) {
       return [{ ...base, workspaceId }];
     },
@@ -1219,6 +1235,27 @@ describe('Presentation API', () => {
         state: 'executed',
         result: { externalListingId: 'new-advert' },
       });
+    });
+
+    it('requires authentication and literal destructive confirmation for standalone listing delist', async () => {
+      const { app } = await buildTestApp();
+      const operationId = '8f620660-cafe-4f08-9f7f-60ea44c4ad58';
+
+      const unauthenticated = await request(app)
+        .post('/api/listings/listing-1/delist-to-draft')
+        .send({ operationId, confirmed: true });
+      expect(unauthenticated.status).toBe(401);
+
+      const unconfirmed = await auth(
+        request(app).post('/api/listings/listing-1/delist-to-draft'),
+      ).send({ operationId, confirmed: false });
+      expect(unconfirmed.status).toBe(400);
+
+      const executed = await auth(
+        request(app).post('/api/listings/listing-1/delist-to-draft'),
+      ).send({ operationId, confirmed: true });
+      expect(executed.status).toBe(200);
+      expect(executed.body.data).toMatchObject({ id: operationId, state: 'executed' });
     });
 
     it('returns a 404 error envelope for an unknown event', async () => {

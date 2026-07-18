@@ -1,10 +1,17 @@
 // Listings table: marketplace, status, price, engagement (views/watchers/messages).
 // Presentational; the page supplies data and a marketplace-name resolver.
-import React from 'react';
+import React, { useState } from 'react';
 import {
+  Alert,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
   Link,
   Skeleton,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -17,6 +24,7 @@ import {
 import ReplayIcon from '@mui/icons-material/Replay';
 import PublishIcon from '@mui/icons-material/Publish';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutlined';
 import type { Listing } from '@shared/types';
 import { formatCurrency } from '../../utils/formatters.js';
 import { ListingStatusBadge } from '../common/Badge.js';
@@ -31,11 +39,43 @@ export interface ListingsTableProps {
   onRowClick?: (listing: Listing) => void;
   onRelist?: (listing: Listing) => void;
   onPublish?: (listing: Listing) => void;
+  onDelistToDraft?: (listing: Listing, operationId: string) => Promise<void> | void;
   productHref?: (listing: Listing) => string;
   resolveMarketplaceName?: (marketplaceId: string) => string;
   currency?: string;
   emptyAction?: React.ReactNode;
   actionsDisabled?: boolean;
+}
+
+export function DelistConfirmationContent({
+  listing,
+  marketplaceName,
+}: {
+  listing: Listing;
+  marketplaceName: string;
+}) {
+  return (
+    <Stack spacing={2}>
+      <Alert severity="error">This destructive action removes the remote advert.</Alert>
+      <Typography><strong>Marketplace:</strong> {marketplaceName}</Typography>
+      <Typography><strong>Product:</strong> {listing.productName || 'Untitled product'}</Typography>
+      <Typography><strong>Listing:</strong> {listing.id}</Typography>
+      <Typography><strong>External ID:</strong> {listing.marketplaceListingId}</Typography>
+      {listing.externalUrl && (
+        <Link href={listing.externalUrl} target="_blank" rel="noopener noreferrer">
+          Open the current remote advert for reconciliation
+        </Link>
+      )}
+      <Typography>
+        Only this listing will return to draft. Product data and photos remain. The advert will not be republished automatically.
+      </Typography>
+      {marketplaceName.toLowerCase().includes('olx') && (
+        <Alert severity="warning">
+          OLX does not restore a consumed quota unit after removal. Publishing again may be unavailable or paid and must pass category and quota preview.
+        </Alert>
+      )}
+    </Stack>
+  );
 }
 
 const HEAD_CELLS = ['Listing', 'Status', 'Price', 'Views', 'Watchers', 'Messages', ''];
@@ -48,12 +88,18 @@ export const ListingsTable: React.FC<ListingsTableProps> = ({
   onRowClick,
   onRelist,
   onPublish,
+  onDelistToDraft,
   productHref,
   resolveMarketplaceName,
   currency,
   emptyAction,
   actionsDisabled = false,
 }) => {
+  const [delistListing, setDelistListing] = useState<Listing | null>(null);
+  const [delistOperationId, setDelistOperationId] = useState<string | null>(null);
+  const [failedOperationIds, setFailedOperationIds] = useState<Record<string, string>>({});
+  const [delistBusy, setDelistBusy] = useState(false);
+  const [delistError, setDelistError] = useState(false);
   if (error) return <ErrorRetry error={error} onRetry={onRetry} />;
 
   if (!loading && (!listings || listings.length === 0)) {
@@ -198,11 +244,84 @@ export const ListingsTable: React.FC<ListingsTableProps> = ({
                         </IconButton>
                       </Tooltip>
                     )}
+                    {onDelistToDraft && listing.status === 'live' && Boolean(listing.marketplaceListingId) && (
+                      <Tooltip title="Снять с площадки и вернуть в черновики">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          disabled={actionsDisabled || delistBusy}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDelistError(false);
+                            setDelistOperationId(failedOperationIds[listing.id] ?? crypto.randomUUID());
+                            setDelistListing(listing);
+                          }}
+                        >
+                          <DeleteOutlineIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
         </TableBody>
       </Table>
+      <Dialog
+        open={Boolean(delistListing)}
+        onClose={delistBusy ? undefined : () => setDelistListing(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Снять с площадки и вернуть в черновики?</DialogTitle>
+        <DialogContent>
+          {delistListing && (
+            <DelistConfirmationContent
+              listing={delistListing}
+              marketplaceName={resolveMarketplaceName
+                ? resolveMarketplaceName(delistListing.marketplaceId)
+                : delistListing.marketplaceId}
+            />
+          )}
+          {delistError && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              The remote result could not be confirmed. The listing remains live; reconcile it with the marketplace before retrying.
+              Operation ID: {delistOperationId}
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={delistBusy} onClick={() => setDelistListing(null)}>Cancel</Button>
+          <Button
+            color="error"
+            variant="contained"
+            disabled={delistBusy || !delistListing}
+            onClick={async () => {
+              if (!delistListing || !delistOperationId || !onDelistToDraft) return;
+              setDelistBusy(true);
+              setDelistError(false);
+              try {
+                await onDelistToDraft(delistListing, delistOperationId);
+                setFailedOperationIds((current) => {
+                  const next = { ...current };
+                  delete next[delistListing.id];
+                  return next;
+                });
+                setDelistListing(null);
+              } catch {
+                setFailedOperationIds((current) => ({
+                  ...current,
+                  [delistListing.id]: delistOperationId,
+                }));
+                setDelistError(true);
+              } finally {
+                setDelistBusy(false);
+              }
+            }}
+          >
+            Снять с площадки
+          </Button>
+        </DialogActions>
+      </Dialog>
     </TableContainer>
   );
 };

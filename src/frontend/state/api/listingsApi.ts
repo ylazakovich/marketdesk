@@ -4,7 +4,9 @@ import { baseApi } from './baseApi.js';
 import { buildQueryString } from './queryString.js';
 import { unwrap } from './envelope.js';
 import type {
+  DelistListingToDraftInput,
   ListingListParams,
+  ListingDelistOperation,
   PublishListingInput,
   UpdateListingArg,
   PublishListingPreview,
@@ -72,6 +74,16 @@ export const listingsApi = baseApi.injectEndpoints({
       ],
     }),
 
+    delistListingToDraft: builder.mutation<ListingDelistOperation, DelistListingToDraftInput>({
+      query: ({ id, ...body }) => ({ url: `/listings/${id}/delist-to-draft`, method: 'POST', body }),
+      transformResponse: (res: ApiResponse<ListingDelistOperation>) => unwrap(res),
+      invalidatesTags: (_result, _error, { id }) => [
+        { type: 'Listing', id },
+        { type: 'Listing', id: 'LIST' },
+        { type: 'Product', id: 'LIST' },
+      ],
+    }),
+
     getPriceHistory: builder.query<PriceHistory[], string>({
       query: (id) => `/listings/${id}/price-history`,
       transformResponse: (res: ApiResponse<PriceHistory[]>) => unwrap(res),
@@ -87,5 +99,6 @@ export const {
   usePublishListingMutation,
   useUpdateListingMutation,
   useRelistListingMutation,
+  useDelistListingToDraftMutation,
   useGetPriceHistoryQuery,
 } = listingsApi;

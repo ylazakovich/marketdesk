@@ -1,7 +1,17 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-describe('OLX category correction migrations', () => {
+describe('category correction operation migration', () => {
+  it('allows standalone delist audit rows without weakening the listing or workspace foreign keys', () => {
+    const migration = readMigration('031_standalone_listing_delist_operations.sql');
+    const schema = fs.readFileSync(path.resolve(process.cwd(), 'src/backend/persistence/schema.sql'), 'utf8');
+
+    expect(migration).toContain('ALTER COLUMN recommendation_event_id DROP NOT NULL');
+    expect(schema).toContain('recommendation_event_id UUID REFERENCES hermes_events(id) ON DELETE RESTRICT');
+    expect(schema).toContain('listing_id UUID NOT NULL REFERENCES listings(id) ON DELETE RESTRICT');
+    expect(schema).toContain('workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE');
+  });
+
   const readMigration = (name: string) => fs.readFileSync(
     path.join(process.cwd(), 'src/backend/persistence/migrations', name),
     'utf8',

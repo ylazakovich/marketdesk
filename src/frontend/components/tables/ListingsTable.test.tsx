@@ -1,6 +1,6 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ListingsTable } from './ListingsTable';
+import { DelistConfirmationContent, ListingsTable } from './ListingsTable';
 import type { Listing } from '@shared/types';
 
 function listing(overrides: Partial<Listing> = {}): Listing {
@@ -118,5 +118,34 @@ describe('ListingsTable publication actions', () => {
     );
 
     expect(html.match(/disabled=""/g)).toHaveLength(2);
+  });
+});
+
+describe('ListingsTable destructive delist action', () => {
+  it('shows exact listing identity, consequences, and OLX quota risk in confirmation', () => {
+    const html = renderToStaticMarkup(
+      <DelistConfirmationContent listing={listing()} marketplaceName="OLX" />,
+    );
+
+    expect(html).toContain('Apple AirPods 4');
+    expect(html).toContain('olx-1');
+    expect(html).toContain('will not be republished automatically');
+    expect(html).toContain('does not restore a consumed quota unit');
+    expect(html).toContain('category and quota preview');
+  });
+
+  it('offers the destructive action only for live listings with a remote identity', () => {
+    const live = renderToStaticMarkup(
+      <ListingsTable listings={[listing()]} onDelistToDraft={() => undefined} />,
+    );
+    const draft = renderToStaticMarkup(
+      <ListingsTable
+        listings={[listing({ status: 'draft', marketplaceListingId: null })]}
+        onDelistToDraft={() => undefined}
+      />,
+    );
+
+    expect(live).toContain('Снять с площадки и вернуть в черновики');
+    expect(draft).not.toContain('Снять с площадки и вернуть в черновики');
   });
 });

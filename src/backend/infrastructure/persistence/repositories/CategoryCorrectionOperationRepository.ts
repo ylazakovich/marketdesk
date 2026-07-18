@@ -8,7 +8,7 @@ import type {
 interface OperationRow {
   id: string;
   workspace_id: string;
-  recommendation_event_id: string;
+  recommendation_event_id: string | null;
   listing_id: string;
   marketplace_id: string;
   kind: CategoryCorrectionOperation['kind'];
@@ -37,11 +37,20 @@ export class CategoryCorrectionOperationRepository implements ICategoryCorrectio
     this.queryClient = client ?? pool;
   }
 
+  async create(operation: CategoryCorrectionOperation): Promise<CategoryCorrectionOperation> {
+    await this.insert(operation);
+    const created = await this.findByIdForWorkspace(operation.id, operation.workspaceId);
+    if (!created) throw new Error('Category correction operation ID is already in use');
+    return created;
+  }
+
   async createPair(
     delist: CategoryCorrectionOperation,
     recreate: CategoryCorrectionOperation,
   ): Promise<void> {
-    if (delist.recommendationEventId !== recreate.recommendationEventId || delist.listingId !== recreate.listingId) {
+    if (!delist.recommendationEventId
+      || delist.recommendationEventId !== recreate.recommendationEventId
+      || delist.listingId !== recreate.listingId) {
       throw new Error('Category correction pair must share recommendation and listing');
     }
     const run = async (client?: PoolClient): Promise<void> => {
@@ -128,7 +137,7 @@ export class CategoryCorrectionOperationRepository implements ICategoryCorrectio
         target_category, paid_override_reason, requested_by, approved_by, result,
         requested_at, approved_at, executed_at, failed_at, updated_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
-       ON CONFLICT (recommendation_event_id, kind) DO NOTHING`,
+       ON CONFLICT DO NOTHING`,
       [operation.id, operation.workspaceId, operation.recommendationEventId, operation.listingId,
         operation.marketplaceId, operation.kind, operation.state,
         operation.targetCategory ? JSON.stringify(operation.targetCategory) : null,

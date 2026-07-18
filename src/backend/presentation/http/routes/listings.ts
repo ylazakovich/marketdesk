@@ -6,7 +6,11 @@ import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import type { ListingController } from '../controllers/ListingController';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { validateBody } from '../middleware/ValidationMiddleware';
-import { marketplaceCategorySchema, publishListingSchema } from '../validation/schemas';
+import {
+  delistListingToDraftSchema,
+  marketplaceCategorySchema,
+  publishListingSchema,
+} from '../validation/schemas';
 
 const passthrough: RequestHandler = (_req, _res, next) => next();
 const categoryWriteLimiter: RequestHandler = rateLimit({
@@ -34,6 +38,12 @@ export function createListingRoutes(
     asyncHandler(controller.setMarketplaceCategory),
   );
   router.post('/:id/publish-preview', sensitiveLimiter, asyncHandler(controller.publishPreview));
+  router.post(
+    '/:id/delist-to-draft',
+    sensitiveLimiter,
+    validateBody(delistListingToDraftSchema),
+    asyncHandler(controller.delistToDraft),
+  );
   router.post(
     '/:id/publish',
     sensitiveLimiter,

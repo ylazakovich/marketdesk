@@ -238,6 +238,21 @@ export class Listing {
     return Ok(undefined);
   }
 
+  returnToDraftAfterDelist(): Result<void> {
+    if (this._status !== 'live' || !this._marketplaceListingId) {
+      return Err(new InvalidStateError('Only a live remote listing can return to draft after delist'));
+    }
+    this._status = 'draft';
+    this._marketplaceListingId = null;
+    this._externalUrl = null;
+    this._remoteStatus = null;
+    this._publishedAt = null;
+    this._expiresAt = null;
+    this._syncError = null;
+    this.touch();
+    return Ok(undefined);
+  }
+
   markError(message: string): Result<void> {
     if (!canTransition(this._status, 'error')) {
       return Err(new InvalidStateError(`Cannot mark error from status ${this._status}`));

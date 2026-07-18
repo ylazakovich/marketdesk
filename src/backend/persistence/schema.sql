@@ -351,7 +351,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_hermes_events_workspace_idempotency
 CREATE TABLE IF NOT EXISTS category_correction_operations (
   id UUID PRIMARY KEY,
   workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-  recommendation_event_id UUID NOT NULL REFERENCES hermes_events(id) ON DELETE RESTRICT,
+  recommendation_event_id UUID REFERENCES hermes_events(id) ON DELETE RESTRICT,
   listing_id UUID NOT NULL REFERENCES listings(id) ON DELETE RESTRICT,
   marketplace_id UUID NOT NULL REFERENCES marketplaces(id) ON DELETE RESTRICT,
   kind VARCHAR(20) NOT NULL,

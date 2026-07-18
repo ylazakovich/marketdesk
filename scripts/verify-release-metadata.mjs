@@ -96,7 +96,7 @@ try {
   );
   assert.throws(
     () => buildReleaseComposeEnvironment(
-      'hermes-marketdesk-v0.10.0',
+      'marketdesk-v0.10.0',
       {
         RELEASE_DATABASE_URL: 'postgresql://ambient.example.invalid/marketdesk',
         RELEASE_DB_SSL_MODE: 'disable',
@@ -113,7 +113,7 @@ try {
   );
   assert.equal(releaseUsesExternalDatabase(referencedEnvironment), false);
   assert.doesNotThrow(() => buildReleaseComposeEnvironment(
-    'hermes-marketdesk-v0.10.0',
+    'marketdesk-v0.10.0',
     {},
     undefined,
     referencedEnvironment,
@@ -150,7 +150,7 @@ try {
     );
   }
 
-  const composeEnvironment = buildReleaseComposeEnvironment('hermes-marketdesk-v0.10.0', {
+  const composeEnvironment = buildReleaseComposeEnvironment('marketdesk-v0.10.0', {
     PATH: process.env.PATH,
     COMPOSE_FILE: '/tmp/alternate.yml',
     COMPOSE_PATH_SEPARATOR: ':',
@@ -160,7 +160,7 @@ try {
     COMPOSE_DISABLE_ENV_FILE: '1',
     COMPOSE_FUTURE_OVERRIDE: 'must-not-survive',
   });
-  assert.equal(composeEnvironment.MARKETDESK_RELEASE_TAG, 'hermes-marketdesk-v0.10.0');
+  assert.equal(composeEnvironment.MARKETDESK_RELEASE_TAG, 'marketdesk-v0.10.0');
   assert.equal(
     Object.keys(composeEnvironment).some((name) => name.startsWith('COMPOSE_')),
     false,
@@ -176,7 +176,7 @@ try {
   );
   writeFileSync(interpolationEnv, 'SNAPSHOT_VALUE=snapshot\n', { mode: 0o600 });
   const isolatedEnvironment = buildReleaseComposeEnvironment(
-    'hermes-marketdesk-v0.10.0',
+    'marketdesk-v0.10.0',
     {
       PATH: process.env.PATH,
       DOCKER_HOST: 'unix:///preserved-docker.sock',
@@ -193,7 +193,7 @@ try {
   assert.equal(isolatedEnvironment.BARE_VALUE, undefined);
   assert.equal(isolatedEnvironment.DOCKER_HOST, 'unix:///preserved-docker.sock');
   assert.equal(isolatedEnvironment.UNRELATED_TRANSPORT_VALUE, 'preserved');
-  assert.equal(isolatedEnvironment.MARKETDESK_RELEASE_TAG, 'hermes-marketdesk-v0.10.0');
+  assert.equal(isolatedEnvironment.MARKETDESK_RELEASE_TAG, 'marketdesk-v0.10.0');
   assert.equal(isolatedEnvironment.MARKETDESK_BUILD_CONTEXT, interpolationDir);
   assert.equal(isolatedEnvironment.MARKETDESK_ENV_FILE, interpolationEnv);
 
@@ -223,24 +223,24 @@ try {
   writeFileSync(join(gitDir, 'artifact.txt'), 'release\n');
   run('git', ['add', 'artifact.txt'], gitDir);
   run('git', ['commit', '--quiet', '-m', 'release'], gitDir);
-  run('git', ['tag', 'hermes-marketdesk-v0.10.0'], gitDir);
+  run('git', ['tag', 'marketdesk-v0.10.0'], gitDir);
   const release = resolveCheckoutRelease(gitDir);
   assert.match(release.commit, /^[0-9a-f]{40}$/);
-  assert.equal(release.tag, 'hermes-marketdesk-v0.10.0');
-  assert.equal(resolveCheckoutReleaseTag(gitDir), 'hermes-marketdesk-v0.10.0');
-  run('git', ['tag', 'hermes-marketdesk-v0.10.1'], gitDir);
+  assert.equal(release.tag, 'marketdesk-v0.10.0');
+  assert.equal(resolveCheckoutReleaseTag(gitDir), 'marketdesk-v0.10.0');
+  run('git', ['tag', 'marketdesk-v0.10.1'], gitDir);
   assert.throws(
     () => resolveCheckoutReleaseTag(gitDir),
     /requires exactly one valid MarketDesk release tag/,
   );
-  run('git', ['tag', '--delete', 'hermes-marketdesk-v0.10.1'], gitDir);
+  run('git', ['tag', '--delete', 'marketdesk-v0.10.1'], gitDir);
   assert.doesNotThrow(() => assertReleaseAssociation(release, gitDir));
-  run('git', ['tag', '--delete', 'hermes-marketdesk-v0.10.0'], gitDir);
+  run('git', ['tag', '--delete', 'marketdesk-v0.10.0'], gitDir);
   assert.throws(
     () => assertReleaseAssociation(release, gitDir),
     /tag association changed/,
   );
-  run('git', ['tag', 'hermes-marketdesk-v0.10.0'], gitDir);
+  run('git', ['tag', 'marketdesk-v0.10.0'], gitDir);
 
   const immutable = createImmutableReleaseContext(release.commit, gitDir);
   assert.equal(readFileSync(join(immutable.context, 'artifact.txt'), 'utf8'), 'release\n');
@@ -281,7 +281,7 @@ try {
     () => resolveCheckoutReleaseTag(gitDir),
     /requires HEAD to be checked out at an exact MarketDesk release tag/,
   );
-  run('git', ['tag', 'hermes-marketdesk-v01.10.0'], gitDir);
+  run('git', ['tag', 'marketdesk-v01.10.0'], gitDir);
   assert.throws(() => resolveCheckoutReleaseTag(gitDir), /Invalid MarketDesk release tag/);
 
   const immutableComposeDir = join(tempRoot, 'immutable-compose');
@@ -310,7 +310,7 @@ try {
     ],
     composeDir,
     buildReleaseComposeEnvironment(
-      'hermes-marketdesk-v0.10.0',
+      'marketdesk-v0.10.0',
       {
         ...process.env,
         DATABASE_URL: 'postgresql://wrong.example.invalid/ambient',
@@ -330,7 +330,7 @@ try {
   for (const serviceName of ['app', 'upload-storage-init']) {
     assert.equal(
       rendered.services[serviceName].build.args.MARKETDESK_RELEASE_TAG,
-      'hermes-marketdesk-v0.10.0',
+      'marketdesk-v0.10.0',
       `${serviceName} must receive the exact release tag as a build argument`,
     );
   }

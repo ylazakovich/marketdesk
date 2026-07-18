@@ -9,7 +9,7 @@ release. Keep it owner-private and record checksums/restore-list validation. The
 check out the exact release tag and run Compose through the fail-closed wrapper:
 
 ```bash
-git checkout hermes-marketdesk-v0.10.0
+git checkout marketdesk-v0.10.0
 npm run compose:release -- up -d
 ```
 
@@ -17,7 +17,7 @@ The wrapper:
 
 1. resolves `HEAD` and enumerates canonical release tags pointing exactly at that commit;
 2. requires a clean checkout with no tracked or untracked changes;
-3. accepts only `hermes-marketdesk-vX.Y.Z`;
+3. accepts only `marketdesk-vX.Y.Z`;
 4. permits only detached Compose `up`, pins the repository Compose file/project directory and directory-derived project name, verifies any existing `marketdesk-app` project label, and always adds `--build`;
 5. exports that exact value as `MARKETDESK_RELEASE_TAG` only for the Compose subprocess;
 6. archives the validated commit and uses that immutable archive for the Compose file, Docker build context, and Dockerfile;
@@ -47,7 +47,7 @@ Normal local builds leave `MARKETDESK_RELEASE_TAG` empty and honestly report `De
 
 ## Runtime verification
 
-For `hermes-marketdesk-v0.10.0`, both public runtime contracts must report `v0.10.0`:
+For `marketdesk-v0.10.0`, both public runtime contracts must report `v0.10.0`:
 
 ```bash
 curl -fsS http://127.0.0.1:3000/api/application-info

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 
-const RELEASE_TAG_PATTERN = /^hermes-marketdesk-v((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))$/;
+const RELEASE_TAG_PATTERN = /^marketdesk-v((?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*))$/;
 export const EMBEDDED_RELEASE_TAG_PATH = '/app/.marketdesk-release-tag';
 
 export type ApplicationVersion = `v${string}` | 'Development' | 'Version unavailable';

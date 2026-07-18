@@ -104,7 +104,7 @@ function initializeReleaseRepo(checkout) {
   run('git', ['config', 'user.email', 'ci@example.invalid'], checkout);
   run('git', ['add', '.gitignore', 'docker-compose.yml', 'Dockerfile'], checkout);
   run('git', ['commit', '--quiet', '-m', 'release'], checkout);
-  run('git', ['tag', 'hermes-marketdesk-v1.2.3'], checkout);
+  run('git', ['tag', 'marketdesk-v1.2.3'], checkout);
   writeFileSync(
     join(checkout, '.env'),
     `DB_SSL_MODE=disable\nLIFECYCLE_TOKEN=${lifecycleToken}\n`,

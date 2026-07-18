@@ -3,6 +3,8 @@
   "packages": {
     ".": {
       "release-type": "node",
+      "package-name": "marketdesk",
+      "include-component-in-tag": true,
       "changelog-path": "CHANGELOG.md",
       "changelog-sections": [
         { "type": "feat", "section": "✨ Features" },

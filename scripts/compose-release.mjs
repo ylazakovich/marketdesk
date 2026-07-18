@@ -13,7 +13,7 @@ import { basename, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse as parseDotenv } from 'dotenv';
 
-const RELEASE_TAG_PATTERN = /^hermes-marketdesk-v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
+const RELEASE_TAG_PATTERN = /^marketdesk-v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/;
 const RELEASE_CONTEXT_PREFIX = 'marketdesk-release-context-';
 
 
@@ -44,7 +44,7 @@ export function resolveCheckoutRelease(cwd = process.cwd()) {
   ).split(/\r?\n/).filter(Boolean);
   const releaseTags = allTags.filter((tag) => RELEASE_TAG_PATTERN.test(tag));
   if (releaseTags.length === 0) {
-    const marketDeskTag = allTags.find((tag) => tag.startsWith('hermes-marketdesk-v'));
+    const marketDeskTag = allTags.find((tag) => tag.startsWith('marketdesk-v'));
     if (marketDeskTag) throw new Error(`Invalid MarketDesk release tag: ${marketDeskTag}`);
     throw new Error('Release deployment requires HEAD to be checked out at an exact MarketDesk release tag');
   }

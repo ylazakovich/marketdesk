@@ -67,6 +67,7 @@ function createService(
   existing: Listing[] = [],
   runUnitOfWork?: ConstructorParameters<typeof MarketplaceImportService>[9],
   productCategorySync?: ConstructorParameters<typeof MarketplaceImportService>[12],
+  marketplaceAccount: typeof connectedAccount | null = connectedAccount,
 ) {
   const marketplace = unwrap(
     Marketplace.create({
@@ -106,7 +107,7 @@ function createService(
     marketplaceRepo,
     productRepo,
     listingRepo,
-    { findByMarketplaceId: jest.fn(async () => connectedAccount) } as any,
+    { findByMarketplaceId: jest.fn(async () => marketplaceAccount) } as any,
     { create },
     { getValidAccessToken },
     authenticatedHttpClient,
@@ -559,6 +560,31 @@ describe('MarketplaceImportService', () => {
     );
     expect(adapter.delist).not.toHaveBeenCalled();
     expect(adapter.publish).not.toHaveBeenCalled();
+  });
+
+  it('does not roll back synchronization when no executable account binding exists', async () => {
+    const product = unwrap(Product.create({
+      id: 'product-disconnected', workspaceId: 'workspace-1', sku: 'DISCONNECTED-1',
+      name: 'Disconnected listing', description: 'Existing synchronized listing.',
+      costPrice: money(10), sellingPrice: money(100), condition: 'good', category: 'Electronics',
+    }));
+    const listing = unwrap(Listing.create({
+      id: 'listing-disconnected', productId: product.id, marketplaceId: 'marketplace-1',
+      marketplaceListingId: 'olx-disconnected', price: money(100), status: 'live',
+      marketplaceCategory: headphonesCategory,
+    }));
+    const { service, productRepo, correctionOperations } = createService(
+      [], [listing], undefined, undefined, null,
+    );
+    productRepo.items.set(product.id, product);
+
+    await expect(service.recommendSyncedCategoryMismatch({
+      listing,
+      workspaceId: 'workspace-1',
+      currentCategory: headphonesCategory,
+      proposedCategory: projectorCategory,
+    })).resolves.toBeUndefined();
+    expect(correctionOperations.createPair).not.toHaveBeenCalled();
   });
 
   it('returns item-level failed preview entries for unmappable discovered adverts', async () => {

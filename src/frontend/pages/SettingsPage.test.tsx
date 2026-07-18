@@ -7,6 +7,8 @@ import {
   shouldHydrateWorkspaceDraft,
   workspaceSettingsPatch,
   settingsSections,
+  settingsSectionFromHash,
+  settingsSectionPath,
   type SettingsSection,
 } from './SettingsPage';
 
@@ -31,6 +33,12 @@ function textContent(node: React.ReactNode): string {
 }
 
 describe('SettingsPage shell navigation', () => {
+  it('opens the real Hermes settings section from its deep-link hash', () => {
+    expect(settingsSectionFromHash('#hermes')).toBe('hermes');
+    expect(settingsSectionFromHash('#unknown')).toBe('general');
+    expect(settingsSectionPath('notifications')).toBe('/settings#notifications');
+  });
+
   it('marks General as the default active section and exposes section captions', () => {
     const tree = SettingsSectionNavigation({
       activeSection: 'general',

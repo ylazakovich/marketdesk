@@ -2,6 +2,7 @@
 // preferences, Hermes autonomy, notifications, integrations, appearance, and security.
 import React, { useEffect, useState } from 'react';
 import { skipToken } from '@reduxjs/toolkit/query';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
   Alert,
@@ -131,6 +132,13 @@ export const settingsSections: Array<{
     icon: <InfoIcon fontSize="small" />,
   },
 ];
+
+export function settingsSectionFromHash(hash: string): SettingsSection {
+  const requested = hash.replace(/^#/, '') as SettingsSection;
+  return settingsSections.some(({ id }) => id === requested) ? requested : 'general';
+}
+
+export const settingsSectionPath = (section: SettingsSection) => `/settings#${section}`;
 
 const notificationRows: Array<[NotificationEventKey, string]> = [
   ['new_sale', 'New sale'],
@@ -273,6 +281,8 @@ export function ApplicationInfoBlock({
 
 const SettingsPage: React.FC = () => {
   const dispatch = useAppDispatch();
+  const location = useLocation();
+  const navigate = useNavigate();
   const workspace = useAppSelector((s) => s.workspace);
   const user = useAppSelector((s) => s.auth.user);
   const themeMode = useAppSelector((s) => s.ui.themeMode);
@@ -291,7 +301,9 @@ const SettingsPage: React.FC = () => {
   const hermesSettings = useGetHermesSettingsQuery(queryArg);
   const integrations = useGetIntegrationSettingsQuery(queryArg);
 
-  const [activeSection, setActiveSection] = useState<SettingsSection>('general');
+  const [activeSection, setActiveSection] = useState<SettingsSection>(() =>
+    settingsSectionFromHash(location.hash)
+  );
   const [name, setName] = useState(workspace.name);
   const [currency, setCurrency] = useState(workspace.currency);
   const [timezone, setTimezone] = useState(workspace.timezone);
@@ -305,6 +317,10 @@ const SettingsPage: React.FC = () => {
   const [updatePreferences, { isLoading: savingPreferences }] = useUpdateUserPreferencesMutation();
   const [updateNotifications, { isLoading: savingNotifications }] =
     useUpdateNotificationPreferencesMutation();
+
+  useEffect(() => {
+    setActiveSection(settingsSectionFromHash(location.hash));
+  }, [location.hash]);
 
   const draft = { name, currency, timezone, language };
   const baselineSnapshot = baseline ? workspaceDraftSnapshot(baseline) : null;
@@ -773,7 +789,10 @@ const SettingsPage: React.FC = () => {
         <Card title="Settings sections" subtitle="Choose what to configure" contentSx={{ p: 1.25 }}>
           <SettingsSectionNavigation
             activeSection={activeSection}
-            onSectionChange={setActiveSection}
+            onSectionChange={(section) => {
+              setActiveSection(section);
+              navigate(settingsSectionPath(section));
+            }}
           />
         </Card>
 

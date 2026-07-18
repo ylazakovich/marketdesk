@@ -2,9 +2,26 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type {
   CategoryRecreationChangePayload,
+  HermesEvent,
   ProductCategoryConflictChangePayload,
 } from '@shared/types';
-import { CategoryRecreationReview, ProposedChangeDiff } from './HermesEventCard';
+import {
+  CategoryRecreationReview,
+  HermesEventCard,
+  HermesEventTypeIcon,
+  ProposedChangeDiff,
+} from './HermesEventCard';
+
+jest.mock('../../state/hooks.js', () => ({
+  useAppDispatch: () => jest.fn(),
+  useAppSelector: () => 'PLN',
+}));
+
+jest.mock('../../services/hooks/index.js', () => ({
+  useApproveHermesEvent: () => [jest.fn(), { isLoading: false }],
+  useDismissHermesEvent: () => [jest.fn(), { isLoading: false }],
+  useExecuteCategoryRecreationOperation: () => [jest.fn(), { isLoading: false }],
+}));
 
 const change: CategoryRecreationChangePayload = {
   kind: 'category_recreation',
@@ -37,7 +54,12 @@ const change: CategoryRecreationChangePayload = {
       providerSideEffectAllowed: false,
       quotaUnitsRestored: 0,
       availableActions: [
-        { kind: 'approve', method: 'POST', href: '/hermes/category-correction-operations/delist-intent-1/approve', label: 'Review delist' },
+        {
+          kind: 'approve',
+          method: 'POST',
+          href: '/hermes/category-correction-operations/delist-intent-1/approve',
+          label: 'Review delist',
+        },
       ],
     },
     {
@@ -95,15 +117,21 @@ describe('product category conflict review', () => {
       currentCategory: 'Electronics',
       candidates: [
         {
-          marketplaceKey: 'olx', marketplaceId: 'marketplace-1', listingId: 'listing-1',
-          providerCategoryId: 'projectors-91', name: 'Projectors',
+          marketplaceKey: 'olx',
+          marketplaceId: 'marketplace-1',
+          listingId: 'listing-1',
+          providerCategoryId: 'projectors-91',
+          name: 'Projectors',
           path: ['Electronics', 'TV and video', 'Projectors'],
           taxonomyVerifiedAt: '2026-07-15T00:00:00.000Z',
           syncedAt: '2026-07-15T01:00:00.000Z',
         },
         {
-          marketplaceKey: 'olx', marketplaceId: 'marketplace-1', listingId: 'listing-2',
-          providerCategoryId: 'headphones-44', name: 'Wireless headphones',
+          marketplaceKey: 'olx',
+          marketplaceId: 'marketplace-1',
+          listingId: 'listing-2',
+          providerCategoryId: 'headphones-44',
+          name: 'Wireless headphones',
           path: ['Electronics', 'Audio equipment', 'Wireless headphones'],
           taxonomyVerifiedAt: '2026-07-15T00:00:00.000Z',
           syncedAt: '2026-07-15T01:00:00.000Z',
@@ -118,5 +146,70 @@ describe('product category conflict review', () => {
     expect(html).toContain('ID projectors-91');
     expect(html).toContain('Electronics › Audio equipment › Wireless headphones');
     expect(html).toContain('ID headphones-44');
+  });
+});
+
+describe('HermesEventCard activity presentation', () => {
+  const pendingEvent: HermesEvent = {
+    id: 'event-1',
+    workspaceId: 'workspace-1',
+    productId: 'product-1',
+    type: 'suggested_lower_price',
+    severity: 'warning',
+    status: 'pending_review',
+    title: 'Review a price change',
+    detail: 'A lower price may improve visibility.',
+    proposedChange: { kind: 'price', field: 'price', from: 100, to: 90 },
+    createdAt: '2026-07-18T12:00:00.000Z',
+  };
+
+  it('renders an accessible typed icon, product context, View link, and supported review actions', () => {
+    const html = renderToStaticMarkup(<HermesEventCard event={pendingEvent} />);
+
+    expect(html).toContain('aria-label="Suggested lower price, warning severity"');
+    expect(html).toContain('Product context');
+    expect(html).toContain('Related MarketDesk product');
+    expect(html).toContain('href="/products/product-1"');
+    expect(html).toContain('View product');
+    expect(html).toContain('Approve');
+    expect(html).toContain('Dismiss');
+  });
+
+  it('uses distinct icons for different event types', () => {
+    const priceIcon = renderToStaticMarkup(
+      <HermesEventTypeIcon type="suggested_lower_price" severity="warning" />
+    );
+    const listingIcon = renderToStaticMarkup(
+      <HermesEventTypeIcon type="create_listing" severity="success" />
+    );
+
+    expect(priceIcon).toContain('data-testid="TrendingDownIcon"');
+    expect(listingIcon).toContain('data-testid="StorefrontOutlinedIcon"');
+  });
+
+  it('does not render disabled approval controls for a completed event', () => {
+    const html = renderToStaticMarkup(
+      <HermesEventCard event={{ ...pendingEvent, status: 'applied' }} />
+    );
+
+    expect(html).toContain('MarketDesk recorded this action as completed.');
+    expect(html).toContain('View product');
+    expect(html).not.toContain('>Approve<');
+    expect(html).not.toContain('>Dismiss<');
+  });
+
+  it('does not offer unsupported create-listing approval', () => {
+    const html = renderToStaticMarkup(
+      <HermesEventCard
+        event={{
+          ...pendingEvent,
+          type: 'create_listing',
+          proposedChange: { kind: 'create_listing', marketplaceKey: 'olx' },
+        }}
+      />
+    );
+
+    expect(html).not.toContain('>Approve<');
+    expect(html).toContain('>Dismiss<');
   });
 });

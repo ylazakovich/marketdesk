@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.15.0](https://github.com/ylazakovich/marketdesk/compare/marketdesk-v0.14.2...marketdesk-v0.15.0) (2026-07-18)
+
+
+### ✨ Features
+
+* **settings:** add persistent settings contracts ([#234](https://github.com/ylazakovich/marketdesk/issues/234)) ([dcc7f94](https://github.com/ylazakovich/marketdesk/commit/dcc7f94f150bf31295ebd80158be42d76c60afd8)), closes [#149](https://github.com/ylazakovich/marketdesk/issues/149)
+
 ## [0.14.2](https://github.com/ylazakovich/marketdesk/compare/marketdesk-v0.14.1...marketdesk-v0.14.2) (2026-07-18)
 
 

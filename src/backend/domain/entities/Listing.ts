@@ -238,7 +238,10 @@ export class Listing {
     return Ok(undefined);
   }
 
-  returnToDraftAfterDelist(): Result<void> {
+  returnToDraftAfterDelist(expectedExternalListingId?: string): Result<void> {
+    if (expectedExternalListingId !== undefined && this._marketplaceListingId !== expectedExternalListingId) {
+      return Err(new InvalidStateError('Listing external identity changed before delist was confirmed'));
+    }
     if (this._status !== 'live' || !this._marketplaceListingId) {
       return Err(new InvalidStateError('Only a live remote listing can return to draft after delist'));
     }

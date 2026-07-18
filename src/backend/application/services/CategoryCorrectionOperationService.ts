@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import type { IActivityLogRepository } from '../../domain/repositories/interfaces/IActivityLogRepository';
 import type {
   CategoryCorrectionOperation,
@@ -87,9 +89,29 @@ export class CategoryCorrectionOperationService {
     if (!input.actorId.trim()) throw new ValidationError('Authenticated actor is required');
     const existing = await this.operations.findByIdForWorkspace(input.operationId, input.workspaceId);
     if (existing) {
-      if (existing.kind !== 'delist' || existing.listingId !== input.listingId) {
+      const listing = await this.listings.findByIdForWorkspace(input.listingId, input.workspaceId);
+      if (!listing) throw new NotFoundError(`Listing not found: ${input.listingId}`);
+      if (
+        existing.kind !== 'delist'
+        || existing.listingId !== input.listingId
+        || existing.marketplaceId !== listing.marketplaceId
+        || existing.recommendationEventId !== null
+      ) {
         throw new ValidationError('Operation ID is already bound to another action');
       }
+      await this.audit(
+        existing,
+        input.actorId,
+        'olx.listing_delist.requested',
+        {
+          externalListingId:
+            typeof existing.result?.externalListingId === 'string' ? existing.result.externalListingId : null,
+          externalUrl: typeof existing.result?.externalUrl === 'string' ? existing.result.externalUrl : null,
+          destructive: true,
+          automaticRepublish: false,
+        },
+        this.makeStandaloneRequestedAuditId(existing.id),
+      );
       return existing;
     }
     const listing = await this.listings.findByIdForWorkspace(input.listingId, input.workspaceId);
@@ -99,6 +121,9 @@ export class CategoryCorrectionOperationService {
     }
     const marketplace = await this.marketplaces.findByIdForWorkspace(listing.marketplaceId, input.workspaceId);
     if (!marketplace) throw new NotFoundError(`Marketplace not found: ${listing.marketplaceId}`);
+    if (marketplace.key !== 'olx') {
+      throw new InvalidStateError('Category correction operations are only supported for OLX');
+    }
 
     const at = this.now();
     const operation: CategoryCorrectionOperation = {
@@ -130,7 +155,7 @@ export class CategoryCorrectionOperationService {
       externalUrl: listing.externalUrl,
       destructive: true,
       automaticRepublish: false,
-    });
+    }, this.makeStandaloneRequestedAuditId(created.id));
     return created;
   }
 
@@ -272,7 +297,7 @@ export class CategoryCorrectionOperationService {
       if (!product) throw new NotFoundError(`Product not found: ${listing.productId}`);
       const marketplace = await this.marketplaces.findByIdForWorkspace(operation.marketplaceId, input.workspaceId);
       if (!marketplace) throw new NotFoundError(`Marketplace not found: ${operation.marketplaceId}`);
-      if (operation.recommendationEventId && marketplace.key !== 'olx') {
+      if (marketplace.key !== 'olx') {
         throw new InvalidStateError('Category correction operations are only supported for OLX');
       }
       if (recoveringPublishedCheckpoint
@@ -300,7 +325,15 @@ export class CategoryCorrectionOperationService {
       }
       let result: Record<string, unknown>;
       if (operation.kind === 'delist') {
-        if (!listing.marketplaceListingId) throw new InvalidStateError('Delist requires an external listing id');
+        const capturedExternalListingId = typeof operation.result?.externalListingId === 'string'
+          ? operation.result.externalListingId
+          : null;
+        if (!capturedExternalListingId) {
+          throw new InvalidStateError('Delist has no captured external listing identity');
+        }
+        if (listing.marketplaceListingId !== capturedExternalListingId) {
+          throw new InvalidStateError('Listing identity changed before delist; delist requires a new review');
+        }
         const externalListingId = listing.marketplaceListingId;
         const externalUrl = listing.externalUrl;
         const publishedAt = listing.publishedAt;
@@ -320,7 +353,7 @@ export class CategoryCorrectionOperationService {
         };
         const transitioned = operation.recommendationEventId
           ? listing.expire()
-          : listing.returnToDraftAfterDelist();
+          : listing.returnToDraftAfterDelist(capturedExternalListingId);
         if (transitioned.isErr()) throw transitioned.error;
         if (operation.recommendationEventId) {
           listing.recordSyncStatusNote('Remote advert delisted for category correction');
@@ -505,14 +538,50 @@ export class CategoryCorrectionOperationService {
       const failure = {
         errorCode: error instanceof Error && 'code' in error ? String(error.code) : 'DEPENDENCY_FAILURE',
         message: error instanceof Error ? error.message : 'Unknown category correction failure',
+        failureKind: this.classifyFailure(error, providerCallStarted, providerCheckpoint),
         retrySafe: false,
-        manualReconciliationRequired: true,
+        manualReconciliationRequired: this.requiresManualReconciliation(
+          error,
+          providerCallStarted,
+          providerCheckpoint,
+        ),
         ...providerCheckpoint,
       };
       const failed = await this.operations.markFailed(operation.id, input.workspaceId, failure, this.now());
-      if (failed) await this.audit(failed, input.actorId, 'olx.category_correction.failed', failure);
+      if (failed) {
+        await this.audit(failed, input.actorId, 'olx.category_correction.failed', failure);
+        // Standalone delist is an operator workflow whose client must render the
+        // persisted typed terminal result. Returning it avoids an unsafe automatic
+        // HTTP replay while preserving thrown failures for paired correction jobs.
+        if (operation.kind === 'delist' && operation.recommendationEventId === null) return failed;
+      }
       throw error;
     }
+  }
+
+  private classifyFailure(
+    error: unknown,
+    providerCallStarted: boolean,
+    providerCheckpoint: Record<string, unknown>,
+  ): 'authentication' | 'validation' | 'provider_rejection' | 'ambiguous' | 'dependency' {
+    const code = error instanceof Error && 'code' in error ? String(error.code) : undefined;
+    if (code === 'AUTHENTICATION') return 'authentication';
+    if (code === 'NOT_FOUND' || code === 'PROVIDER_REJECTION') return 'provider_rejection';
+    if (code === 'VALIDATION_ERROR' || code === 'INVALID_STATE' || code === 'GUARDRAIL_VIOLATION') {
+      return 'validation';
+    }
+    if (providerCallStarted || Object.keys(providerCheckpoint).length > 0) return 'ambiguous';
+    return 'dependency';
+  }
+
+  private requiresManualReconciliation(
+    error: unknown,
+    providerCallStarted: boolean,
+    providerCheckpoint: Record<string, unknown>,
+  ): boolean {
+    const code = error instanceof Error && 'code' in error ? String(error.code) : undefined;
+    if (['AUTHENTICATION', 'NOT_FOUND', 'PROVIDER_REJECTION'].includes(code ?? '')) return false;
+    return providerCallStarted || Object.keys(providerCheckpoint).length > 0;
   }
 
   private presentOperation(
@@ -592,12 +661,18 @@ export class CategoryCorrectionOperationService {
     actorId: string,
     action: string,
     metadata: Record<string, unknown>,
+    id?: string,
   ): Promise<void> {
     await this.activity.record({
-      id: this.idGenerator(), workspaceId: operation.workspaceId, entityType: 'listing',
+      id: id ?? this.idGenerator(), workspaceId: operation.workspaceId, entityType: 'listing',
       entityId: operation.listingId, actorType: 'user', actorId, action,
       metadata: { operationId: operation.id, recommendationEventId: operation.recommendationEventId,
         kind: operation.kind, state: operation.state, ...metadata }, createdAt: this.now(),
     });
+  }
+
+  private makeStandaloneRequestedAuditId(operationId: string): string {
+    const namespace = createHash('sha256').update(`olx.listing_delist.requested:${operationId}`).digest('hex');
+    return `${namespace.slice(0, 8)}-${namespace.slice(8, 12)}-${namespace.slice(12, 16)}-${namespace.slice(16, 20)}-${namespace.slice(20, 32)}`;
   }
 }

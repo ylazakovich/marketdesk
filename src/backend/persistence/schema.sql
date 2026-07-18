@@ -367,6 +367,8 @@ CREATE TABLE IF NOT EXISTS category_correction_operations (
   failed_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT category_correction_operations_kind_valid CHECK (kind IN ('delist', 'recreate')),
+  CONSTRAINT category_correction_operation_recommendation_check
+    CHECK (kind = 'delist' OR recommendation_event_id IS NOT NULL),
   CONSTRAINT category_correction_operations_state_valid
     CHECK (state IN ('requested', 'approved', 'executing', 'executed', 'failed')),
   CONSTRAINT category_correction_operations_target_valid CHECK (

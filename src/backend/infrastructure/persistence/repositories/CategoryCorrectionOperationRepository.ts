@@ -38,7 +38,7 @@ export class CategoryCorrectionOperationRepository implements ICategoryCorrectio
   }
 
   async create(operation: CategoryCorrectionOperation): Promise<CategoryCorrectionOperation> {
-    await this.insert(operation);
+    await this.createOrValidate(operation);
     const created = await this.findByIdForWorkspace(operation.id, operation.workspaceId);
     if (!created) throw new Error('Category correction operation ID is already in use');
     return created;
@@ -48,14 +48,10 @@ export class CategoryCorrectionOperationRepository implements ICategoryCorrectio
     delist: CategoryCorrectionOperation,
     recreate: CategoryCorrectionOperation,
   ): Promise<void> {
-    if (!delist.recommendationEventId
-      || delist.recommendationEventId !== recreate.recommendationEventId
-      || delist.listingId !== recreate.listingId) {
-      throw new Error('Category correction pair must share recommendation and listing');
-    }
+    this.validatePair(delist, recreate);
     const run = async (client?: PoolClient): Promise<void> => {
-      await this.insert(delist, client);
-      await this.insert(recreate, client);
+      await this.createOrValidate(delist, client);
+      await this.createOrValidate(recreate, client);
     };
     if (this.client) return run(this.client);
     if (!this.pool) return withTransaction((client) => run(client));
@@ -72,6 +68,22 @@ export class CategoryCorrectionOperationRepository implements ICategoryCorrectio
     }
   }
 
+  private validatePair(delist: CategoryCorrectionOperation, recreate: CategoryCorrectionOperation): void {
+    if (delist.id === recreate.id) {
+      throw new Error('Category correction pair must use distinct operation identifiers');
+    }
+    if (delist.kind !== 'delist' || recreate.kind !== 'recreate') {
+      throw new Error('Category correction pair must contain one delist and one recreate operation');
+    }
+    if (!delist.recommendationEventId
+      || delist.recommendationEventId !== recreate.recommendationEventId
+      || delist.listingId !== recreate.listingId
+      || delist.workspaceId !== recreate.workspaceId
+      || delist.marketplaceId !== recreate.marketplaceId) {
+      throw new Error('Category correction pair must share recommendation, listing, workspace, and marketplace');
+    }
+  }
+
   async findByIdForWorkspace(id: string, workspaceId: string): Promise<CategoryCorrectionOperation | null> {
     const { rows } = await query<OperationRow>(`${SELECT} WHERE id = $1 AND workspace_id = $2`, [id, workspaceId], this.queryClient);
     return rows[0] ? this.map(rows[0]) : null;
@@ -84,6 +96,41 @@ export class CategoryCorrectionOperationRepository implements ICategoryCorrectio
       this.queryClient,
     );
     return rows.map((row) => this.map(row));
+  }
+
+  private async createOrValidate(
+    operation: CategoryCorrectionOperation,
+    client?: PoolClient,
+  ): Promise<void> {
+    const existing = await this.findById(operation.id, client);
+    if (existing) {
+      if (!this.hasExactBinding(existing, operation)) {
+        throw new Error('Category correction operation ID is already bound to another action');
+      }
+      return;
+    }
+
+    await this.insert(operation, client);
+
+    const created = await this.findById(operation.id, client);
+    if (!created) {
+      throw new Error('Category correction operation ID is already in use');
+    }
+
+    if (!this.hasExactBinding(created, operation)) {
+      throw new Error('Category correction operation ID is already bound to another action');
+    }
+  }
+
+  private hasExactBinding(
+    existing: CategoryCorrectionOperation,
+    incoming: CategoryCorrectionOperation,
+  ): boolean {
+    return existing.workspaceId === incoming.workspaceId
+      && existing.listingId === incoming.listingId
+      && existing.marketplaceId === incoming.marketplaceId
+      && existing.kind === incoming.kind
+      && existing.recommendationEventId === incoming.recommendationEventId;
   }
 
   async approve(input: { id: string; workspaceId: string; actorId: string; paidOverrideReason?: string; targetCategory?: CategoryCorrectionOperation['targetCategory']; at: Date }): Promise<CategoryCorrectionOperation | null> {
@@ -146,6 +193,15 @@ export class CategoryCorrectionOperationRepository implements ICategoryCorrectio
         operation.approvedAt, operation.executedAt, operation.failedAt, operation.updatedAt],
       client ?? this.queryClient,
     );
+  }
+
+  private async findById(id: string, client?: PoolClient): Promise<CategoryCorrectionOperation | null> {
+    const { rows } = await query<OperationRow>(
+      `${SELECT} WHERE id = $1`,
+      [id],
+      client ?? this.queryClient,
+    );
+    return rows[0] ? this.map(rows[0]) : null;
   }
 
   private async finish(id: string, workspaceId: string, state: 'executed' | 'failed', result: Record<string, unknown>, at: Date): Promise<CategoryCorrectionOperation | null> {

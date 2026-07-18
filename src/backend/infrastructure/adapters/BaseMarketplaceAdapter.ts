@@ -19,6 +19,7 @@ import {
   MarketplaceError,
   MarketplaceAuthenticationError,
   MarketplaceNotFoundError,
+  MarketplaceProviderRejectionError,
   MarketplaceRateLimitError,
   MarketplaceTransientError,
   MarketplaceUnknownError,
@@ -112,7 +113,7 @@ export abstract class BaseMarketplaceAdapter implements IMarketplaceAdapter {
   }
 
   delist(externalListingId: string): Promise<void> {
-    return this.execute('delist', () => this.doDelist(externalListingId));
+    return this.execute('delist', () => this.doDelist(externalListingId), { retry: false });
   }
 
   sync(externalListingIds: string[]): Promise<SyncedListing[]> {
@@ -220,7 +221,7 @@ export abstract class BaseMarketplaceAdapter implements IMarketplaceAdapter {
       if (raw.status >= 500) {
         return new MarketplaceTransientError(`${label}: upstream error ${raw.status}`, raw);
       }
-      return new MarketplaceUnknownError(
+      return new MarketplaceProviderRejectionError(
         `${label}: HTTP ${raw.status}${providerErrorSuffix(raw.body)}`,
         raw,
       );

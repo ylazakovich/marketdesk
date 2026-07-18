@@ -17,7 +17,7 @@ import { ListingsTable } from '../components/tables/index.js';
 const ListingsPage: React.FC = () => {
   const navigate = useNavigate();
   const currency = useAppSelector((s) => s.workspace.currency);
-  const { resolveMarketplaceName } = useMarketplaceLookup();
+  const { resolveMarketplaceName, resolveMarketplaceKey } = useMarketplaceLookup();
 
   const [statusFilter, setStatusFilter] = useState<ListingStatus[]>([]);
 
@@ -44,7 +44,7 @@ const ListingsPage: React.FC = () => {
 
   const handleDelistToDraft = async (listing: Listing, operationId: string) => {
     const operation = await delistToDraft({ id: listing.id, operationId, confirmed: true }).unwrap();
-    if (operation.state !== 'executed') throw new Error('Delist requires marketplace reconciliation');
+    return operation;
   };
 
   return (
@@ -86,6 +86,7 @@ const ListingsPage: React.FC = () => {
           onRetry={refetch}
           currency={currency}
           resolveMarketplaceName={resolveMarketplaceName}
+          resolveMarketplaceKey={resolveMarketplaceKey}
           productHref={(l) => `/products/${l.productId}`}
           onRowClick={(l) => navigate(`/products/${l.productId}`)}
           onRelist={handleRelist}

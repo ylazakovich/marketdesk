@@ -12,6 +12,17 @@ describe('category correction operation migration', () => {
     expect(schema).toContain('workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE');
   });
 
+  it('keeps recreation rows coupled to a recommendation and allows only standalone delist to omit it', () => {
+    const migration = readMigration('031_standalone_listing_delist_operations.sql');
+    const schema = fs.readFileSync(path.resolve(process.cwd(), 'src/backend/persistence/schema.sql'), 'utf8');
+
+    expect(migration).toContain("CHECK (kind = 'delist' OR recommendation_event_id IS NOT NULL)");
+    expect(schema).toContain("CONSTRAINT category_correction_operation_recommendation_check");
+    expect(schema).toContain("CHECK (kind = 'delist' OR recommendation_event_id IS NOT NULL)");
+    expect(schema).toContain("UNIQUE (recommendation_event_id, kind)");
+    expect(migration).toContain('ALTER COLUMN recommendation_event_id DROP NOT NULL');
+  });
+
   const readMigration = (name: string) => fs.readFileSync(
     path.join(process.cwd(), 'src/backend/persistence/migrations', name),
     'utf8',

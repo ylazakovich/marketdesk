@@ -10,6 +10,7 @@ import {
   MarketplaceAuthenticationError,
   MarketplaceRateLimitError,
   MarketplaceTransientError,
+  MarketplaceUnknownError,
 } from '../MarketplaceError';
 import type { ListingPublishInput } from '../../../domain/services/MarketplaceAdapter';
 
@@ -634,6 +635,50 @@ describe('OLXAdapter', () => {
 
     await expect(adapter.publish(publishInput)).rejects.toBeInstanceOf(
       MarketplaceRateLimitError,
+    );
+    expect(calls).toBe(1);
+  });
+
+  it('does NOT retry delist on a 5xx failure (no duplicate DELETE)', async () => {
+    let calls = 0;
+    const http = mockClient(() => {
+      calls += 1;
+      throw new HttpError(500, 'server error');
+    });
+    const adapter = new OLXAdapter(http, fastOptions);
+
+    await expect(adapter.delist('olx-legacy-1')).rejects.toBeInstanceOf(
+      MarketplaceTransientError,
+    );
+    expect(calls).toBe(1);
+  });
+
+  it('does NOT retry delist on a 504 gateway timeout failure (no duplicate DELETE)', async () => {
+    let calls = 0;
+    const http = mockClient(() => {
+      calls += 1;
+      throw new HttpError(504, 'gateway timeout');
+    });
+    const adapter = new OLXAdapter(http, fastOptions);
+
+    await expect(adapter.delist('olx-timeout-1')).rejects.toBeInstanceOf(
+      MarketplaceTransientError,
+    );
+    expect(calls).toBe(1);
+  });
+
+  it('does NOT retry delist on timeout transport errors (no duplicate DELETE)', async () => {
+    let calls = 0;
+    const timeout = new Error('connection timed out') as Error & { code: string };
+    timeout.code = 'ETIMEDOUT';
+    const http = mockClient(() => {
+      calls += 1;
+      throw timeout;
+    });
+    const adapter = new OLXAdapter(http, fastOptions);
+
+    await expect(adapter.delist('olx-timeout-2')).rejects.toBeInstanceOf(
+      MarketplaceUnknownError,
     );
     expect(calls).toBe(1);
   });

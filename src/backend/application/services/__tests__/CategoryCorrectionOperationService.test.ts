@@ -1,4 +1,5 @@
 import { CategoryCorrectionOperationService } from '../CategoryCorrectionOperationService';
+import { createHash } from 'node:crypto';
 import type {
   CategoryCorrectionOperation,
   ICategoryCorrectionOperationRepository,
@@ -20,6 +21,10 @@ import { Listing } from '../../../domain/entities/Listing';
 import { Marketplace } from '../../../domain/entities/Marketplace';
 import { GuardrailViolationError } from '../../../domain/shared/DomainError';
 import type { HermesEventView } from '../../dto/presenters';
+import {
+  MarketplaceAuthenticationError,
+  MarketplaceProviderRejectionError,
+} from '../../../infrastructure/adapters/MarketplaceError';
 
 const now = new Date('2026-07-16T12:00:00.000Z');
 const category: MarketplaceCategoryMetadata = {
@@ -88,12 +93,33 @@ function operation(kind: 'delist' | 'recreate'): CategoryCorrectionOperation {
   };
 }
 
-function setup(decision: 'allow' | 'block' | 'override' = 'allow') {
+function standaloneRequestedAuditId(operationId: string): string {
+  const namespace = createHash('sha256').update(`olx.listing_delist.requested:${operationId}`).digest('hex');
+  return `${namespace.slice(0, 8)}-${namespace.slice(8, 12)}-${namespace.slice(12, 16)}-${namespace.slice(16, 20)}-${namespace.slice(20, 32)}`;
+}
+
+type SetupOptions = {
+  decision?: 'allow' | 'block' | 'override';
+  activity?: {
+    record: jest.Mock;
+    findByWorkspace: jest.Mock;
+    findByEntity: jest.Mock;
+  };
+};
+
+function setup(decision: 'allow' | 'block' | 'override' = 'allow', options: SetupOptions = {}) {
   const operations = new InMemoryOperations();
   const productRepo = new InMemoryProductRepository();
   const listingRepo = new InMemoryListingRepository();
   const marketplaceRepo = new InMemoryMarketplaceRepository();
-  const activity = new InMemoryActivityLogRepository();
+  const fallbackActivity = new InMemoryActivityLogRepository();
+  const activity = options.activity
+    ? {
+      record: options.activity.record,
+      findByWorkspace: options.activity.findByWorkspace,
+      findByEntity: options.activity.findByEntity,
+    }
+    : fallbackActivity;
   const product = unwrap(Product.create({ id: 'product-1', workspaceId: 'ws-1', sku: 'P1',
     name: 'AOPEN QH11 projector', description: 'LED HD projector in very good working condition.',
     costPrice: money(100), sellingPrice: money(299), condition: 'good', category: 'electronics', images: ['image.jpg'] }));
@@ -129,10 +155,16 @@ function setup(decision: 'allow' | 'block' | 'override' = 'allow') {
     markFinalized: jest.fn(async () => undefined),
     markAbandoned: jest.fn(async () => undefined),
   };
+  const activityLog = options.activity ? {
+    record: options.activity.record,
+    findByWorkspace: options.activity.findByWorkspace,
+    findByEntity: options.activity.findByEntity,
+  } : fallbackActivity;
+
   const service = new CategoryCorrectionOperationService(operations, new InMemoryEventRepository(), listingRepo,
     productRepo, marketplaceRepo, quota, { resolve: resolveAdapter }, activity, idFactory('audit'), publishAttempts, () => now);
   return { service, operations, authorize, consumeReservation, publish, preparePublish, delist, resolveAdapter,
-    activity, listing, listingRepo, product, marketplace, publishAttempts };
+    activity: activityLog, listing, listingRepo, marketplaceRepo, product, marketplace, publishAttempts };
 }
 
 async function addAndApprove(setupResult: ReturnType<typeof setup>, kind: 'delist' | 'recreate', paidOverrideReason?: string) {
@@ -143,7 +175,15 @@ async function addAndApprove(setupResult: ReturnType<typeof setup>, kind: 'delis
     setupResult.listing.expire();
     setupResult.operations.items.set(delist.id, delist);
   }
-  const value = operation(kind); setupResult.operations.items.set(value.id, value);
+  const value = operation(kind);
+  if (kind === 'delist' && !value.result) {
+    value.result = {
+      externalListingId: setupResult.listing.marketplaceListingId,
+      externalUrl: setupResult.listing.externalUrl,
+      requestedListingUpdatedAt: setupResult.listing.updatedAt.toISOString(),
+    };
+  }
+  setupResult.operations.items.set(value.id, value);
   return setupResult.service.approve({ operationId: value.id, workspaceId: 'ws-1', actorId: 'user-1', paidOverrideReason });
 }
 
@@ -174,6 +214,79 @@ describe('CategoryCorrectionOperationService', () => {
     expect(context.publish).not.toHaveBeenCalled();
   });
 
+  it('adds standalone delist request evidence even when operation was already created', async () => {
+    const context = setup();
+    const existing = operation('delist');
+    existing.id = 'standalone-existing';
+    existing.recommendationEventId = null;
+    existing.result = {
+      externalListingId: 'old-advert-1',
+      externalUrl: context.listing.externalUrl,
+      requestedListingUpdatedAt: context.listing.updatedAt.toISOString(),
+    };
+    context.operations.items.set(existing.id, existing);
+
+    const requested = await context.service.requestStandaloneDelist({
+      operationId: 'standalone-existing', listingId: 'listing-1', workspaceId: 'ws-1', actorId: 'user-1',
+    });
+    const requestedEvents = context.activity.entries.filter((entry) => entry.action === 'olx.listing_delist.requested');
+
+    expect(requested.id).toBe(existing.id);
+    expect(requestedEvents).toHaveLength(1);
+    expect(requestedEvents[0]).toMatchObject({
+      id: standaloneRequestedAuditId(existing.id),
+      action: 'olx.listing_delist.requested',
+      actorId: 'user-1',
+      metadata: expect.objectContaining({ operationId: existing.id, kind: 'delist', destructive: true, automaticRepublish: false }),
+    });
+
+    await context.service.requestStandaloneDelist({
+      operationId: 'standalone-existing', listingId: 'listing-1', workspaceId: 'ws-1', actorId: 'user-1',
+    });
+    expect(context.activity.entries.filter((entry) => entry.action === 'olx.listing_delist.requested')).toHaveLength(1);
+  });
+
+  it('keeps operation reuse to exact standalone bindings only', async () => {
+    const context = setup();
+    const existing = operation('delist');
+    existing.id = 'standalone-existing';
+    existing.recommendationEventId = 'other-event';
+    existing.result = {
+      externalListingId: 'old-advert-1',
+      externalUrl: context.listing.externalUrl,
+      requestedListingUpdatedAt: context.listing.updatedAt.toISOString(),
+    };
+    context.operations.items.set(existing.id, existing);
+
+    await expect(context.service.requestStandaloneDelist({
+      operationId: 'standalone-existing', listingId: 'listing-1', workspaceId: 'ws-1', actorId: 'user-1',
+    })).rejects.toThrow('Operation ID is already bound to another action');
+  });
+
+  it('replays standalone delist audit when the first write fails but the operation persisted', async () => {
+    const record = jest.fn()
+      .mockRejectedValueOnce(new Error('activity store unavailable'))
+      .mockResolvedValue(undefined);
+    const context = setup('allow', {
+      activity: {
+        record,
+        findByWorkspace: jest.fn(async () => []),
+        findByEntity: jest.fn(async () => []),
+      },
+    });
+
+    await expect(context.service.requestStandaloneDelist({
+      operationId: 'standalone-audit-retry', listingId: 'listing-1', workspaceId: 'ws-1', actorId: 'user-1',
+    })).rejects.toThrow('activity store unavailable');
+
+    await context.service.requestStandaloneDelist({
+      operationId: 'standalone-audit-retry', listingId: 'listing-1', workspaceId: 'ws-1', actorId: 'user-1',
+    });
+
+    expect(record).toHaveBeenCalledTimes(2);
+    expect(record.mock.calls[0][0].id).toBe(record.mock.calls[1][0].id);
+  });
+
   it('keeps a standalone listing live after an ambiguous provider failure and does not blindly retry it', async () => {
     const context = setup();
     context.delist.mockRejectedValueOnce(new Error('provider timeout'));
@@ -182,24 +295,102 @@ describe('CategoryCorrectionOperationService', () => {
     });
     await context.service.approve({ operationId: 'standalone-timeout', workspaceId: 'ws-1', actorId: 'user-1' });
 
-    await expect(context.service.execute({
+    const failed = await context.service.execute({
       operationId: 'standalone-timeout', workspaceId: 'ws-1', actorId: 'user-1',
-    })).rejects.toThrow('provider timeout');
+    });
     const replay = await context.service.execute({
       operationId: 'standalone-timeout', workspaceId: 'ws-1', actorId: 'user-1',
     });
 
     expect(context.delist).toHaveBeenCalledTimes(1);
     expect(context.listing.status).toBe('live');
+    expect(failed).toBe(replay);
     expect(replay).toMatchObject({
       state: 'failed',
       result: {
         externalListingId: 'old-advert-1',
         providerEffect: 'delist_started',
+        failureKind: 'ambiguous',
         retrySafe: false,
         manualReconciliationRequired: true,
       },
     });
+  });
+
+  it.each([
+    ['authentication', new MarketplaceAuthenticationError('token expired')],
+    ['provider_rejection', new MarketplaceProviderRejectionError('advert cannot be removed')],
+  ] as const)('preserves typed %s failure without requiring ambiguous reconciliation', async (failureKind, error) => {
+    const context = setup();
+    context.delist.mockRejectedValueOnce(error);
+    await context.service.requestStandaloneDelist({
+      operationId: `standalone-${failureKind}`,
+      listingId: 'listing-1',
+      workspaceId: 'ws-1',
+      actorId: 'user-1',
+    });
+    await context.service.approve({
+      operationId: `standalone-${failureKind}`,
+      workspaceId: 'ws-1',
+      actorId: 'user-1',
+    });
+
+    const failed = await context.service.execute({
+      operationId: `standalone-${failureKind}`,
+      workspaceId: 'ws-1',
+      actorId: 'user-1',
+    });
+    expect(failed).toMatchObject({ state: 'failed', result: { failureKind } });
+    expect(context.operations.items.get(`standalone-${failureKind}`)).toMatchObject({
+      state: 'failed',
+      result: {
+        failureKind,
+        retrySafe: false,
+        manualReconciliationRequired: false,
+      },
+    });
+  });
+
+  it('requires the live listing external id to match the captured id before standalone delist', async () => {
+    const context = setup();
+    const requested = await context.service.requestStandaloneDelist({
+      operationId: 'standalone-id-rot', listingId: 'listing-1', workspaceId: 'ws-1', actorId: 'user-1',
+    });
+    await context.service.approve({ operationId: requested.id, workspaceId: 'ws-1', actorId: 'user-1' });
+    const relist = context.listing.publish(
+      context.product, context.marketplace, 'new-advert-2',
+      'https://www.olx.pl/d/oferta/new-advert-2',
+    );
+    if (relist.isErr()) throw relist.error;
+
+    const failed = await context.service.execute({
+      operationId: requested.id, workspaceId: 'ws-1', actorId: 'user-1',
+    });
+    expect(failed).toMatchObject({
+      state: 'failed',
+      result: { failureKind: 'validation', manualReconciliationRequired: false },
+    });
+    expect(context.delist).not.toHaveBeenCalled();
+    expect(context.listing.marketplaceListingId).toBe('new-advert-2');
+    expect(context.listing.status).toBe('live');
+  });
+
+  it('blocks standalone delist for non-OLX marketplaces', async () => {
+    const context = setup();
+    const nonOlx = unwrap(Marketplace.create({
+      id: 'marketplace-non-olx', workspaceId: 'ws-1', key: 'ebay', name: 'eBay', connected: true,
+    }));
+    const nonOlxListing = unwrap(Listing.create({
+      id: 'listing-non-olx', productId: 'product-1', marketplaceId: 'marketplace-non-olx',
+      price: money(299), status: 'live', marketplaceListingId: 'ebay-advert-1', marketplaceCategory: category,
+    }));
+    context.marketplaceRepo.items.set(nonOlx.id, nonOlx);
+    context.listingRepo.items.set(nonOlxListing.id, nonOlxListing);
+
+    await expect(context.service.requestStandaloneDelist({
+      operationId: 'standalone-non-olx', listingId: 'listing-non-olx', workspaceId: 'ws-1', actorId: 'user-1',
+    })).rejects.toThrow('Category correction operations are only supported for OLX');
+    expect(context.operations.items.has('standalone-non-olx')).toBe(false);
   });
 
   it('does not disclose or create operations for another workspace listing', async () => {

@@ -1,6 +1,11 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { DelistConfirmationContent, ListingsTable } from './ListingsTable';
+import {
+  DelistConfirmationContent,
+  ListingsTable,
+  delistDialogReducer,
+  initialDelistDialogState,
+} from './ListingsTable';
 import type { Listing } from '@shared/types';
 
 function listing(overrides: Partial<Listing> = {}): Listing {
@@ -124,7 +129,7 @@ describe('ListingsTable publication actions', () => {
 describe('ListingsTable destructive delist action', () => {
   it('shows exact listing identity, consequences, and OLX quota risk in confirmation', () => {
     const html = renderToStaticMarkup(
-      <DelistConfirmationContent listing={listing()} marketplaceName="OLX" />,
+      <DelistConfirmationContent listing={listing()} marketplaceName="Renamed provider" isOlx />,
     );
 
     expect(html).toContain('Apple AirPods 4');
@@ -134,18 +139,75 @@ describe('ListingsTable destructive delist action', () => {
     expect(html).toContain('category and quota preview');
   });
 
+  it('does not infer OLX quota risk from a marketplace display name', () => {
+    const html = renderToStaticMarkup(
+      <DelistConfirmationContent listing={listing()} marketplaceName="OLX classifieds clone" isOlx={false} />,
+    );
+
+    expect(html).not.toContain('does not restore a consumed quota unit');
+  });
+
   it('offers the destructive action only for live listings with a remote identity', () => {
     const live = renderToStaticMarkup(
-      <ListingsTable listings={[listing()]} onDelistToDraft={() => undefined} />,
+      <ListingsTable
+        listings={[listing()]}
+        onDelistToDraft={async () => ({
+          id: 'operation-1', listingId: 'listing-1', marketplaceId: 'marketplace-1',
+          state: 'executed', result: null,
+        })}
+      />,
     );
     const draft = renderToStaticMarkup(
       <ListingsTable
         listings={[listing({ status: 'draft', marketplaceListingId: null })]}
-        onDelistToDraft={() => undefined}
+        onDelistToDraft={async () => ({
+          id: 'operation-2', listingId: 'listing-1', marketplaceId: 'marketplace-1',
+          state: 'executed', result: null,
+        })}
       />,
     );
 
     expect(live).toContain('Снять с площадки и вернуть в черновики');
     expect(draft).not.toContain('Снять с площадки и вернуть в черновики');
   });
+
+  it('retains an ambiguous operation until reconciliation, then starts with a fresh UUID', () => {
+    const opened = delistDialogReducer(initialDelistDialogState, {
+      type: 'open', listing: listing(), operationId: 'old-operation-uuid',
+    });
+    const ambiguous = delistDialogReducer(opened, {
+      type: 'failed',
+      failure: {
+        kind: 'ambiguous',
+        message: 'provider timeout',
+        manualReconciliationRequired: true,
+      },
+    });
+
+    expect(ambiguous.operationId).toBe('old-operation-uuid');
+    expect(ambiguous.failure?.kind).toBe('ambiguous');
+
+    const reconciled = delistDialogReducer(ambiguous, {
+      type: 'reconciled_live', operationId: 'fresh-operation-uuid',
+    });
+    expect(reconciled.operationId).toBe('fresh-operation-uuid');
+    expect(reconciled.operationId).not.toBe(ambiguous.operationId);
+    expect(reconciled.failure).toBeNull();
+  });
+
+  it.each(['authentication', 'validation', 'provider_rejection'] as const)(
+    'does not retain a terminal %s operation UUID',
+    (kind) => {
+      const opened = delistDialogReducer(initialDelistDialogState, {
+        type: 'open', listing: listing(), operationId: 'terminal-operation-uuid',
+      });
+      const failed = delistDialogReducer(opened, {
+        type: 'failed',
+        failure: { kind, message: kind, manualReconciliationRequired: false },
+      });
+
+      expect(failed.failure?.kind).toBe(kind);
+      expect(failed.operationId).toBeNull();
+    },
+  );
 });

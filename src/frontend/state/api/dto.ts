@@ -88,7 +88,15 @@ export interface ListingDelistOperation {
   listingId: string;
   marketplaceId: string;
   state: 'requested' | 'approved' | 'executing' | 'executed' | 'failed';
-  result: Record<string, unknown> | null;
+  result: ({
+    failureKind?: 'authentication' | 'validation' | 'provider_rejection' | 'ambiguous' | 'dependency';
+    errorCode?: string;
+    message?: string;
+    retrySafe?: boolean;
+    manualReconciliationRequired?: boolean;
+    externalListingId?: string;
+    externalUrl?: string | null;
+  } & Record<string, unknown>) | null;
 }
 
 export interface PublishListingPreview {

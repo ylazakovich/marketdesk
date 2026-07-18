@@ -100,6 +100,40 @@ describe('Listing lifecycle', () => {
     expect(listing.status).toBe('draft');
   });
 
+  it('rejects returning a non-live listing with a confirmed remote identity and preserves identity', () => {
+    const listing = makeListing();
+    unwrap(
+      listing.publish(
+        makeProduct(false),
+        makeMarketplace(true),
+        'ext-1',
+        'https://www.olx.pl/d/oferta/ext-1',
+      ),
+    );
+    unwrap(listing.expire());
+
+    expect(listing.returnToDraftAfterDelist('ext-1').isErr()).toBe(true);
+    expect(listing.status).toBe('expired');
+    expect(listing.marketplaceListingId).toBe('ext-1');
+    expect(listing.externalUrl).toBe('https://www.olx.pl/d/oferta/ext-1');
+  });
+
+  it('refuses to clear remote identity when the external listing id changed while still live', () => {
+    const listing = makeListing();
+    unwrap(
+      listing.publish(
+        makeProduct(false),
+        makeMarketplace(true),
+        'ext-1',
+        'https://www.olx.pl/d/oferta/ext-1',
+      ),
+    );
+
+    expect(listing.returnToDraftAfterDelist('ext-2').isErr()).toBe(true);
+    expect(listing.status).toBe('live');
+    expect(listing.marketplaceListingId).toBe('ext-1');
+  });
+
   it('detects expiry from a past expiresAt', () => {
     const listing = unwrap(
       Listing.create({

@@ -345,7 +345,7 @@ function stubUnknownOlxPublicationQuotaService(): OlxPublicationQuotaService {
 }
 
 function stubCategoryCorrectionOperationService(): CategoryCorrectionOperationService {
-  const base = {
+  let current: any = {
     id: 'recreate-1',
     workspaceId: 'ws-1',
     recommendationEventId: 'e1',
@@ -371,8 +371,8 @@ function stubCategoryCorrectionOperationService(): CategoryCorrectionOperationSe
       workspaceId: string;
       actorId: string;
     }) {
-      return {
-        ...base,
+      current = {
+        ...current,
         id: input.operationId,
         listingId: input.listingId,
         workspaceId: input.workspaceId,
@@ -380,9 +380,10 @@ function stubCategoryCorrectionOperationService(): CategoryCorrectionOperationSe
         kind: 'delist' as const,
         requestedBy: input.actorId,
       };
+      return current;
     },
     async list(_eventId: string, workspaceId: string) {
-      return [{ ...base, workspaceId }];
+      return [{ ...current, workspaceId }];
     },
     async approve(input: {
       operationId: string;
@@ -390,8 +391,8 @@ function stubCategoryCorrectionOperationService(): CategoryCorrectionOperationSe
       actorId: string;
       paidOverrideReason?: string;
     }) {
-      return {
-        ...base,
+      current = {
+        ...current,
         id: input.operationId,
         workspaceId: input.workspaceId,
         state: 'approved' as const,
@@ -399,10 +400,11 @@ function stubCategoryCorrectionOperationService(): CategoryCorrectionOperationSe
         paidOverrideReason: input.paidOverrideReason ?? null,
         approvedAt: new Date(),
       };
+      return current;
     },
     async execute(input: { operationId: string; workspaceId: string }) {
-      return {
-        ...base,
+      current = {
+        ...current,
         id: input.operationId,
         workspaceId: input.workspaceId,
         state: 'executed' as const,
@@ -410,6 +412,7 @@ function stubCategoryCorrectionOperationService(): CategoryCorrectionOperationSe
         approvedAt: new Date(),
         executedAt: new Date(),
       };
+      return current;
     },
   } as unknown as CategoryCorrectionOperationService;
 }
@@ -420,6 +423,7 @@ async function buildTestApp(
     disableOlxPublicationQuotaService?: boolean;
     applicationVersion?: string;
     seedWorkspace?: boolean;
+    categoryCorrectionOperationService?: CategoryCorrectionOperationService;
   } = {}
 ) {
   const authUserStore = new InMemoryAuthStore();
@@ -450,7 +454,8 @@ async function buildTestApp(
     olxPublicationQuotaService: options.disableOlxPublicationQuotaService
       ? undefined
       : (options.olxPublicationQuotaService ?? stubOlxPublicationQuotaService()),
-    categoryCorrectionOperationService: stubCategoryCorrectionOperationService(),
+    categoryCorrectionOperationService:
+      options.categoryCorrectionOperationService ?? stubCategoryCorrectionOperationService(),
     marketplaceOAuthReturnUrl: 'http://localhost:5173/marketplaces',
     workspaceRepo: workspaceRepo as IWorkspaceRepository,
     settingsRepo: new InMemorySettingsRepository(),
@@ -1255,7 +1260,86 @@ describe('Presentation API', () => {
         request(app).post('/api/listings/listing-1/delist-to-draft'),
       ).send({ operationId, confirmed: true });
       expect(executed.status).toBe(200);
-      expect(executed.body.data).toMatchObject({ id: operationId, state: 'executed' });
+      expect(executed.body.data).toMatchObject({
+        id: operationId,
+        state: 'executed',
+        kind: 'delist',
+        recommendationEventId: null,
+      });
+    });
+
+    it('preserves standalone delist identity through request, approve, and execute stubs', async () => {
+      const service = stubCategoryCorrectionOperationService();
+      const requested = await service.requestStandaloneDelist({
+        operationId: 'standalone-contract',
+        listingId: 'listing-1',
+        workspaceId: 'ws-1',
+        actorId: 'u-1',
+      });
+      expect(requested).toMatchObject({ kind: 'delist', recommendationEventId: null });
+
+      const approved = await service.approve({
+        operationId: requested.id,
+        workspaceId: 'ws-1',
+        actorId: 'u-1',
+      });
+      expect(approved).toMatchObject({ kind: 'delist', recommendationEventId: null });
+
+      const executed = await service.execute({
+        operationId: approved.id,
+        workspaceId: 'ws-1',
+        actorId: 'u-1',
+      });
+      expect(executed).toMatchObject({ kind: 'delist', recommendationEventId: null });
+    });
+
+    it('returns typed standalone delist failure metadata to the API client', async () => {
+      const service = stubCategoryCorrectionOperationService();
+      service.execute = jest.fn(async (input) => ({
+        id: input.operationId,
+        workspaceId: input.workspaceId,
+        recommendationEventId: null,
+        listingId: 'listing-1',
+        marketplaceId: 'marketplace-olx',
+        kind: 'delist' as const,
+        state: 'failed' as const,
+        targetCategory: null,
+        paidOverrideReason: null,
+        requestedBy: 'u-1',
+        approvedBy: 'u-1',
+        result: {
+          failureKind: 'authentication',
+          errorCode: 'AUTHENTICATION',
+          message: 'OLX credentials expired',
+          retrySafe: false,
+          manualReconciliationRequired: false,
+        },
+        requestedAt: new Date(),
+        approvedAt: new Date(),
+        executedAt: null,
+        failedAt: new Date(),
+        updatedAt: new Date(),
+      }));
+      const { app } = await buildTestApp({ categoryCorrectionOperationService: service });
+
+      const response = await auth(
+        request(app).post('/api/listings/listing-1/delist-to-draft'),
+      ).send({
+        operationId: '7e132d48-bdac-4d5f-8c72-cb02ce4442d1',
+        confirmed: true,
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toMatchObject({
+        kind: 'delist',
+        recommendationEventId: null,
+        state: 'failed',
+        result: {
+          failureKind: 'authentication',
+          errorCode: 'AUTHENTICATION',
+          manualReconciliationRequired: false,
+        },
+      });
     });
 
     it('returns a 404 error envelope for an unknown event', async () => {

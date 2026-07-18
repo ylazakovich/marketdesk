@@ -216,7 +216,7 @@ const ListingDetailsPage: React.FC = () => {
     { productId, status: ['pending_review'], sort: '-createdAt', limit: 20 },
     { skip: !productId },
   );
-  const { marketplaces, resolveMarketplaceName } = useMarketplaceLookup();
+  const { marketplaces, resolveMarketplaceName, resolveMarketplaceKey } = useMarketplaceLookup();
 
   const [updateProduct, { isLoading: updating }] = useUpdateProduct();
   const [updateListing, { isLoading: pricing }] = useUpdateListing();
@@ -470,6 +470,7 @@ const ListingDetailsPage: React.FC = () => {
               onRetry={listings.refetch}
               currency={currency}
               resolveMarketplaceName={resolveMarketplaceName}
+              resolveMarketplaceKey={resolveMarketplaceKey}
               onRowClick={(listing) => setPriceListing(listing)}
               onRelist={handleRelist}
               onPublish={handlePublish}
@@ -479,13 +480,13 @@ const ListingDetailsPage: React.FC = () => {
                   operationId,
                   confirmed: true,
                 }).unwrap();
-                if (operation.state !== 'executed') {
-                  throw new Error('Delist requires marketplace reconciliation');
+                if (operation.state === 'executed') {
+                  dispatch(enqueueToast({
+                    message: 'Remote advert removed; listing returned to draft. Nothing was republished.',
+                    severity: 'success',
+                  }));
                 }
-                dispatch(enqueueToast({
-                  message: 'Remote advert removed; listing returned to draft. Nothing was republished.',
-                  severity: 'success',
-                }));
+                return operation;
               }}
               actionsDisabled={publicationActionsLocked}
             />

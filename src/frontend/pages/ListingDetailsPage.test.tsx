@@ -56,9 +56,19 @@ function event(
 
 describe('ListingDetailsPage presentation', () => {
   it('marks a recheck stale immediately when the saved product version changes', () => {
-    const result = { productUpdatedAt: '2026-07-22T06:00:00.000Z' } as ProductRecheckResult;
-    expect(isProductRecheckStale(result, '2026-07-22T06:00:00.000Z')).toBe(false);
-    expect(isProductRecheckStale(result, '2026-07-22T07:00:00.000Z')).toBe(true);
+    const result = {
+      productId: 'product-1', listingId: 'listing-1',
+      productUpdatedAt: '2026-07-22T06:00:00.000Z', listingUpdatedAt: '2026-07-22T06:01:00.000Z',
+    } as ProductRecheckResult;
+    expect(isProductRecheckStale(
+      result, 'product-1', result.productUpdatedAt, 'listing-1', result.listingUpdatedAt,
+    )).toBe(false);
+    expect(isProductRecheckStale(
+      result, 'product-1', '2026-07-22T07:00:00.000Z', 'listing-1', result.listingUpdatedAt,
+    )).toBe(true);
+    expect(isProductRecheckStale(
+      result, 'product-1', result.productUpdatedAt, 'listing-2', result.listingUpdatedAt,
+    )).toBe(true);
   });
 
   it('renders the typed mismatch, exact provider id/path and stale replacement state', () => {
@@ -81,7 +91,9 @@ describe('ListingDetailsPage presentation', () => {
       },
     };
     const currentHtml = renderToStaticMarkup(
-      <ProductRecheckReview result={result} currentProductUpdatedAt={result.productUpdatedAt} />,
+      <ProductRecheckReview result={result} currentProductId={result.productId}
+        currentProductUpdatedAt={result.productUpdatedAt} currentListingId={result.listingId}
+        currentListingUpdatedAt={result.listingUpdatedAt} />,
     );
     expect(currentHtml).toContain('User review is required');
     expect(currentHtml).toContain('headphones-wireless');
@@ -91,7 +103,9 @@ describe('ListingDetailsPage presentation', () => {
     const staleHtml = renderToStaticMarkup(
       <ProductRecheckReview
         result={result}
+        currentProductId={result.productId}
         currentProductUpdatedAt={result.productUpdatedAt}
+        currentListingId={result.listingId}
         currentListingUpdatedAt="2026-07-22T07:00:00.000Z"
       />,
     );
@@ -114,7 +128,10 @@ describe('ListingDetailsPage presentation', () => {
             confirmationRequired: true,
           },
         }}
+        currentProductId={result.productId}
         currentProductUpdatedAt={result.productUpdatedAt}
+        currentListingId={result.listingId}
+        currentListingUpdatedAt={result.listingUpdatedAt}
       />,
     );
     expect(suggestedHtml).toContain('projectors-91');

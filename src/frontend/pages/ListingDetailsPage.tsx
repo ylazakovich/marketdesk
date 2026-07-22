@@ -144,22 +144,31 @@ export function selectProductRecommendations(events: HermesEvent[], productId: s
 }
 
 export function isProductRecheckStale(
-  result: Pick<ProductRecheckResult, 'productUpdatedAt' | 'listingUpdatedAt'>,
+  result: Pick<ProductRecheckResult, 'productId' | 'listingId' | 'productUpdatedAt' | 'listingUpdatedAt'>,
+  currentProductId: string,
   currentProductUpdatedAt: string,
+  currentListingId?: string,
   currentListingUpdatedAt?: string,
 ): boolean {
-  return result.productUpdatedAt !== currentProductUpdatedAt
-    || (currentListingUpdatedAt !== undefined && result.listingUpdatedAt !== currentListingUpdatedAt);
+  return result.productId !== currentProductId
+    || result.productUpdatedAt !== currentProductUpdatedAt
+    || currentListingId === undefined
+    || result.listingId !== currentListingId
+    || currentListingUpdatedAt === undefined
+    || result.listingUpdatedAt !== currentListingUpdatedAt;
 }
 
 export const ProductRecheckReview: React.FC<{
   result: ProductRecheckResult;
+  currentProductId: string;
   currentProductUpdatedAt: string;
+  currentListingId?: string;
   currentListingUpdatedAt?: string;
   onEdit?: () => void;
-}> = ({ result, currentProductUpdatedAt, currentListingUpdatedAt, onEdit }) => {
-  if (isProductRecheckStale(result, currentProductUpdatedAt, currentListingUpdatedAt)) {
-    return <Alert severity="warning">This result is stale because the product changed. Check again.</Alert>;
+  onMarketplaceEdit?: () => void;
+}> = ({ result, currentProductId, currentProductUpdatedAt, currentListingId, currentListingUpdatedAt, onEdit, onMarketplaceEdit }) => {
+  if (isProductRecheckStale(result, currentProductId, currentProductUpdatedAt, currentListingId, currentListingUpdatedAt)) {
+    return <Alert severity="warning">This result is stale because the product or listing changed. Check again.</Alert>;
   }
   return (
     <Stack spacing={1}>
@@ -188,7 +197,11 @@ export const ProductRecheckReview: React.FC<{
         Full category path: <strong>{result.category.path.length ? result.category.path.join(' → ') : 'Unavailable'}</strong>
       </Typography>
       {result.category.confidence !== null && (
-        <Typography variant="caption" color="text.secondary">Confidence: {result.category.confidence}</Typography>
+        <Typography variant="caption" color="text.secondary">
+          Confidence: {result.category.confidence} · Leaf: {result.category.isLeaf ? 'yes' : 'no'}
+          {result.category.taxonomyVerifiedAt ? ` · Taxonomy verified: ${formatDateTime(result.category.taxonomyVerifiedAt)}` : ''}
+          {result.category.taxonomyStaleAt ? ` · Stale after: ${formatDateTime(result.category.taxonomyStaleAt)}` : ''}
+        </Typography>
       )}
       {result.category.suggestion && (
         <Alert severity="info">
@@ -196,7 +209,9 @@ export const ProductRecheckReview: React.FC<{
           This suggestion is not applied automatically and requires explicit confirmation.
         </Alert>
       )}
-      {!result.canPublish && onEdit && (
+      {!result.canPublish && result.items.some((check) => check.editField === 'marketplace') && onMarketplaceEdit ? (
+        <Button size="small" variant="outlined" onClick={onMarketplaceEdit}>Manage marketplace connection</Button>
+      ) : !result.canPublish && onEdit && (
         <Button size="small" variant="outlined" onClick={onEdit}>Edit product</Button>
       )}
     </Stack>
@@ -316,6 +331,7 @@ const ListingDetailsPage: React.FC = () => {
         )
       : undefined;
   const primaryListing = selectPrimaryListing(listingItems, marketplaces);
+  const recheckListing = listingItems.find((listing) => resolveMarketplaceKey(listing.marketplaceId) === 'olx');
   const priceHistory = usePriceHistory(primaryListing?.id ?? '', { skip: !primaryListing });
   const primaryMarketplaceName = primaryListing
     ? resolveMarketplaceName(primaryListing.marketplaceId)
@@ -385,11 +401,16 @@ const ListingDetailsPage: React.FC = () => {
     const requestIdentity = ++recheckRequestIdentity.current;
     setRecheckResult(null);
     try {
-      if (!primaryListing) throw new Error('Create or select an OLX listing before recheck');
-      const result = await recheckProduct({ productId, listingId: primaryListing.id }).unwrap();
-      const refreshed = await product.refetch();
-      if (!refreshed.data) throw new Error('Unable to refresh the product after recheck');
-      if (requestIdentity !== recheckRequestIdentity.current || result.productId !== productId) return;
+      if (!recheckListing) throw new Error('Create or select an OLX listing before recheck');
+      const result = await recheckProduct({ productId, listingId: recheckListing.id }).unwrap();
+      const [refreshedProduct, refreshedListings] = await Promise.all([product.refetch(), listings.refetch()]);
+      const refreshedListing = refreshedListings.data?.find((listing) => listing.id === recheckListing.id);
+      if (!refreshedProduct.data || !refreshedListing) throw new Error('Unable to refresh the product or listing after recheck');
+      if (requestIdentity !== recheckRequestIdentity.current
+        || isProductRecheckStale(
+          result, refreshedProduct.data.id, refreshedProduct.data.updatedAt,
+          refreshedListing.id, refreshedListing.updatedAt,
+        )) return;
       setRecheckResult(result);
     } catch (err) {
       if (requestIdentity !== recheckRequestIdentity.current) return;
@@ -534,7 +555,7 @@ const ListingDetailsPage: React.FC = () => {
         subtitle="Checks the current saved product without publishing or applying suggestions"
         sx={{ my: 2 }}
         action={(
-          <Button variant="contained" disabled={rechecking || !primaryListing} onClick={() => void handleRecheck()}>
+          <Button variant="contained" disabled={rechecking || !recheckListing} onClick={() => void handleRecheck()}>
             {rechecking ? 'Проверяем…' : 'Проверить ещё раз'}
           </Button>
         )}
@@ -546,9 +567,12 @@ const ListingDetailsPage: React.FC = () => {
         ) : (
           <ProductRecheckReview
             result={recheckResult}
+            currentProductId={p.id}
             currentProductUpdatedAt={p.updatedAt}
-            currentListingUpdatedAt={primaryListing?.updatedAt}
+            currentListingId={recheckListing?.id}
+            currentListingUpdatedAt={recheckListing?.updatedAt}
             onEdit={() => setEditOpen(true)}
+            onMarketplaceEdit={() => navigate('/marketplaces')}
           />
         )}
       </Card>

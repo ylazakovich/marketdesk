@@ -17,6 +17,16 @@ export interface OlxCategoryGuardResult {
 
 const PROJECTOR_TERMS = ['projector', 'projektor', 'beamer'];
 const HEADPHONE_TERMS = ['headphone', 'headphones', 'słuchawki', 'sluchawki', 'earbuds', 'airpods'];
+const SEMANTIC_FAMILIES: ReadonlyArray<readonly string[]> = [
+  PROJECTOR_TERMS,
+  HEADPHONE_TERMS,
+  ['television', 'televisions', 'telewizor', 'telewizory', 'tv'],
+  ['scale', 'scales', 'waga', 'wagi'],
+  ['smartphone', 'smartphones', 'smartfon', 'smartfony', 'telefon', 'telefony', 'iphone'],
+  ['laptop', 'laptops', 'notebook', 'notebooks'],
+  ['camera', 'cameras', 'aparat', 'aparaty'],
+  ['shoe', 'shoes', 'sneaker', 'sneakers', 'but', 'buty'],
+];
 const MAX_TAXONOMY_TTL_MS = 24 * 60 * 60 * 1000;
 const MIN_SEMANTIC_TERM_LENGTH = 3;
 const STOP_WORDS = new Set([
@@ -108,20 +118,13 @@ function extractTerms(value: string): string[] {
   return [...output];
 }
 
-function hasSemanticOverlap(productText: string, categoryText: string): boolean {
-  const productTerms = extractTerms(productText);
-  const categoryTerms = extractTerms(categoryText);
-  if (!productTerms.length || !categoryTerms.length) {
-    return true;
-  }
-
-  const categorySet = new Set(categoryTerms);
-  return productTerms.some((productTerm) => {
-    if (categorySet.has(productTerm)) {
-      return true;
-    }
-    return [...categorySet].some((categoryTerm) => categoryTerm.includes(productTerm) || productTerm.includes(categoryTerm));
+function semanticFamilies(value: string): Set<number> {
+  const terms = new Set(extractTerms(value));
+  const families = new Set<number>();
+  SEMANTIC_FAMILIES.forEach((markers, index) => {
+    if (markers.some((marker) => terms.has(normalizeToken(marker)))) families.add(index);
   });
+  return families;
 }
 
 /**
@@ -164,7 +167,9 @@ export function evaluateOlxCategory(
   }
 
   const productText = `${product.name} ${product.description} ${product.category}`.toLocaleLowerCase('pl');
-  const categoryText = `${category.name} ${category.path.join(' ')}`.toLocaleLowerCase('pl');
+  // Only the provider leaf is semantic evidence. Ancestors such as "Electronics"
+  // are deliberately excluded because they create false matches between unrelated leaves.
+  const categoryText = category.name.toLocaleLowerCase('pl');
   const projectorProduct = containsAny(productText, PROJECTOR_TERMS);
   const headphoneProduct = containsAny(productText, HEADPHONE_TERMS);
   const projectorCategory = containsAny(categoryText, PROJECTOR_TERMS);
@@ -178,7 +183,10 @@ export function evaluateOlxCategory(
     };
   }
 
-  if (!hasSemanticOverlap(productText, categoryText)) {
+  const productFamilies = semanticFamilies(productText);
+  const categoryFamilies = semanticFamilies(categoryText);
+  if (productFamilies.size > 0 && categoryFamilies.size > 0
+    && ![...productFamilies].some((family) => categoryFamilies.has(family))) {
     return {
       allowed: false,
       requiresReview: true,

@@ -170,6 +170,33 @@ describe('ProductRecheckService', () => {
     await expect(service.recheck(input)).rejects.toThrow('Product, listing, or marketplace changed');
   });
 
+  it('returns actionable fix items without attempting taxonomy when the OAuth account is disconnected', async () => {
+    const { service, accountRepo, resolver, input } = setup();
+    accountRepo.findByMarketplaceId.mockResolvedValue({
+      id: 'account-1', marketplaceId: 'marketplace-1', handle: 'OLX', credentials: {},
+      status: 'disconnected', scopes: ['basic'], revision: 8, createdAt: NOW, updatedAt: NOW,
+    });
+    const result = await service.recheck(input);
+    expect(result.canPublish).toBe(false);
+    expect(result.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: 'marketplace', status: 'fix', editField: 'marketplace' }),
+      expect.objectContaining({ key: 'category', status: 'fix' }),
+    ]));
+    expect(resolver.verify).not.toHaveBeenCalled();
+  });
+
+  it('rejects a result if the OAuth account revision changes while checking', async () => {
+    const { service, accountRepo, activityLog, input } = setup();
+    const initial = await accountRepo.findByMarketplaceId('marketplace-1');
+    accountRepo.findByMarketplaceId
+      .mockResolvedValueOnce(initial)
+      .mockResolvedValueOnce({ ...initial!, revision: 8 });
+    await expect(service.recheck(input)).rejects.toThrow('Product, listing, or marketplace changed');
+    expect(activityLog.entries.map(({ action }) => action)).toEqual([
+      'product.recheck.started', 'product.recheck.failed',
+    ]);
+  });
+
   it('rejects cross-workspace and mismatched product/listing identities', async () => {
     const { service, product, input } = setup();
     await expect(service.recheck({ ...input, workspaceId: 'workspace-2' }))

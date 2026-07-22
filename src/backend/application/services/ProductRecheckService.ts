@@ -99,11 +99,13 @@ export class ProductRecheckService {
       }
       const account = await this.accountRepo.findByMarketplaceId(marketplace.id);
       const accountRevision = account?.revision ?? null;
+      const accountConnected = marketplace.isConnected() && account?.status === 'connected';
       const persistedCategory = listing.marketplaceCategory;
       let category: MarketplaceCategoryMetadata | null = null;
-      if (persistedCategory) {
+      let resolver: OlxTrustedTaxonomyResolver | undefined;
+      if (persistedCategory && accountConnected) {
         try {
-          const resolver = await this.olxTaxonomyResolver(marketplace.id);
+          resolver = await this.olxTaxonomyResolver(marketplace.id);
           category = await resolver.verify(persistedCategory.providerCategoryId);
         } catch {
           throw new ServiceUnavailableError('Could not verify the current OLX taxonomy; run the check again');
@@ -121,13 +123,22 @@ export class ProductRecheckService {
         ? item('price', 'ready', 'Target listing price is greater than zero')
         : item('price', 'fix', 'Set the target listing price greater than zero', 'sellingPrice'));
       const eligibility = evaluatePublishEligibility(listing, product, marketplace);
+      const requiredField = !marketplace.isConnected()
+        ? 'marketplace'
+        : !product.canPublish()
+          ? undefined
+          : listing.price.isZero()
+            ? 'sellingPrice'
+            : product.condition === 'unknown'
+              ? 'condition'
+              : undefined;
       checks.push(product.condition !== 'unknown' && eligibility.canPublish
         ? item('required_fields', 'ready', 'Required product and listing fields are valid')
-        : item('required_fields', 'fix', eligibility.warnings[0] ?? 'Complete required product fields', 'condition'));
+        : item('required_fields', 'fix', eligibility.warnings[0] ?? 'Complete required product fields', requiredField));
       checks.push(product.imageCount > 0
         ? item('media', 'ready', `${product.imageCount} product image${product.imageCount === 1 ? '' : 's'} available`)
         : item('media', 'fix', 'Add at least one product image', 'images'));
-      checks.push(marketplace.isConnected() && account?.status === 'connected'
+      checks.push(accountConnected
         ? item('marketplace', 'ready', `${marketplace.name} OAuth account is connected`)
         : item('marketplace', 'fix', 'Connect the target OLX OAuth account before publication', 'marketplace'));
 
@@ -150,9 +161,9 @@ export class ProductRecheckService {
         suggestionSource, category?.providerCategoryId ?? null, marketplace.id, listing.id,
       );
       let suggestion: MarketplaceCategoryMetadata | null = null;
-      if (rawSuggestion) {
+      if (rawSuggestion && accountConnected) {
         try {
-          const resolver = await this.olxTaxonomyResolver(marketplace.id);
+          resolver ??= await this.olxTaxonomyResolver(marketplace.id);
           suggestion = await resolver.verify(rawSuggestion.providerCategoryId);
         } catch {
           suggestion = null;
@@ -209,7 +220,7 @@ export class ProductRecheckService {
             productUpdatedAt, listingId: input.listingId, checkedAt: checkedAt.toISOString(),
             errorCode: error instanceof DomainError ? error.code : 'INTERNAL_ERROR',
           },
-          createdAt: this.clock(),
+          createdAt: checkedAt,
         });
       } catch {
         // Preserve the original failure; audit persistence errors are reported by infrastructure monitoring.

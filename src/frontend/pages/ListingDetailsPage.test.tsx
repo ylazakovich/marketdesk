@@ -6,6 +6,8 @@ import {
   categoryConflictEvidenceLines,
   mainPreviewImageSx,
   isProductRecheckStale,
+  PUBLICATION_READINESS_CHECKING_LABEL,
+  PUBLICATION_READINESS_RECHECK_LABEL,
   ProductRecheckReview,
   PublishPreviewReview,
   remoteMarketplaceChipColor,
@@ -339,5 +341,12 @@ describe('ListingDetailsPage presentation', () => {
     expect(selectProductRecommendations(events, 'product-1').map(({ id }) => id)).toEqual([
       'current',
     ]);
+  });
+
+  it('uses English labels for the publication readiness recheck action', () => {
+    expect(PUBLICATION_READINESS_RECHECK_LABEL).toBe('Check again');
+    expect(PUBLICATION_READINESS_CHECKING_LABEL).toBe('Checking…');
+    expect(PUBLICATION_READINESS_RECHECK_LABEL).not.toMatch(/[А-Яа-я]/);
+    expect(PUBLICATION_READINESS_CHECKING_LABEL).not.toMatch(/[А-Яа-я]/);
   });
 });

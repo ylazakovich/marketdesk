@@ -13,6 +13,7 @@ describe('analytics event identity migrations', () => {
     const run = read('035_run_analytics_event_backfill.sql');
     const validate = read('036_validate_analytics_event_identity.sql');
     const index = read('037_index_analytics_event_identity.sql');
+    const seedViews = read('038_seed_views_from_listings.sql');
 
     expect(prepare).toMatch(/FOREIGN KEY \(marketplace_id\)[\s\S]*NOT VALID/);
     expect(prepare).toMatch(/CHECK \(quantity IS NOT NULL\)[\s\S]*NOT VALID/);
@@ -24,6 +25,14 @@ describe('analytics event identity migrations', () => {
     expect(validate).toMatch(/VALIDATE CONSTRAINT analytics_events_marketplace_id_fkey/);
     expect(validate).toMatch(/VALIDATE CONSTRAINT analytics_events_quantity_not_null/);
     expect(validate).toMatch(/ALTER COLUMN quantity SET NOT NULL/);
+    expect(seedViews).toMatch(/INSERT INTO analytics_events/);
+    expect(seedViews).toMatch(/JOIN products p ON p.id = l.product_id/);
+    expect(seedViews).toMatch(/SUM\(GREATEST\(e\.quantity, 0\)\) FILTER \(WHERE e\.event_type = 'view'\)/);
+    expect(seedViews).toMatch(/GREATEST\(COALESCE\(l\.views, 0\) - existing_views\.quantity, 0\)/);
+    expect(seedViews).toMatch(/COALESCE\(l\.last_sync_at, l\.updated_at, l\.published_at, l\.created_at, CURRENT_TIMESTAMP\)/);
+    expect(seedViews).toMatch(/WHERE quantity > 0/);
+    expect(seedViews).not.toMatch(/event_type[^\n]*'sale'/);
+    expect(seedViews).not.toMatch(/event_type[^\n]*'message'/);
     expect(concurrentIndexIdentity(index)).toEqual({
       name: 'idx_analytics_workspace_marketplace_date',
     });

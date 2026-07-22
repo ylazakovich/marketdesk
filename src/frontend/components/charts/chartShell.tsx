@@ -16,6 +16,12 @@ export interface ChartStateProps {
   children: React.ReactNode;
 }
 
+export const CHART_EMPTY_HEIGHT = 160;
+
+export function resolveChartHeight(height: number, isEmpty = false): number {
+  return isEmpty ? Math.min(height, CHART_EMPTY_HEIGHT) : height;
+}
+
 export function useChartColors() {
   const theme = useTheme();
   return {
@@ -44,8 +50,9 @@ export const ChartState: React.FC<ChartStateProps> = ({
   if (error) return <ErrorRetry error={error} onRetry={onRetry} compact />;
   if (loading) return <Skeleton variant="rounded" height={height} sx={{ borderRadius: 2 }} />;
   if (isEmpty) {
+    const compactHeight = resolveChartHeight(height, true);
     return (
-      <Box sx={{ height }}>
+      <Box sx={{ height: compactHeight }}>
         <EmptyState title={emptyTitle} compact />
       </Box>
     );

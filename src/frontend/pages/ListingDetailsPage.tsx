@@ -61,6 +61,8 @@ export { mainPreviewImageSx };
 
 export const MIN_QUOTA_OVERRIDE_REASON_LENGTH = 10;
 export const MAX_QUOTA_OVERRIDE_REASON_LENGTH = 500;
+export const PUBLICATION_READINESS_RECHECK_LABEL = 'Check again';
+export const PUBLICATION_READINESS_CHECKING_LABEL = 'Checking…';
 
 type CategoryConflictProvenance = Extract<ProductCategoryProvenance, { status: 'conflict' }>;
 
@@ -556,7 +558,7 @@ const ListingDetailsPage: React.FC = () => {
         sx={{ my: 2 }}
         action={(
           <Button variant="contained" disabled={rechecking || !recheckListing} onClick={() => void handleRecheck()}>
-            {rechecking ? 'Проверяем…' : 'Проверить ещё раз'}
+            {rechecking ? PUBLICATION_READINESS_CHECKING_LABEL : PUBLICATION_READINESS_RECHECK_LABEL}
           </Button>
         )}
       >

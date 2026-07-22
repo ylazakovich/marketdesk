@@ -261,6 +261,10 @@ export const runHermesSchema = z.object({
   productId: z.string().uuid().optional(),
 }).strict();
 
+export const runProductHermesSchema = z.object({
+  trigger: z.enum(['scheduled', 'manual', 'event']).optional(),
+}).strict();
+
 export const dismissEventSchema = z.object({
   actorId: z.string().optional(),
   reason: z.string().optional(),

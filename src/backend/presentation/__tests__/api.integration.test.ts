@@ -426,6 +426,7 @@ async function buildTestApp(
     seedWorkspace?: boolean;
     categoryCorrectionOperationService?: CategoryCorrectionOperationService;
     productRecheckService?: ProductRecheckService;
+    hermesService?: HermesApplicationService;
   } = {}
 ) {
   const authUserStore = new InMemoryAuthStore();
@@ -446,7 +447,7 @@ async function buildTestApp(
     productService: stubProductService(),
     productRecheckService: options.productRecheckService,
     listingService: stubListingService(),
-    hermesService: stubHermesService(),
+    hermesService: options.hermesService ?? stubHermesService(),
     analyticsService: stubAnalyticsService(),
     productRepo: productRepo as IProductRepository,
     listingRepo: listingRepo as IListingRepository,
@@ -1201,6 +1202,29 @@ describe('Presentation API', () => {
       expect(res.body.data[0]).toMatchObject({ productId: 'p1' });
     });
 
+    it('runs product-scoped Hermes from the explicit route product only', async () => {
+      const calls: Array<{ workspaceId: string; productId?: string; trigger?: string }> = [];
+      const hermesService = {
+        ...stubHermesService(),
+        async runHermes(dto: { workspaceId: string; productId?: string; trigger?: string }) {
+          calls.push(dto);
+          return Ok([{ ...appliedEvent, productId: dto.productId }]);
+        },
+      } as unknown as HermesApplicationService;
+      const { app } = await buildTestApp({ hermesService });
+
+      const accepted = await auth(request(app).post('/api/hermes/products/p-real/run')).send({
+        trigger: 'manual',
+      });
+      const rejected = await auth(request(app).post('/api/hermes/products/p-real/run')).send({
+        productId: '0a0d3ba3-bc5b-4579-82e3-955d7968f5a4',
+      });
+
+      expect(accepted.status).toBe(202);
+      expect(rejected.status).toBe(400);
+      expect(calls).toEqual([{ workspaceId: 'ws-1', productId: 'p-real', trigger: 'manual' }]);
+    });
+
     it('approves a pending event (happy path)', async () => {
       const { app } = await buildTestApp();
       const res = await auth(request(app).post('/api/hermes/events/pending/approve')).send({});
@@ -1427,11 +1451,15 @@ describe('Presentation API', () => {
 
       const hermes = await auth(request(app).patch('/api/settings/hermes')).send({
         autonomyLevel: 'balanced',
+        creativityPreset: 'creative',
+        agents: { listingSeo: { enabled: false } },
         guardrails: { maxAutoPriceChangePct: 5 },
       });
       expect(hermes.status).toBe(200);
       expect(hermes.body.data).toMatchObject({
         autonomyLevel: 'balanced',
+        creativityPreset: 'creative',
+        agents: { listingSeo: { enabled: false } },
         guardrails: { maxAutoPriceChangePct: 5 },
       });
     });
@@ -1464,6 +1492,27 @@ describe('Presentation API', () => {
       ]);
       expect(savedProfile.body.data.name).toBe('Concurrent name');
       expect(savedHermes.body.data.guardrails.autoRelist).toBe(true);
+    });
+
+    it('preserves Hermes creativity and listing-seo enabled state across profile updates', async () => {
+      const { app } = await buildTestApp({ seedWorkspace: true });
+      expect(
+        (await auth(request(app).patch('/api/settings/hermes')).send({
+          creativityPreset: 'precise',
+          agents: { listingSeo: { enabled: false } },
+        })).status
+      ).toBe(200);
+
+      const profile = await auth(request(app).patch('/api/settings/workspace')).send({
+        name: 'SEO preserved',
+      });
+      const hermes = await auth(request(app).get('/api/settings/hermes'));
+
+      expect(profile.status).toBe(200);
+      expect(hermes.body.data).toMatchObject({
+        creativityPreset: 'precise',
+        agents: { listingSeo: { enabled: false } },
+      });
     });
 
     it.each([

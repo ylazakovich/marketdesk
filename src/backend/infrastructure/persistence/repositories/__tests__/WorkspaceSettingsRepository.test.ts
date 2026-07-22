@@ -18,6 +18,7 @@ describe('WorkspaceRepository partial update SQL contracts (mocked; no PostgreSQ
     expect(setClause).toContain('name = COALESCE($2, name)');
     expect(setClause).toContain('language = COALESCE($5, language)');
     expect(setClause).not.toMatch(/autonomy_level|guardrails/);
+    expect(sql).toContain('hermes_creativity_preset, listing_seo_enabled');
     expect(values).toEqual(['workspace-a', 'New name', null, null, 'pl']);
   });
 
@@ -47,6 +48,7 @@ describe('WorkspaceRepository partial update SQL contracts (mocked; no PostgreSQ
     expect(sql).toContain('currency = COALESCE($3, currency)');
     expect(sql).toContain('autonomy_level = COALESCE($6, autonomy_level)');
     expect(sql).toContain("COALESCE($7::jsonb, '{}'::jsonb)");
+    expect(sql).toContain('hermes_creativity_preset, listing_seo_enabled');
     expect(values).toEqual(['workspace-a', 'Only name', null, null, null, null, null]);
   });
 

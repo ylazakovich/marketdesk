@@ -89,6 +89,7 @@ export class WorkspaceRepository implements IWorkspaceRepository {
          updated_at = NOW()
        WHERE id = $1
        RETURNING id, name, currency, timezone, language, autonomy_level, guardrails,
+                 hermes_creativity_preset, listing_seo_enabled,
                  created_at, updated_at`,
       [
         id,
@@ -140,6 +141,7 @@ export class WorkspaceRepository implements IWorkspaceRepository {
          updated_at = NOW()
        WHERE id = $1
        RETURNING id, name, currency, timezone, language, autonomy_level, guardrails,
+                 hermes_creativity_preset, listing_seo_enabled,
                  created_at, updated_at`,
       [
         id,

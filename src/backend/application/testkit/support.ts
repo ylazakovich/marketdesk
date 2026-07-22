@@ -43,6 +43,8 @@ export class InMemoryWorkspaceRepository implements IWorkspaceRepository {
       language: normalized.language ?? current.language,
       autonomyLevel: current.autonomyLevel,
       guardrails: current.guardrails,
+      creativityPreset: current.creativityPreset,
+      listingSeoEnabled: current.listingSeoEnabled,
       createdAt: current.createdAt,
     });
     if (result.isErr()) throw result.error;
@@ -61,6 +63,8 @@ export class InMemoryWorkspaceRepository implements IWorkspaceRepository {
       language: current.language,
       autonomyLevel: normalized.autonomyLevel ?? current.autonomyLevel,
       guardrails: { ...current.guardrails, ...normalized.guardrails },
+      creativityPreset: normalized.creativityPreset ?? current.creativityPreset,
+      listingSeoEnabled: normalized.listingSeoEnabled ?? current.listingSeoEnabled,
       createdAt: current.createdAt,
     });
     if (result.isErr()) throw result.error;
@@ -81,6 +85,8 @@ export class InMemoryWorkspaceRepository implements IWorkspaceRepository {
       language: normalized.language ?? current.language,
       autonomyLevel: normalized.autonomyLevel ?? current.autonomyLevel,
       guardrails: { ...current.guardrails, ...normalized.guardrails },
+      creativityPreset: normalized.creativityPreset ?? current.creativityPreset,
+      listingSeoEnabled: normalized.listingSeoEnabled ?? current.listingSeoEnabled,
       createdAt: current.createdAt,
     });
     if (result.isErr()) throw result.error;

@@ -9,6 +9,7 @@ import {
   approveCategoryCorrectionOperationSchema,
   executeCategoryCorrectionOperationSchema,
   dismissEventSchema,
+  runProductHermesSchema,
   runHermesSchema,
 } from '../validation/schemas';
 
@@ -42,7 +43,7 @@ export function createHermesRoutes(controller: HermesController): Router {
   );
   router.post(
     '/products/:productId/run',
-    validateBody(runHermesSchema),
+    validateBody(runProductHermesSchema),
     asyncHandler(controller.runForProduct)
   );
   router.post('/run', validateBody(runHermesSchema), asyncHandler(controller.run));

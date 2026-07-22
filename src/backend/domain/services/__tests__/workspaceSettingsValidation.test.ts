@@ -21,6 +21,8 @@ describe('normalizeWorkspacePatch', () => {
     [{ timezone: 'Mars\/Olympus' }, /Invalid timezone/],
     [{ guardrails: { maxAutoPriceChangePct: 101 } }, /within \[0, 100\]/],
     [{ guardrails: { autoRelist: 'yes' } }, /must be a boolean/],
+    [{ creativityPreset: 'random' }, /Invalid Hermes creativity preset/],
+    [{ listingSeoEnabled: 'yes' }, /listingSeoEnabled must be a boolean/],
   ];
 
   it.each(invalidCases)(

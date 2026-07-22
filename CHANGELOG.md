@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.3](https://github.com/ylazakovich/marketdesk/compare/marketdesk-v0.17.2...marketdesk-v0.17.3) (2026-07-22)
+
+
+### 🐛 Bug Fixes
+
+* **olx:** count messages from thread metadata ([#256](https://github.com/ylazakovich/marketdesk/issues/256)) ([29e4c68](https://github.com/ylazakovich/marketdesk/commit/29e4c68e01d27efc7e8547ac48dcc26a0fb90eda))
+
 ## [0.17.2](https://github.com/ylazakovich/marketdesk/compare/marketdesk-v0.17.1...marketdesk-v0.17.2) (2026-07-22)
 
 

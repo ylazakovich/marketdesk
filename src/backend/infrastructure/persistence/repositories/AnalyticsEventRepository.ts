@@ -1,8 +1,10 @@
 import type { Pool, PoolClient } from 'pg';
+import { createHash } from 'crypto';
 import { query as databaseQuery } from '../../../config/database';
 import type {
   AnalyticsEventQuery,
   AnalyticsEventRecord,
+  AppendAnalyticsEvent,
   AnalyticsEventType,
   IAnalyticsEventRepository,
 } from '../../../application/ports/IAnalyticsEventRepository';
@@ -24,6 +26,11 @@ export class AnalyticsEventRepository implements IAnalyticsEventRepository {
 
   constructor(pool?: Pool, client?: PoolClient) {
     this.queryClient = client ?? pool;
+  }
+
+  private async run(sql: string, values: unknown[]): Promise<void> {
+    if (this.queryClient) await this.queryClient.query(sql, values);
+    else await databaseQuery(sql, values);
   }
 
   async findByRange(input: AnalyticsEventQuery): Promise<AnalyticsEventRecord[]> {
@@ -56,5 +63,21 @@ export class AnalyticsEventRepository implements IAnalyticsEventRepository {
       costAtSale: row.cost_at_sale === null ? null : Number(row.cost_at_sale),
       occurredAt: new Date(row.occurred_at),
     }));
+  }
+
+  async appendMany(events: AppendAnalyticsEvent[]): Promise<void> {
+    for (const event of events) {
+      if (!Number.isInteger(event.quantity) || event.quantity <= 0) continue;
+      const hex = createHash('sha256').update(event.idempotencyKey).digest('hex');
+      const id = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-5${hex.slice(13, 16)}-a${hex.slice(17, 20)}-${hex.slice(20, 32)}`;
+      await this.run(
+        `INSERT INTO analytics_events
+          (id, workspace_id, listing_id, event_type, quantity, amount, cost_at_sale, occurred_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+         ON CONFLICT (id) DO NOTHING`,
+        [id, event.workspaceId, event.listingId, event.eventType, event.quantity,
+          event.amount, event.costAtSale, event.occurredAt],
+      );
+    }
   }
 }

@@ -319,8 +319,8 @@ export interface AnalyticsOverview {
   totalWatchers: number;
   totalMessages: number;
   inventoryValue: number;
-  revenue: number;
-  profit: number;
+  revenue: number | null;
+  profit: number | null;
   sales: number;
   conversion: number;
   previous: Pick<AnalyticsOverview, 'revenue' | 'profit' | 'totalViews' | 'sales' | 'conversion'> | null;
@@ -328,8 +328,8 @@ export interface AnalyticsOverview {
 
 export interface RevenuePoint {
   date: string; // ISO date bucket
-  revenue: number;
-  profit: number;
+  revenue: number | null;
+  profit: number | null;
   previous: number | null;
 }
 
@@ -351,8 +351,8 @@ export interface ListingPerformance {
   marketplaceListingId: string | null;
   status: ListingStatus;
   price: number;
-  revenue: number;
-  profit: number;
+  revenue: number | null;
+  profit: number | null;
   sales: number;
   views: number;
   conversion: number;

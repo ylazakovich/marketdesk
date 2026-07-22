@@ -436,11 +436,12 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     approveEventUC,
     dismissEventUC
   );
+  const analyticsEventRepo = new AnalyticsEventRepository(pool);
   const analyticsService = new AnalyticsApplicationService(
     productRepo,
     listingRepo,
     marketplaceRepo,
-    new AnalyticsEventRepository(pool),
+    analyticsEventRepo,
   );
   const categoryCorrectionOperationService = new CategoryCorrectionOperationService(
     categoryCorrectionOperationRepo,
@@ -544,6 +545,24 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
   const syncHandler = new SyncMarketplaceHandler(adapterFactory, {
     listingStore: listingRepo,
     marketplaceStore: marketplaceRepo,
+    recordAnalyticsEvents: async ({ workspaceId, events }) => {
+      const records = await Promise.all(events.map(async (event) => {
+        const product = event.eventType === 'sale'
+          ? await productRepo.findByIdForWorkspace(event.listing.productId, workspaceId)
+          : null;
+        return {
+          idempotencyKey: `${workspaceId}:${event.idempotencyKey}`,
+          workspaceId,
+          listingId: event.listing.id,
+          eventType: event.eventType,
+          quantity: event.quantity,
+          amount: event.eventType === 'sale' ? event.listing.price.amount * event.quantity : null,
+          costAtSale: event.eventType === 'sale' && product?.costPrice ? product.costPrice.amount : null,
+          occurredAt: event.occurredAt,
+        };
+      }));
+      await analyticsEventRepo.appendMany(records);
+    },
     accessTokens: env.marketplaces.olx.adapterMode === 'real' ? marketplaceOAuthService : undefined,
     authenticatedHttpClient:
       env.marketplaces.olx.adapterMode === 'real'

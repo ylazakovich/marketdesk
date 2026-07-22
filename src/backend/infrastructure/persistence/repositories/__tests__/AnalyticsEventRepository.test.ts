@@ -23,4 +23,22 @@ describe('AnalyticsEventRepository', () => {
       quantity: 2, amount: 200, costAtSale: 50,
     });
   });
+
+  it('appends events with a deterministic id so retries are idempotent', async () => {
+    const query = jest.fn().mockResolvedValue({ rows: [] });
+    const repository = new AnalyticsEventRepository({ query } as unknown as Pool);
+    const event = {
+      idempotencyKey: 'ws-1:sync:view:l-1:42', workspaceId: 'ws-1', listingId: 'l-1',
+      eventType: 'view' as const, quantity: 42, amount: null, costAtSale: null,
+      occurredAt: new Date('2026-07-22T10:00:00Z'),
+    };
+
+    await repository.appendMany([event]);
+    await repository.appendMany([event]);
+
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(query.mock.calls[0][0]).toContain('ON CONFLICT (id) DO NOTHING');
+    expect(query.mock.calls[0][1][0]).toBe(query.mock.calls[1][1][0]);
+    expect(query.mock.calls[0][1]).toEqual(expect.arrayContaining(['ws-1', 'l-1', 'view', 42]));
+  });
 });

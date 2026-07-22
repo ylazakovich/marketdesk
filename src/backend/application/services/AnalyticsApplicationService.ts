@@ -14,8 +14,8 @@ export interface AnalyticsRange {
 }
 
 export interface PeriodMetrics {
-  revenue: number;
-  profit: number;
+  revenue: number | null;
+  profit: number | null;
   totalViews: number;
   sales: number;
   conversion: number;
@@ -36,8 +36,8 @@ export interface DashboardMetrics extends PeriodMetrics {
 
 export interface RevenuePoint {
   date: string;
-  revenue: number;
-  profit: number;
+  revenue: number | null;
+  profit: number | null;
   previous: number | null;
 }
 
@@ -51,8 +51,8 @@ export interface ListingPerformance {
   marketplaceListingId: string | null;
   status: ListingStatus;
   price: number;
-  revenue: number;
-  profit: number;
+  revenue: number | null;
+  profit: number | null;
   sales: number;
   views: number;
   conversion: number;
@@ -63,19 +63,23 @@ export interface ListingPerformance {
 function aggregate(events: AnalyticsEventRecord[]): PeriodMetrics {
   let revenue = 0;
   let cost = 0;
+  let revenueComplete = true;
+  let costComplete = true;
   let totalViews = 0;
   let sales = 0;
   for (const event of events) {
     if (event.eventType === 'view') totalViews += event.quantity;
     if (event.eventType === 'sale') {
       sales += event.quantity;
-      revenue += event.amount ?? 0;
-      cost += (event.costAtSale ?? 0) * event.quantity;
+      if (event.amount === null) revenueComplete = false;
+      else revenue += event.amount;
+      if (event.costAtSale === null) costComplete = false;
+      else cost += event.costAtSale * event.quantity;
     }
   }
   return {
-    revenue,
-    profit: revenue - cost,
+    revenue: revenueComplete ? revenue : null,
+    profit: revenueComplete && costComplete ? revenue - cost : null,
     totalViews,
     sales,
     conversion: totalViews > 0 ? (sales / totalViews) * 100 : 0,
@@ -209,10 +213,12 @@ export class AnalyticsApplicationService {
         listingId: listing.id, productId: listing.productId, productName: product?.name ?? null,
         productSku: product?.sku ?? null, marketplaceId: listing.marketplaceId,
         marketplaceName: marketplace?.name ?? null, marketplaceListingId: listing.marketplaceListingId,
-        status: listing.status, price: listing.price.amount, revenue: metrics?.revenue ?? 0,
-        profit: metrics?.profit ?? 0, sales: metrics?.sales ?? 0, views,
+        status: listing.status, price: listing.price.amount,
+        revenue: metrics ? metrics.revenue : 0,
+        profit: metrics ? metrics.profit : 0,
+        sales: metrics?.sales ?? 0, views,
         conversion: metrics?.conversion ?? 0, watchers: counter(listing.watchers), messages,
       };
-    }).sort((a, b) => b.revenue - a.revenue || b.views - a.views);
+    }).sort((a, b) => (b.revenue ?? Number.NEGATIVE_INFINITY) - (a.revenue ?? Number.NEGATIVE_INFINITY) || b.views - a.views);
   }
 }

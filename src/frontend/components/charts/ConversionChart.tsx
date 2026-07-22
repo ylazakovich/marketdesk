@@ -1,4 +1,4 @@
-// Conversion funnel (views → messages → sales) from the analytics overview hook.
+// Canonical sales conversion (sales / historical views) from the selected period.
 import React, { useMemo } from 'react';
 import { Stack, Typography } from '@mui/material';
 import {
@@ -29,21 +29,19 @@ export const ConversionChart: React.FC<ConversionChartProps> = ({ params, height
     if (!data) return { chartData: [], conversionRate: 0, isEmpty: true };
     const rows = [
       { stage: 'Views', value: data.totalViews },
-      { stage: 'Watchers', value: data.totalWatchers },
-      { stage: 'Messages', value: data.totalMessages },
+      { stage: 'Sales', value: data.sales },
     ];
-    const rate = data.totalViews > 0 ? (data.totalMessages / data.totalViews) * 100 : 0;
-    const empty =
-      data.totalViews === 0 && data.totalWatchers === 0 && data.totalMessages === 0;
+    const rate = data.conversion;
+    const empty = data.totalViews === 0 && data.sales === 0;
     return { chartData: rows, conversionRate: rate, isEmpty: empty };
   }, [data]);
 
-  const stageColors = [colors.primary, colors.secondary, colors.success];
+  const stageColors = [colors.primary, colors.success];
 
   return (
     <Stack spacing={1} sx={{ height: '100%' }}>
       <Typography variant="body2" color="text.secondary">
-        View → message rate:{' '}
+        View → sale conversion:{' '}
         <Typography component="span" variant="body2" sx={{ fontWeight: 700, color: 'text.primary' }}>
           {formatPercent(conversionRate)}
         </Typography>

@@ -8,7 +8,7 @@ import VisibilityIcon from '@mui/icons-material/VisibilityOutlined';
 import PercentIcon from '@mui/icons-material/PercentOutlined';
 import DownloadIcon from '@mui/icons-material/DownloadOutlined';
 import ImageIcon from '@mui/icons-material/ImageOutlined';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAnalyticsListings, useAnalyticsOverview, useMarketplaces } from '../services/hooks/index.js';
 import type { AnalyticsQueryParams, ListingPerformance } from '../state/api/index.js';
 import { useAppSelector } from '../state/hooks.js';
@@ -31,7 +31,11 @@ export function analyticsRangeForPreset(preset: Exclude<AnalyticsPreset, 'custom
 }
 
 export function analyticsCsv(rows: ListingPerformance[]): string {
-  const escape = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const escape = (value: unknown) => {
+    const raw = String(value ?? '');
+    const safe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
+    return `"${safe.replace(/"/g, '""')}"`;
+  };
   const header = ['Listing', 'Product', 'Marketplace', 'Revenue', 'Profit', 'Sales', 'Views', 'Conversion'];
   return [header, ...rows.map((row) => [
     row.listingId, row.productName ?? row.productId, row.marketplaceName ?? row.marketplaceId,
@@ -105,16 +109,23 @@ const AnalyticsPage: React.FC = () => {
     typeof current === 'number' && typeof previous === 'number' && previous !== 0
       ? ((current - previous) / previous) * 100 : undefined;
   const rows: ListingPerformance[] = listings.data ?? [];
-  const best = rows.slice(0, 5);
-  const worst = [...rows].sort((a, b) => a.revenue - b.revenue || a.views - b.views).slice(0, 5);
+  const observedRows = rows.filter((row) => row.views > 0 || row.sales > 0 || (row.revenue ?? 0) > 0);
+  const best = [...observedRows].sort((a, b) => (b.revenue ?? 0) - (a.revenue ?? 0) || b.sales - a.sales || b.views - a.views).slice(0, 5);
+  const worst = [...observedRows].sort((a, b) => (a.revenue ?? 0) - (b.revenue ?? 0) || a.sales - b.sales || a.views - b.views).slice(0, 5);
   const marketplaceSummary = useMemo(() => {
-    const totals = new Map<string, { name: string; revenue: number; profit: number; views: number }>();
+    const totals = new Map<string, { name: string; revenue: number | null; views: number; sales: number; listings: number }>();
     for (const row of rows) {
       const key = row.marketplaceId;
-      const total = totals.get(key) ?? { name: row.marketplaceName ?? key, revenue: 0, profit: 0, views: 0 };
-      total.revenue += row.revenue; total.profit += row.profit; total.views += row.views; totals.set(key, total);
+      const total = totals.get(key) ?? { name: row.marketplaceName ?? key, revenue: 0, views: 0, sales: 0, listings: 0 };
+      total.revenue = total.revenue === null || row.revenue === null ? null : total.revenue + row.revenue;
+      total.views += row.views; total.sales += row.sales; total.listings += 1; totals.set(key, total);
     }
-    return [...totals.values()].sort((a, b) => b.revenue - a.revenue);
+    const knownRevenue = [...totals.values()].reduce((sum, item) => sum + (item.revenue ?? 0), 0);
+    return [...totals.values()].map((item) => ({
+      ...item,
+      conversion: item.views > 0 ? (item.sales / item.views) * 100 : 0,
+      share: item.revenue !== null && knownRevenue > 0 ? (item.revenue / knownRevenue) * 100 : null,
+    })).sort((a, b) => (b.revenue ?? 0) - (a.revenue ?? 0));
   }, [rows]);
 
   const downloadCsv = () => {
@@ -163,18 +174,39 @@ const AnalyticsPage: React.FC = () => {
 
       <Box sx={{ display: 'grid', gap: 2.5, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, mb: 2.5 }}>
         <Card title="Marketplace comparison">
-          {!marketplaceSummary.length ? <Typography color="text.secondary">No marketplace events in this range.</Typography> : marketplaceSummary.map((item) => (
+          {listings.isLoading ? <Typography role="status">Loading marketplace comparison…</Typography>
+            : listings.isError ? <Button onClick={listings.refetch}>Retry marketplace comparison</Button>
+              : !marketplaceSummary.length ? <Typography color="text.secondary">No marketplace events in this range.</Typography> : marketplaceSummary.map((item) => (
             <Stack key={item.name} direction="row" justifyContent="space-between" sx={{ py: 0.75 }}>
-              <Typography>{item.name}</Typography><Typography>{formatCurrency(item.revenue, currency)} · {formatNumber(item.views)} views</Typography>
+              <Typography>{item.name}</Typography><Typography sx={{ textAlign: 'right' }}>
+                {formatNumber(item.listings)} listings · {formatCurrency(item.revenue, currency)} · {formatNumber(item.sales)} sales<br />
+                {formatNumber(item.conversion)}% conversion · {item.share === null ? '—' : `${formatNumber(item.share)}%`} revenue share
+              </Typography>
             </Stack>
           ))}
+          <Typography variant="caption" color="text.secondary" role="status">
+            {marketplaceSummary.length ? `${marketplaceSummary.length} marketplaces compared for the selected period.` : 'No reportable marketplace observations.'}
+          </Typography>
         </Card>
-        <Card title="Views and conversion"><ViewsChart params={params} /><ConversionChart params={params} /></Card>
+        <Card title="Views and sales conversion">
+          <Typography variant="caption" color="text.secondary" role="status">
+            {ov ? `${formatNumber(ov.sales)} sales from ${formatNumber(ov.totalViews)} historical views; ${formatNumber(ov.conversion)}% conversion.` : 'Loading conversion summary.'}
+          </Typography>
+          <ViewsChart params={params} /><ConversionChart params={params} />
+        </Card>
       </Box>
 
       <Box sx={{ display: 'grid', gap: 2.5, gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' }, mb: 2.5 }}>
-        <Card title="Best listings"><Typography variant="body2">{best.length ? best.map((row) => row.productName ?? row.listingId).join(' · ') : 'Insufficient sales data for this range.'}</Typography></Card>
-        <Card title="Needs attention"><Typography variant="body2">{worst.length ? worst.map((row) => row.productName ?? row.listingId).join(' · ') : 'Insufficient sales data for this range.'}</Typography></Card>
+        <Card title="Best listings">{listings.isLoading ? <Typography role="status">Loading ranked listings…</Typography>
+          : listings.isError ? <Button onClick={listings.refetch}>Retry ranked listings</Button>
+            : best.length ? best.map((row, index) => <Typography key={row.listingId} variant="body2" sx={{ py: 0.4 }}>
+          #{index + 1} <Link to={`/products/${row.productId}`}>{row.productName ?? row.listingId}</Link> · {formatNumber(row.sales)} sold · {formatCurrency(row.revenue, currency)} · {formatNumber(row.conversion)}%
+        </Typography>) : <Typography variant="body2">Insufficient observed data for this range.</Typography>}</Card>
+        <Card title="Needs attention">{listings.isLoading ? <Typography role="status">Loading listings needing attention…</Typography>
+          : listings.isError ? <Button onClick={listings.refetch}>Retry listings needing attention</Button>
+            : worst.length ? worst.map((row, index) => <Typography key={row.listingId} variant="body2" sx={{ py: 0.4 }}>
+          #{index + 1} <Link to={`/products/${row.productId}`}>{row.productName ?? row.listingId}</Link> · {formatNumber(row.sales)} sold · {formatCurrency(row.revenue, currency)} · {formatNumber(row.conversion)}%
+        </Typography>) : <Typography variant="body2">Insufficient observed data for this range.</Typography>}</Card>
       </Box>
 
       <Card title="Listing performance" disablePadding>

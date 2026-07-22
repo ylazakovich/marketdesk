@@ -78,4 +78,17 @@ describe('analytics report helpers', () => {
     expect(csv).toContain('"Camera, ""Pro"""');
     expect(csv.split('\n')).toHaveLength(2);
   });
+
+  it('neutralizes spreadsheet formulas in provider and user controlled cells', () => {
+    const row: ListingPerformance = {
+      listingId: '=HYPERLINK("https://evil")', productId: 'product-1', productName: '+cmd|calc', productSku: null,
+      marketplaceId: 'marketplace-1', marketplaceName: '@SUM(1+1)', marketplaceListingId: null,
+      status: 'live', price: 1, revenue: null, profit: null, sales: 0, views: 1,
+      conversion: 0, watchers: 0, messages: 0,
+    };
+    const csv = analyticsCsv([row]);
+    expect(csv).toContain('"\'=HYPERLINK(""https://evil"")"');
+    expect(csv).toContain('"\'+cmd|calc"');
+    expect(csv).toContain('"\'@SUM(1+1)"');
+  });
 });

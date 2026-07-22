@@ -138,5 +138,12 @@ describe('AnalyticsApplicationService', () => {
     expect(performance[0]).toMatchObject({
       listingId: listing.id, revenue: 200, profit: 100, views: 100, sales: 2, conversion: 2,
     });
+
+    events[1].costAtSale = null;
+    const incompleteOverview = await service.getDashboardMetrics('ws-1', range);
+    expect(incompleteOverview.revenue).toBe(200);
+    expect(incompleteOverview.profit).toBeNull();
+    const incompletePerformance = await service.getListingPerformance('ws-1', range);
+    expect(incompletePerformance[0].profit).toBeNull();
   });
 });

@@ -5,22 +5,30 @@ import { ok } from '../formatters/ResponseFormatter';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function first(value: unknown): string | undefined {
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+function first(value: unknown, field: string): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') throw new ValidationError(`Analytics ${field} must be a single string`);
+  return value.trim() || undefined;
+}
+
+function parseDate(value: string): Date {
+  const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const parsed = new Date(dateOnly ? `${value}T00:00:00.000Z` : value);
+  if (Number.isNaN(parsed.getTime())
+    || (dateOnly && parsed.toISOString().slice(0, 10) !== value)) {
+    throw new ValidationError('Analytics date range is invalid');
+  }
+  return parsed;
 }
 
 export function parseAnalyticsRange(query: Request['query'], now: Date = new Date()): AnalyticsRange {
-  const fromValue = first(query.from);
-  const toValue = first(query.to);
-  const intervalValue = first(query.interval);
-  const marketplaceId = first(query.marketplaceId);
-  const to = toValue
-    ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(toValue) ? `${toValue}T00:00:00.000Z` : toValue)
-    : now;
+  const fromValue = first(query.from, 'from');
+  const toValue = first(query.to, 'to');
+  const intervalValue = first(query.interval, 'interval');
+  const marketplaceId = first(query.marketplaceId, 'marketplaceId');
+  const to = toValue ? parseDate(toValue) : now;
   if (toValue && /^\d{4}-\d{2}-\d{2}$/.test(toValue)) to.setUTCDate(to.getUTCDate() + 1);
-  const from = fromValue
-    ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(fromValue) ? `${fromValue}T00:00:00.000Z` : fromValue)
-    : new Date(to.getTime() - 30 * DAY_MS);
+  const from = fromValue ? parseDate(fromValue) : new Date(to.getTime() - 30 * DAY_MS);
   if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from >= to) {
     throw new ValidationError('Analytics date range is invalid');
   }

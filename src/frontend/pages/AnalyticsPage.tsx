@@ -58,7 +58,8 @@ export const AnalyticsDateRangeControls: React.FC<AnalyticsDateRangeControlsProp
   <Stack spacing={1}>
     <ButtonGroup size="small" aria-label="Analytics date range presets">
       {(['7d', '30d', '90d', 'ytd'] as const).map((value) => (
-        <Button key={value} variant={preset === value ? 'contained' : 'outlined'} onClick={() => onPresetChange?.(value)}>
+        <Button key={value} aria-pressed={preset === value}
+          variant={preset === value ? 'contained' : 'outlined'} onClick={() => onPresetChange?.(value)}>
           {value.toUpperCase()}
         </Button>
       ))}

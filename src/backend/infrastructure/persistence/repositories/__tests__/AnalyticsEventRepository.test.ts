@@ -1,5 +1,8 @@
 import type { Pool } from 'pg';
+import { query as databaseQuery } from '../../../../config/database';
 import { AnalyticsEventRepository } from '../AnalyticsEventRepository';
+
+jest.mock('../../../../config/database', () => ({ query: jest.fn() }));
 
 describe('AnalyticsEventRepository', () => {
   it('binds range and marketplace queries to the workspace', async () => {
@@ -42,5 +45,28 @@ describe('AnalyticsEventRepository', () => {
     expect(query.mock.calls[0][0]).toContain('ON CONFLICT (id) DO NOTHING');
     expect(query.mock.calls[0][1][0]).toBe(query.mock.calls[1][1][0]);
     expect(query.mock.calls[0][1]).toEqual(expect.arrayContaining(['ws-1', 'l-1', 'view', 42]));
+  });
+
+  it('omits the marketplace clause when no marketplace filter is requested', async () => {
+    const query = jest.fn().mockResolvedValue({ rows: [] });
+    const repository = new AnalyticsEventRepository({ query } as unknown as Pool);
+    const from = new Date('2026-07-01T00:00:00Z');
+    const to = new Date('2026-07-11T00:00:00Z');
+
+    await repository.findByRange({ workspaceId: 'ws-1', from, to });
+
+    expect(query).toHaveBeenCalledWith(expect.not.stringContaining('= $4'), ['ws-1', from, to]);
+  });
+
+  it('uses the shared database query when no client is injected', async () => {
+    const sharedQuery = databaseQuery as jest.MockedFunction<typeof databaseQuery>;
+    sharedQuery.mockResolvedValueOnce({ rows: [], rowCount: 0, command: 'SELECT', oid: 0, fields: [] });
+    const repository = new AnalyticsEventRepository();
+    const from = new Date('2026-07-01T00:00:00Z');
+    const to = new Date('2026-07-11T00:00:00Z');
+
+    await repository.findByRange({ workspaceId: 'ws-1', from, to });
+
+    expect(sharedQuery).toHaveBeenCalledWith(expect.stringContaining('e.workspace_id = $1'), ['ws-1', from, to]);
   });
 });

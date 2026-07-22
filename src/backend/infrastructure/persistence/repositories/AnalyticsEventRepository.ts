@@ -16,7 +16,7 @@ interface AnalyticsEventRow {
   marketplace_id: string | null;
   currency: string | null;
   event_type: string;
-  quantity: number | string | null;
+  quantity: number | string;
   amount: number | string | null;
   cost_at_sale: number | string | null;
   occurred_at: Date | string;
@@ -61,7 +61,7 @@ export class AnalyticsEventRepository implements IAnalyticsEventRepository {
       marketplaceId: row.marketplace_id,
       currency: row.currency,
       eventType: row.event_type as AnalyticsEventType,
-      quantity: Number(row.quantity ?? 1),
+      quantity: Number(row.quantity),
       amount: row.amount === null ? null : Number(row.amount),
       costAtSale: row.cost_at_sale === null ? null : Number(row.cost_at_sale),
       occurredAt: new Date(row.occurred_at),

@@ -176,12 +176,15 @@ export class AnalyticsApplicationService {
         to: range.from,
       }),
     ]);
-    const byBucket = new Map<string, PeriodMetrics>();
+    const eventsByBucket = new Map<string, AnalyticsEventRecord[]>();
     for (const event of current) {
       const key = bucketStart(event.occurredAt, interval);
-      const bucketEvents = current.filter((candidate) => bucketStart(candidate.occurredAt, interval) === key);
-      byBucket.set(key, aggregate(bucketEvents));
+      const bucketEvents = eventsByBucket.get(key);
+      if (bucketEvents) bucketEvents.push(event);
+      else eventsByBucket.set(key, [event]);
     }
+    const byBucket = new Map([...eventsByBucket.entries()]
+      .map(([key, bucketEvents]) => [key, aggregate(bucketEvents)]));
     const previousRevenue = aggregate(previous).revenue;
     const series = [...byBucket.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, metrics], index) => ({
       date, revenue: metrics.revenue, profit: metrics.profit,

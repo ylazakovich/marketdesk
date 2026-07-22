@@ -415,7 +415,7 @@ CREATE TABLE IF NOT EXISTS analytics_events (
   listing_id UUID REFERENCES listings(id) ON DELETE SET NULL,
   marketplace_id UUID REFERENCES marketplaces(id) ON DELETE SET NULL,
   event_type VARCHAR(50) NOT NULL, -- 'view' | 'message' | 'sale'
-  quantity INT DEFAULT 1,
+  quantity INT NOT NULL DEFAULT 1,
   amount DECIMAL(10, 2),
   cost_at_sale DECIMAL(10, 2),
   currency VARCHAR(3),

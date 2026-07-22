@@ -52,6 +52,7 @@ SELECT
   occurred_at,
   CURRENT_TIMESTAMP
 FROM corrections
+-- Subtracting 1 avoids a trailing empty chunk when gap is an exact INT_MAX multiple.
 CROSS JOIN LATERAL generate_series(
   0,
   ((corrections.gap - 1) / 2147483647)::INTEGER

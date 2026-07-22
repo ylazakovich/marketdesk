@@ -279,8 +279,8 @@ export class Listing {
   ): void {
     if (stats.views !== undefined && stats.views !== null) this._views = stats.views;
     if (stats.watchers !== undefined && stats.watchers !== null) this._watchers = stats.watchers;
-    if (stats.conversations !== undefined) this._conversations = stats.conversations;
-    if (stats.messages !== undefined) this._messages = stats.messages;
+    if (stats.conversations !== undefined && stats.conversations !== null) this._conversations = stats.conversations;
+    if (stats.messages !== undefined && stats.messages !== null) this._messages = stats.messages;
     if (stats.remoteStatus !== undefined) this._remoteStatus = stats.remoteStatus;
     this._lastSyncAt = at;
     this.touch();

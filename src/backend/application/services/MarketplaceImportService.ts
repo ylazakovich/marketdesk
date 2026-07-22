@@ -764,6 +764,9 @@ export class MarketplaceImportService {
     }
     const statusRecorded = listing.recordImportedStatus(remote.status, product ?? null);
     if (statusRecorded.isErr()) throw statusRecorded.error;
+    if (remote.metrics?.conversations === null || remote.metrics?.messages === null) {
+      listing.recordMessagesUnavailable();
+    }
     listing.recordSyncStats(remote.metrics ?? {}, new Date());
     listing.recordSyncStatusNote(null);
     await repos.listingRepo.save(listing);

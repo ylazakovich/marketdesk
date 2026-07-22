@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.17.1](https://github.com/ylazakovich/marketdesk/compare/marketdesk-v0.17.0...marketdesk-v0.17.1) (2026-07-22)
+
+
+### 🐛 Bug Fixes
+
+* **analytics:** restore legacy view baseline ([#249](https://github.com/ylazakovich/marketdesk/issues/249)) ([e552a8d](https://github.com/ylazakovich/marketdesk/commit/e552a8d2bc39ff172442bec76aa0ee5280d6cfc9))
+
+
+### 🧹 Chores
+
+* **deps:** lock file maintenance ([#250](https://github.com/ylazakovich/marketdesk/issues/250)) ([d376aa4](https://github.com/ylazakovich/marketdesk/commit/d376aa467bbc3601bae51aaa6188808167a17fd8))
+
 ## [0.17.0](https://github.com/ylazakovich/marketdesk/compare/marketdesk-v0.16.0...marketdesk-v0.17.0) (2026-07-22)
 
 

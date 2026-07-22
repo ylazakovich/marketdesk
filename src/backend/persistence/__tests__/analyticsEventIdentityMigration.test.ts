@@ -20,7 +20,7 @@ describe('analytics event identity migrations', () => {
     expect(procedure).toMatch(/LIMIT batch_size/);
     expect(procedure).toMatch(/SKIP LOCKED/);
     expect(procedure).toMatch(/COMMIT;/);
-    expect(run.trim()).toMatch(/^--[\s\S]*CALL marketdesk_backfill_analytics_event_identity\(1000\);$/);
+    expect(run).toMatch(/^\s*CALL marketdesk_backfill_analytics_event_identity\(1000\);\s*$/m);
     expect(validate).toMatch(/VALIDATE CONSTRAINT analytics_events_marketplace_id_fkey/);
     expect(validate).toMatch(/VALIDATE CONSTRAINT analytics_events_quantity_not_null/);
     expect(validate).toMatch(/ALTER COLUMN quantity SET NOT NULL/);

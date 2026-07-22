@@ -302,6 +302,7 @@ export interface AnalyticsQueryParams {
   from?: string; // ISO date
   to?: string; // ISO date
   interval?: 'day' | 'week' | 'month';
+  marketplaceId?: string;
 }
 
 // GET /analytics/overview → dashboard aggregates. `previous` is always present
@@ -318,12 +319,17 @@ export interface AnalyticsOverview {
   totalWatchers: number;
   totalMessages: number;
   inventoryValue: number;
-  previous: Omit<AnalyticsOverview, 'previous'> | null;
+  revenue: number;
+  profit: number;
+  sales: number;
+  conversion: number;
+  previous: Pick<AnalyticsOverview, 'revenue' | 'profit' | 'totalViews' | 'sales' | 'conversion'> | null;
 }
 
 export interface RevenuePoint {
   date: string; // ISO date bucket
   revenue: number;
+  profit: number;
   previous: number | null;
 }
 
@@ -345,7 +351,11 @@ export interface ListingPerformance {
   marketplaceListingId: string | null;
   status: ListingStatus;
   price: number;
+  revenue: number;
+  profit: number;
+  sales: number;
   views: number;
+  conversion: number;
   watchers: number;
   messages: number;
 }

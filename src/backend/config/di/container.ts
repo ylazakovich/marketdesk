@@ -29,6 +29,7 @@ import { EventRepository } from '../../infrastructure/persistence/repositories/E
 import { WorkspaceRepository } from '../../infrastructure/persistence/repositories/WorkspaceRepository';
 import { SettingsRepository } from '../../infrastructure/persistence/repositories/SettingsRepository';
 import { ActivityLogRepository } from '../../infrastructure/persistence/repositories/ActivityLogRepository';
+import { AnalyticsEventRepository } from '../../infrastructure/persistence/repositories/AnalyticsEventRepository';
 import { AuthUserRepository } from '../../infrastructure/persistence/repositories/AuthUserRepository';
 import { PriceHistoryRepository } from '../../infrastructure/persistence/repositories/PriceHistoryRepository';
 import { OlxPublicationQuotaRepository } from '../../infrastructure/persistence/repositories/OlxPublicationQuotaRepository';
@@ -438,7 +439,8 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
   const analyticsService = new AnalyticsApplicationService(
     productRepo,
     listingRepo,
-    marketplaceRepo
+    marketplaceRepo,
+    new AnalyticsEventRepository(pool),
   );
   const categoryCorrectionOperationService = new CategoryCorrectionOperationService(
     categoryCorrectionOperationRepo,

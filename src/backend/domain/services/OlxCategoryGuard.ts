@@ -17,7 +17,43 @@ export interface OlxCategoryGuardResult {
 
 const PROJECTOR_TERMS = ['projector', 'projektor', 'beamer'];
 const HEADPHONE_TERMS = ['headphone', 'headphones', 'słuchawki', 'sluchawki', 'earbuds', 'airpods'];
+const SEMANTIC_FAMILIES: ReadonlyArray<readonly string[]> = [
+  PROJECTOR_TERMS,
+  HEADPHONE_TERMS,
+  ['television', 'televisions', 'telewizor', 'telewizory', 'tv'],
+  ['scale', 'scales', 'waga', 'wagi'],
+  ['smartphone', 'smartphones', 'smartfon', 'smartfony', 'telefon', 'telefony', 'iphone'],
+  ['laptop', 'laptops', 'notebook', 'notebooks'],
+  ['camera', 'cameras', 'aparat', 'aparaty'],
+  ['shoe', 'shoes', 'sneaker', 'sneakers', 'but', 'buty'],
+];
 const MAX_TAXONOMY_TTL_MS = 24 * 60 * 60 * 1000;
+const MIN_SEMANTIC_TERM_LENGTH = 3;
+const STOP_WORDS = new Set([
+  'and',
+  'or',
+  'with',
+  'without',
+  'for',
+  'in',
+  'on',
+  'from',
+  'to',
+  'the',
+  'a',
+  'an',
+  'of',
+  'at',
+  'new',
+  'used',
+  'very',
+  'good',
+  'great',
+  'excellent',
+  'condition',
+  'light',
+  'ultra',
+]);
 
 export function parseMarketplaceCategoryMetadata(value: unknown): MarketplaceCategoryMetadata | null {
   if (!value || typeof value !== 'object') return null;
@@ -47,6 +83,48 @@ export function parseMarketplaceCategoryMetadata(value: unknown): MarketplaceCat
 
 function containsAny(value: string, terms: string[]): boolean {
   return terms.some((term) => value.includes(term));
+}
+
+function normalizeToken(token: string): string {
+  return token
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pl')
+    .trim();
+}
+
+function extractTerms(value: string): string[] {
+  const terms = value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pl')
+    .match(/[\p{L}\p{N}]+/gu) ?? [];
+
+  const output = new Set<string>();
+  for (const rawTerm of terms) {
+    const term = normalizeToken(rawTerm);
+    if (term.length < MIN_SEMANTIC_TERM_LENGTH || STOP_WORDS.has(term)) {
+      continue;
+    }
+    output.add(term);
+    if (term.endsWith('es') && term.length > MIN_SEMANTIC_TERM_LENGTH + 2) {
+      output.add(term.slice(0, -2));
+    }
+    if (term.endsWith('s') && term.length > MIN_SEMANTIC_TERM_LENGTH + 1) {
+      output.add(term.slice(0, -1));
+    }
+  }
+
+  return [...output];
+}
+
+function semanticFamilies(value: string): Set<number> {
+  const terms = new Set(extractTerms(value));
+  const families = new Set<number>();
+  SEMANTIC_FAMILIES.forEach((markers, index) => {
+    if (markers.some((marker) => terms.has(normalizeToken(marker)))) families.add(index);
+  });
+  return families;
 }
 
 /**
@@ -89,7 +167,9 @@ export function evaluateOlxCategory(
   }
 
   const productText = `${product.name} ${product.description} ${product.category}`.toLocaleLowerCase('pl');
-  const categoryText = `${category.name} ${category.path.join(' ')}`.toLocaleLowerCase('pl');
+  // Only the provider leaf is semantic evidence. Ancestors such as "Electronics"
+  // are deliberately excluded because they create false matches between unrelated leaves.
+  const categoryText = category.name.toLocaleLowerCase('pl');
   const projectorProduct = containsAny(productText, PROJECTOR_TERMS);
   const headphoneProduct = containsAny(productText, HEADPHONE_TERMS);
   const projectorCategory = containsAny(categoryText, PROJECTOR_TERMS);
@@ -102,5 +182,18 @@ export function evaluateOlxCategory(
       message: `Product identity contradicts OLX category ${category.path.join(' → ')}`,
     };
   }
+
+  const productFamilies = semanticFamilies(productText);
+  const categoryFamilies = semanticFamilies(categoryText);
+  if (productFamilies.size > 0 && categoryFamilies.size > 0
+    && ![...productFamilies].some((family) => categoryFamilies.has(family))) {
+    return {
+      allowed: false,
+      requiresReview: true,
+      reason: 'semantic_mismatch',
+      message: `Product identity contradicts OLX category ${category.path.join(' → ')}`,
+    };
+  }
+
   return { allowed: true, requiresReview: false };
 }

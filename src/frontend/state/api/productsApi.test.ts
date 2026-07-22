@@ -1,6 +1,7 @@
 import {
   buildProductImageDeleteRequest,
   buildProductImageUploadRequest,
+  buildProductRecheckRequest,
   buildProductsListUrl,
 } from './productsApi';
 
@@ -29,5 +30,15 @@ describe('products list API request', () => {
     expect(buildProductsListUrl({ tags: ['home, office', 'featured'], limit: 25 })).toBe(
       '/products?limit=25&tags=%5B%22home%2C+office%22%2C%22featured%22%5D'
     );
+  });
+});
+
+describe('product recheck API request', () => {
+  it('uses a dedicated non-publishing action for the current product', () => {
+    expect(buildProductRecheckRequest({ productId: 'product-1', listingId: 'listing-1' })).toEqual({
+      url: '/products/product-1/recheck',
+      method: 'POST',
+      body: { listingId: 'listing-1' },
+    });
   });
 });

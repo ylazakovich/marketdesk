@@ -22,6 +22,7 @@ import { Workspace } from '../../domain/entities/Workspace';
 import { Listing } from '../../domain/entities/Listing';
 import { Money } from '../../domain/valueObjects/Money';
 import type { ProductApplicationService } from '../../application/services/ProductApplicationService';
+import type { ProductRecheckService } from '../../application/services/ProductRecheckService';
 import type { ListingApplicationService } from '../../application/services/ListingApplicationService';
 import type { HermesApplicationService } from '../../application/services/HermesApplicationService';
 import type { AnalyticsApplicationService } from '../../application/services/AnalyticsApplicationService';
@@ -424,6 +425,7 @@ async function buildTestApp(
     applicationVersion?: string;
     seedWorkspace?: boolean;
     categoryCorrectionOperationService?: CategoryCorrectionOperationService;
+    productRecheckService?: ProductRecheckService;
   } = {}
 ) {
   const authUserStore = new InMemoryAuthStore();
@@ -442,6 +444,7 @@ async function buildTestApp(
 
   const deps: AppDeps = {
     productService: stubProductService(),
+    productRecheckService: options.productRecheckService,
     listingService: stubListingService(),
     hermesService: stubHermesService(),
     analyticsService: stubAnalyticsService(),
@@ -644,6 +647,40 @@ describe('Presentation API', () => {
       expect(res.status).toBe(401);
       expect(res.body.success).toBe(false);
       expect(res.body.error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('authenticates and binds recheck to the requested product, listing and workspace', async () => {
+      const result = {
+        productId: 'p-real', listingId: 'listing-preview', marketplaceId: 'marketplace-olx',
+        workspaceId: 'ws-1', productUpdatedAt: iso, listingUpdatedAt: iso, accountRevision: 7,
+        checkedAt: iso, status: 'ready', canPublish: true, autoApplied: false, items: [],
+        category: {
+          providerCategoryId: '2000', path: ['Home', 'Tools', 'Widgets'], confidence: 1,
+          isLeaf: true, taxonomyVerifiedAt: iso, taxonomyStaleAt: iso,
+          reason: null, suggestion: null, confirmationRequired: false,
+        },
+      } as const;
+      const recheck = jest.fn(async () => result);
+      const { app } = await buildTestApp({ productRecheckService: { recheck } as unknown as ProductRecheckService });
+
+      const unauthenticated = await request(app)
+        .post('/api/products/p-real/recheck')
+        .send({ listingId: 'listing-preview' });
+      expect(unauthenticated.status).toBe(401);
+      expect(recheck).not.toHaveBeenCalled();
+
+      const invalid = await auth(request(app).post('/api/products/p-real/recheck')).send({});
+      expect(invalid.status).toBe(400);
+      expect(invalid.body.error.code).toBe('VALIDATION_ERROR');
+      expect(recheck).not.toHaveBeenCalled();
+
+      const response = await auth(request(app).post('/api/products/p-real/recheck'))
+        .send({ listingId: 'listing-preview' });
+      expect(response.status).toBe(200);
+      expect(response.body).toEqual({ success: true, data: result });
+      expect(recheck).toHaveBeenCalledWith({
+        productId: 'p-real', listingId: 'listing-preview', workspaceId: 'ws-1', actorId: 'u-1',
+      });
     });
 
     it('returns the §18 paginated envelope on list', async () => {

@@ -263,6 +263,43 @@ export interface Product {
   updatedAt: string;
 }
 
+export type ProductRecheckItemStatus = 'ready' | 'fix' | 'review';
+
+export interface ProductRecheckItem {
+  key: 'title' | 'description' | 'price' | 'required_fields' | 'media' | 'marketplace' | 'category';
+  status: ProductRecheckItemStatus;
+  message: string;
+  editField?: 'name' | 'description' | 'sellingPrice' | 'condition' | 'images' | 'marketplace' | 'category';
+}
+
+export interface ProductRecheckCategoryResult {
+  providerCategoryId: string | null;
+  path: string[];
+  confidence: number | null;
+  isLeaf: boolean | null;
+  taxonomyVerifiedAt: string | null;
+  taxonomyStaleAt: string | null;
+  reason: string | null;
+  suggestion: MarketplaceCategoryMetadata | null;
+  confirmationRequired: boolean;
+}
+
+export interface ProductRecheckResult {
+  productId: string;
+  listingId: string;
+  marketplaceId: string;
+  workspaceId: string;
+  productUpdatedAt: string;
+  listingUpdatedAt: string;
+  accountRevision: number | null;
+  checkedAt: string;
+  status: ProductRecheckItemStatus;
+  canPublish: boolean;
+  autoApplied: false;
+  items: ProductRecheckItem[];
+  category: ProductRecheckCategoryResult;
+}
+
 export type ProductAIDraftMode = 'photos' | 'title';
 
 export type ProductAIDraftFields = Partial<

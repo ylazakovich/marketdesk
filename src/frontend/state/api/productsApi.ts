@@ -6,6 +6,7 @@ import type {
   ApiResponse,
   ProductAIDraft,
   ProductAIDraftRequest,
+  ProductRecheckResult,
 } from '@shared/types';
 import { baseApi } from './baseApi.js';
 import { buildQueryString } from './queryString.js';
@@ -38,6 +39,14 @@ export function buildProductImageDeleteRequest(imageId: string) {
   return { url: `/uploads/images/${imageId}`, method: 'DELETE' as const };
 }
 
+export function buildProductRecheckRequest(input: { productId: string; listingId: string }) {
+  return {
+    url: `/products/${input.productId}/recheck`,
+    method: 'POST' as const,
+    body: { listingId: input.listingId },
+  };
+}
+
 export function buildProductsListUrl(params?: ProductListParams): string {
   const { tags, ...rest } = params ?? {};
   return `/products${buildQueryString({
@@ -64,6 +73,11 @@ export const productsApi = baseApi.injectEndpoints({
       query: (id) => `/products/${id}`,
       transformResponse: (res: ApiResponse<Product>) => unwrap(res),
       providesTags: (_result, _error, id) => [{ type: 'Product', id }],
+    }),
+
+    recheckProduct: builder.mutation<ProductRecheckResult, { productId: string; listingId: string }>({
+      query: buildProductRecheckRequest,
+      transformResponse: (res: ApiResponse<ProductRecheckResult>) => unwrap(res),
     }),
 
     createProduct: builder.mutation<Product, CreateProductInput>({
@@ -137,6 +151,7 @@ export const productsApi = baseApi.injectEndpoints({
 export const {
   useGetProductsQuery,
   useGetProductQuery,
+  useRecheckProductMutation,
   useCreateProductMutation,
   useGenerateProductAIDraftMutation,
   useUploadProductImageMutation,

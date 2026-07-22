@@ -5,7 +5,13 @@ import { Router } from 'express';
 import type { ProductController } from '../controllers/ProductController';
 import { asyncHandler } from '../middleware/asyncHandler';
 import { validateBody } from '../middleware/ValidationMiddleware';
-import { createListingSchema, createProductSchema, productAIDraftSchema, updateProductSchema } from '../validation/schemas';
+import {
+  createListingSchema,
+  createProductSchema,
+  productAIDraftSchema,
+  productRecheckSchema,
+  updateProductSchema,
+} from '../validation/schemas';
 
 export function createProductRoutes(controller: ProductController): Router {
   const router = Router();
@@ -14,6 +20,7 @@ export function createProductRoutes(controller: ProductController): Router {
   router.post('/ai-draft', validateBody(productAIDraftSchema), asyncHandler(controller.generateAIDraft));
   router.get('/:id', asyncHandler(controller.get));
   router.patch('/:id', validateBody(updateProductSchema), asyncHandler(controller.update));
+  router.post('/:id/recheck', validateBody(productRecheckSchema), asyncHandler(controller.recheck));
   router.delete('/:id', asyncHandler(controller.remove));
   router.get('/:id/listings', asyncHandler(controller.getListings));
   router.post('/:id/listings', validateBody(createListingSchema), asyncHandler(controller.createListing));

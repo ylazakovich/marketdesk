@@ -14,10 +14,11 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import type { HermesEvent, Listing, Marketplace, ProductCategoryProvenance } from '@shared/types';
+import type { HermesEvent, Listing, Marketplace, ProductCategoryProvenance, ProductRecheckResult } from '@shared/types';
 import type { PublishListingInput, PublishListingPreview } from '../state/api/dto.js';
 import {
   useProduct,
+  useRecheckProduct,
   useProductListings,
   useUpdateProduct,
   useUpdateListing,
@@ -142,6 +143,81 @@ export function selectProductRecommendations(events: HermesEvent[], productId: s
   return events.filter((event) => event.productId === productId && event.status === 'pending_review');
 }
 
+export function isProductRecheckStale(
+  result: Pick<ProductRecheckResult, 'productId' | 'listingId' | 'productUpdatedAt' | 'listingUpdatedAt'>,
+  currentProductId: string,
+  currentProductUpdatedAt: string,
+  currentListingId?: string,
+  currentListingUpdatedAt?: string,
+): boolean {
+  return result.productId !== currentProductId
+    || result.productUpdatedAt !== currentProductUpdatedAt
+    || currentListingId === undefined
+    || result.listingId !== currentListingId
+    || currentListingUpdatedAt === undefined
+    || result.listingUpdatedAt !== currentListingUpdatedAt;
+}
+
+export const ProductRecheckReview: React.FC<{
+  result: ProductRecheckResult;
+  currentProductId: string;
+  currentProductUpdatedAt: string;
+  currentListingId?: string;
+  currentListingUpdatedAt?: string;
+  onEdit?: () => void;
+  onMarketplaceEdit?: () => void;
+}> = ({ result, currentProductId, currentProductUpdatedAt, currentListingId, currentListingUpdatedAt, onEdit, onMarketplaceEdit }) => {
+  if (isProductRecheckStale(result, currentProductId, currentProductUpdatedAt, currentListingId, currentListingUpdatedAt)) {
+    return <Alert severity="warning">This result is stale because the product or listing changed. Check again.</Alert>;
+  }
+  return (
+    <Stack spacing={1}>
+      <Alert severity={result.canPublish ? 'success' : result.status === 'review' ? 'warning' : 'error'}>
+        {result.canPublish
+          ? 'Ready to publish. No publication was started.'
+          : result.status === 'review'
+            ? 'User review is required before publication.'
+            : 'Fix the blocking items before publication.'}
+      </Alert>
+      <Typography variant="caption" color="text.secondary">
+        Checked {formatDateTime(result.checkedAt)} · product version {formatDateTime(result.productUpdatedAt)}
+      </Typography>
+      {result.items.map((check) => (
+        <Box key={check.key}>
+          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+            {check.status === 'ready' ? 'Ready' : check.status === 'fix' ? 'Fix required' : 'User review'} · {check.key}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">{check.message}</Typography>
+        </Box>
+      ))}
+      <Typography variant="body2">
+        Provider category ID: <strong>{result.category.providerCategoryId ?? 'Not selected'}</strong>
+      </Typography>
+      <Typography variant="body2">
+        Full category path: <strong>{result.category.path.length ? result.category.path.join(' → ') : 'Unavailable'}</strong>
+      </Typography>
+      {result.category.confidence !== null && (
+        <Typography variant="caption" color="text.secondary">
+          Confidence: {result.category.confidence} · Leaf: {result.category.isLeaf ? 'yes' : 'no'}
+          {result.category.taxonomyVerifiedAt ? ` · Taxonomy verified: ${formatDateTime(result.category.taxonomyVerifiedAt)}` : ''}
+          {result.category.taxonomyStaleAt ? ` · Stale after: ${formatDateTime(result.category.taxonomyStaleAt)}` : ''}
+        </Typography>
+      )}
+      {result.category.suggestion && (
+        <Alert severity="info">
+          Suggested category: {result.category.suggestion.providerCategoryId} · {result.category.suggestion.path.join(' → ')}.
+          This suggestion is not applied automatically and requires explicit confirmation.
+        </Alert>
+      )}
+      {!result.canPublish && result.items.some((check) => check.editField === 'marketplace') && onMarketplaceEdit ? (
+        <Button size="small" variant="outlined" onClick={onMarketplaceEdit}>Manage marketplace connection</Button>
+      ) : !result.canPublish && onEdit && (
+        <Button size="small" variant="outlined" onClick={onEdit}>Edit product</Button>
+      )}
+    </Stack>
+  );
+};
+
 function errorMessage(err: unknown): string {
   if (err && typeof err === 'object') {
     const e = err as { data?: { error?: { message?: string } }; message?: string };
@@ -219,6 +295,7 @@ const ListingDetailsPage: React.FC = () => {
   const { marketplaces, resolveMarketplaceName, resolveMarketplaceKey } = useMarketplaceLookup();
 
   const [updateProduct, { isLoading: updating }] = useUpdateProduct();
+  const [recheckProduct, { isLoading: rechecking }] = useRecheckProduct();
   const [updateListing, { isLoading: pricing }] = useUpdateListing();
   const [relistListing, { isLoading: relisting }] = useRelistListing();
   const [delistToDraft, { isLoading: delisting }] = useDelistListingToDraft();
@@ -227,6 +304,7 @@ const ListingDetailsPage: React.FC = () => {
   const [createListing, { isLoading: creatingListing }] = useCreateProductListing();
 
   const [editOpen, setEditOpen] = useState(false);
+  const [recheckResult, setRecheckResult] = useState<ProductRecheckResult | null>(null);
   const [priceListing, setPriceListing] = useState<Listing | null>(null);
   const [publishCandidate, setPublishCandidate] = useState<{
     listing: Listing;
@@ -242,6 +320,7 @@ const ListingDetailsPage: React.FC = () => {
   const previewInFlight = useRef(false);
   const publicationReviewOpen = useRef(false);
   const submissionInFlight = useRef(false);
+  const recheckRequestIdentity = useRef(0);
 
   const listingItems = listings.data ?? [];
   const listingMarketplaceIds = new Set(listingItems.map((listing) => listing.marketplaceId));
@@ -252,6 +331,7 @@ const ListingDetailsPage: React.FC = () => {
         )
       : undefined;
   const primaryListing = selectPrimaryListing(listingItems, marketplaces);
+  const recheckListing = listingItems.find((listing) => resolveMarketplaceKey(listing.marketplaceId) === 'olx');
   const priceHistory = usePriceHistory(primaryListing?.id ?? '', { skip: !primaryListing });
   const primaryMarketplaceName = primaryListing
     ? resolveMarketplaceName(primaryListing.marketplaceId)
@@ -316,6 +396,32 @@ const ListingDetailsPage: React.FC = () => {
       dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
     }
   };
+
+  const handleRecheck = async () => {
+    const requestIdentity = ++recheckRequestIdentity.current;
+    setRecheckResult(null);
+    try {
+      if (!recheckListing) throw new Error('Create or select an OLX listing before recheck');
+      const result = await recheckProduct({ productId, listingId: recheckListing.id }).unwrap();
+      const [refreshedProduct, refreshedListings] = await Promise.all([product.refetch(), listings.refetch()]);
+      const refreshedListing = refreshedListings.data?.find((listing) => listing.id === recheckListing.id);
+      if (!refreshedProduct.data || !refreshedListing) throw new Error('Unable to refresh the product or listing after recheck');
+      if (requestIdentity !== recheckRequestIdentity.current
+        || isProductRecheckStale(
+          result, refreshedProduct.data.id, refreshedProduct.data.updatedAt,
+          refreshedListing.id, refreshedListing.updatedAt,
+        )) return;
+      setRecheckResult(result);
+    } catch (err) {
+      if (requestIdentity !== recheckRequestIdentity.current) return;
+      dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
+    }
+  };
+
+  useEffect(() => {
+    recheckRequestIdentity.current += 1;
+    setRecheckResult(null);
+  }, [productId]);
 
   const beginPublicationReview = useCallback(async (
     listing: Listing,
@@ -443,6 +549,33 @@ const ListingDetailsPage: React.FC = () => {
         Back to products
       </Button>
       <ProductIdentityHero product={p} onEdit={() => setEditOpen(true)} />
+
+      <Card
+        title="Publication readiness check"
+        subtitle="Checks the current saved product without publishing or applying suggestions"
+        sx={{ my: 2 }}
+        action={(
+          <Button variant="contained" disabled={rechecking || !recheckListing} onClick={() => void handleRecheck()}>
+            {rechecking ? 'Проверяем…' : 'Проверить ещё раз'}
+          </Button>
+        )}
+      >
+        {!recheckResult ? (
+          <Typography variant="body2" color="text.secondary">
+            Run a fresh check to validate required fields and the exact marketplace leaf category.
+          </Typography>
+        ) : (
+          <ProductRecheckReview
+            result={recheckResult}
+            currentProductId={p.id}
+            currentProductUpdatedAt={p.updatedAt}
+            currentListingId={recheckListing?.id}
+            currentListingUpdatedAt={recheckListing?.updatedAt}
+            onEdit={() => setEditOpen(true)}
+            onMarketplaceEdit={() => navigate('/marketplaces')}
+          />
+        )}
+      </Card>
 
       <Box sx={productDetailGridSx} data-testid="product-detail-layout">
         <Stack spacing={{ xs: 2, lg: 3 }} sx={{ minWidth: 0 }}>

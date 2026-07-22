@@ -6,6 +6,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { ProductApplicationService } from '../../../application/services/ProductApplicationService';
 import type { ListingApplicationService } from '../../../application/services/ListingApplicationService';
 import type { ProductAIDraftService } from '../../../application/services/ProductAIDraftService';
+import type { ProductRecheckService } from '../../../application/services/ProductRecheckService';
 import type { IProductRepository } from '../../../domain/repositories/interfaces/IProductRepository';
 import type { IListingRepository } from '../../../domain/repositories/interfaces/IListingRepository';
 import type { IMarketplaceRepository } from '../../../domain/repositories/interfaces/IMarketplaceRepository';
@@ -13,7 +14,7 @@ import type { CreateProductDTO } from '../../../application/dto/CreateProductDTO
 import type { UpdateProductDTO } from '../../../application/dto/UpdateProductDTO';
 import type { ListProductsQueryDTO, SortKey } from '../../../application/dto/ListProductsQueryDTO';
 import type { ProductStatus } from '../../../../shared/types';
-import { ConflictError, NotFoundError } from '../../../domain/shared/DomainError';
+import { ConflictError, NotFoundError, ServiceUnavailableError } from '../../../domain/shared/DomainError';
 import { Listing } from '../../../domain/entities/Listing';
 import { Money } from '../../../domain/valueObjects/Money';
 import { ok, created, paginated } from '../formatters/ResponseFormatter';
@@ -78,7 +79,8 @@ export class ProductController {
     private readonly productRepo: IProductRepository,
     private readonly listingRepo: IListingRepository,
     private readonly marketplaceRepo: IMarketplaceRepository,
-    private readonly idGenerator: () => string
+    private readonly idGenerator: () => string,
+    private readonly productRecheck?: ProductRecheckService,
   ) {}
 
   list = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -138,6 +140,21 @@ export class ProductController {
     const result = await this.products.updateProduct(dto);
     if (result.isErr()) return next(result.error);
     ok(res, result.value);
+  };
+
+  recheck = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      if (!this.productRecheck) throw new ServiceUnavailableError('Product recheck is unavailable');
+      const result = await this.productRecheck.recheck({
+        productId: routeParam(req.params.id),
+        listingId: String(req.body?.listingId ?? ''),
+        workspaceId: req.user!.workspaceId!,
+        actorId: req.user!.userId,
+      });
+      ok(res, result);
+    } catch (error) {
+      next(error);
+    }
   };
 
   remove = async (req: Request, res: Response, next: NextFunction): Promise<void> => {

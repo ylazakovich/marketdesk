@@ -1,10 +1,12 @@
-import type { HermesEvent, Listing, Marketplace } from '@shared/types';
+import type { HermesEvent, Listing, Marketplace, ProductRecheckResult } from '@shared/types';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   buildPublishListingInput,
   categoryConflictEvidenceLines,
   mainPreviewImageSx,
+  isProductRecheckStale,
+  ProductRecheckReview,
   PublishPreviewReview,
   remoteMarketplaceChipColor,
   remoteMarketplacePresentation,
@@ -53,6 +55,95 @@ function event(
 }
 
 describe('ListingDetailsPage presentation', () => {
+  it('marks a recheck stale immediately when the saved product version changes', () => {
+    const result = {
+      productId: 'product-1', listingId: 'listing-1',
+      productUpdatedAt: '2026-07-22T06:00:00.000Z', listingUpdatedAt: '2026-07-22T06:01:00.000Z',
+    } as ProductRecheckResult;
+    expect(isProductRecheckStale(
+      result, 'product-1', result.productUpdatedAt, 'listing-1', result.listingUpdatedAt,
+    )).toBe(false);
+    expect(isProductRecheckStale(
+      result, 'product-1', '2026-07-22T07:00:00.000Z', 'listing-1', result.listingUpdatedAt,
+    )).toBe(true);
+    expect(isProductRecheckStale(
+      result, 'product-1', result.productUpdatedAt, 'listing-2', result.listingUpdatedAt,
+    )).toBe(true);
+    expect(isProductRecheckStale(
+      result, 'product-2', result.productUpdatedAt, 'listing-1', result.listingUpdatedAt,
+    )).toBe(true);
+    expect(isProductRecheckStale(
+      result, 'product-1', result.productUpdatedAt, 'listing-1', '2026-07-22T07:00:00.000Z',
+    )).toBe(true);
+  });
+
+  it('renders the typed mismatch, exact provider id/path and stale replacement state', () => {
+    const result: ProductRecheckResult = {
+      productId: 'product-1', listingId: 'listing-1', marketplaceId: 'marketplace-1', workspaceId: 'workspace-1',
+      productUpdatedAt: '2026-07-22T06:00:00.000Z', listingUpdatedAt: '2026-07-22T06:01:00.000Z',
+      accountRevision: 7, checkedAt: '2026-07-22T06:05:00.000Z',
+      status: 'review', canPublish: false, autoApplied: false,
+      items: [{
+        key: 'category', status: 'review', editField: 'category',
+        message: 'Product identity contradicts OLX category Electronics → Audio → Wireless headphones',
+      }],
+      category: {
+        providerCategoryId: 'headphones-wireless',
+        path: ['Electronics', 'Audio', 'Wireless headphones'],
+        confidence: 0.96, isLeaf: true,
+        taxonomyVerifiedAt: '2026-07-22T05:00:00.000Z',
+        taxonomyStaleAt: '2026-07-23T05:00:00.000Z',
+        reason: 'semantic_mismatch', suggestion: null, confirmationRequired: false,
+      },
+    };
+    const currentHtml = renderToStaticMarkup(
+      <ProductRecheckReview result={result} currentProductId={result.productId}
+        currentProductUpdatedAt={result.productUpdatedAt} currentListingId={result.listingId}
+        currentListingUpdatedAt={result.listingUpdatedAt} />,
+    );
+    expect(currentHtml).toContain('User review is required');
+    expect(currentHtml).toContain('headphones-wireless');
+    expect(currentHtml).toContain('Electronics → Audio → Wireless headphones');
+    expect(currentHtml).not.toContain('Ready to publish');
+
+    const staleHtml = renderToStaticMarkup(
+      <ProductRecheckReview
+        result={result}
+        currentProductId={result.productId}
+        currentProductUpdatedAt={result.productUpdatedAt}
+        currentListingId={result.listingId}
+        currentListingUpdatedAt="2026-07-22T07:00:00.000Z"
+      />,
+    );
+    expect(staleHtml).toContain('result is stale');
+    expect(staleHtml).not.toContain('headphones-wireless');
+
+    const suggestedHtml = renderToStaticMarkup(
+      <ProductRecheckReview
+        result={{
+          ...result,
+          category: {
+            ...result.category,
+            suggestion: {
+              providerCategoryId: 'projectors-91', name: 'Projectors',
+              path: ['Electronics', 'TV and video', 'Projectors'], source: 'provider_taxonomy',
+              confidence: 1, isLeaf: true,
+              taxonomyVerifiedAt: '2026-07-22T05:00:00.000Z',
+              taxonomyStaleAt: '2026-07-23T05:00:00.000Z',
+            },
+            confirmationRequired: true,
+          },
+        }}
+        currentProductId={result.productId}
+        currentProductUpdatedAt={result.productUpdatedAt}
+        currentListingId={result.listingId}
+        currentListingUpdatedAt={result.listingUpdatedAt}
+      />,
+    );
+    expect(suggestedHtml).toContain('projectors-91');
+    expect(suggestedHtml).toContain('requires explicit confirmation');
+  });
+
   it('exposes current and candidate listing evidence for a category conflict', () => {
     const source = {
       marketplaceKey: 'olx' as const, marketplaceId: 'marketplace-1',

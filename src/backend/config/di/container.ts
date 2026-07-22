@@ -107,6 +107,7 @@ import { ApproveHermesEventUseCase } from '../../application/usecases/ApproveHer
 import { DismissHermesEventUseCase } from '../../application/usecases/DismissHermesEventUseCase';
 import { ProductApplicationService } from '../../application/services/ProductApplicationService';
 import { ProductAIDraftService } from '../../application/services/ProductAIDraftService';
+import { ProductRecheckService } from '../../application/services/ProductRecheckService';
 import { ListingApplicationService } from '../../application/services/ListingApplicationService';
 import { HermesApplicationService } from '../../application/services/HermesApplicationService';
 import { AnalyticsApplicationService } from '../../application/services/AnalyticsApplicationService';
@@ -405,6 +406,23 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     updateProductUC
   );
   const productAIDraftService = new ProductAIDraftService(aiProvider);
+  const productRecheckService = new ProductRecheckService(
+    productRepo,
+    listingRepo,
+    marketplaceRepo,
+    marketplaceAccountRepo,
+    activityLogRepo,
+    async (marketplaceId) => {
+      const accessToken = await marketplaceOAuthService.getValidAccessToken(marketplaceId);
+      const http = new FetchMarketplaceHttpClient({
+        defaultHeaders: buildOlxHeaders(accessToken),
+        timeoutMs: env.marketplaces.olx.requestTimeoutMs,
+        livePublishEnabled: false,
+      });
+      return new OlxTaxonomyResolver(http, env.marketplaces.olx.apiBaseUrl);
+    },
+    idGenerator,
+  );
   const listingService = new ListingApplicationService(
     listingRepo,
     publishListingUC,
@@ -620,6 +638,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
   const deps: AppDeps = {
     productService,
     productAIDraftService,
+    productRecheckService,
     listingService,
     hermesService,
     analyticsService,

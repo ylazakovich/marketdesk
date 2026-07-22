@@ -118,6 +118,10 @@ export const createListingSchema = z.object({
   price: z.number().nonnegative().optional(),
 });
 
+export const productRecheckSchema = z.object({
+  listingId: z.string().trim().min(1, 'listingId is required'),
+}).strict();
+
 export const publishListingSchema = z.object({
   actorId: z.string().optional(),
   dryRun: z.boolean().optional(),

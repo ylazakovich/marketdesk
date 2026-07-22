@@ -41,6 +41,40 @@ describe('evaluateOlxCategory', () => {
     expect(result).toMatchObject({ allowed: false, reason: 'semantic_mismatch' });
   });
 
+  it('blocks a product/category semantic mismatch even when it is outside projector-headphone terms', () => {
+    const result = evaluateOlxCategory({
+      name: 'Vintage running sneakers',
+      description: 'Used but in good condition',
+      category: 'men\'s shoes',
+    }, category({
+      providerCategoryId: 'televisions-900',
+      name: 'Televisions',
+      path: ['Electronics', 'Audio and video', 'Televisions'],
+    }), now);
+
+    expect(result).toMatchObject({ allowed: false, reason: 'semantic_mismatch' });
+  });
+
+  it('does not use a generic taxonomy ancestor to match an electronic scale to televisions', () => {
+    const result = evaluateOlxCategory({
+      name: 'Electronic kitchen scale', description: 'Digital kitchen scale with LCD display', category: 'kitchen scales',
+    }, category({
+      providerCategoryId: 'televisions-901', name: 'Televisions',
+      path: ['Electronics', 'Audio and video', 'Televisions'],
+    }), now);
+    expect(result).toMatchObject({ allowed: false, reason: 'semantic_mismatch' });
+  });
+
+  it('keeps valid semantic aliases usable without requiring literal word overlap', () => {
+    const result = evaluateOlxCategory({
+      name: 'Apple iPhone 15', description: 'Apple mobile phone in excellent condition', category: 'phones',
+    }, category({
+      providerCategoryId: 'smartfony-22', name: 'Smartfony',
+      path: ['Elektronika', 'Telefony', 'Smartfony'],
+    }), now);
+    expect(result).toEqual({ allowed: true, requiresReview: false });
+  });
+
   it.each([
     ['missing', null, 'category_missing'],
     ['unknown leaf', category({ isLeaf: false }), 'category_not_leaf'],

@@ -7,6 +7,7 @@ import { useAppSelector } from '../../state/hooks.js';
 import {
   useGetProductsQuery,
   useGetProductQuery,
+  useRecheckProductMutation,
   useCreateProductMutation,
   useGenerateProductAIDraftMutation,
   useUploadProductImageMutation,
@@ -73,6 +74,7 @@ export function useProducts(params: ProductListParams = {}, options?: ProductsOp
   return useGetProductsQuery({ workspaceId, ...params }, options);
 }
 export const useProduct = useGetProductQuery;
+export const useRecheckProduct = useRecheckProductMutation;
 export const useProductListings = useGetProductListingsQuery;
 export const useCreateProduct = useCreateProductMutation;
 export const useGenerateProductAIDraft = useGenerateProductAIDraftMutation;

@@ -156,6 +156,57 @@ export class EventRepository implements IEventRepository {
     await this.insertAgentRecommendation(recommendation, this.queryClient);
   }
 
+  async findAgentRecommendationByEvent(
+    workspaceId: string,
+    eventId: string,
+  ): Promise<AgentRecommendationRecord | null> {
+    const { rows } = await query<{
+      id: string;
+      workspace_id: string;
+      product_id: string;
+      event_id: string | null;
+      agent_id: 'listing-seo';
+      agent_version: string;
+      creativity_preset: AgentRecommendationRecord['creativityPreset'];
+      source_fingerprint: string;
+      recommendation_fingerprint: string;
+      outcome: AgentRecommendationRecord['outcome'];
+      suggested_at: Date;
+      approved_at: Date | null;
+      dismissed_at: Date | null;
+      applied_at: Date | null;
+      failed_at: Date | null;
+    }>(
+      `SELECT id, workspace_id, product_id, event_id, agent_id, agent_version, creativity_preset,
+              source_fingerprint, recommendation_fingerprint, outcome, suggested_at,
+              approved_at, dismissed_at, applied_at, failed_at
+         FROM hermes_agent_recommendations
+        WHERE workspace_id = $1 AND event_id = $2
+        LIMIT 1`,
+      [workspaceId, eventId],
+      this.queryClient,
+    );
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      id: row.id,
+      workspaceId: row.workspace_id,
+      productId: row.product_id,
+      eventId: row.event_id,
+      agentId: row.agent_id,
+      agentVersion: row.agent_version,
+      creativityPreset: row.creativity_preset,
+      sourceFingerprint: row.source_fingerprint,
+      recommendationFingerprint: row.recommendation_fingerprint,
+      outcome: row.outcome,
+      suggestedAt: row.suggested_at,
+      approvedAt: row.approved_at ?? undefined,
+      dismissedAt: row.dismissed_at ?? undefined,
+      appliedAt: row.applied_at ?? undefined,
+      failedAt: row.failed_at ?? undefined,
+    };
+  }
+
   async markAgentRecommendationApproved(workspaceId: string, eventId: string, at: Date): Promise<void> {
     await this.updateAgentRecommendationTimestamp(workspaceId, eventId, 'approved_at', at);
   }

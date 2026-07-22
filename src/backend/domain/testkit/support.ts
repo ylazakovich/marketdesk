@@ -218,6 +218,14 @@ export class InMemoryEventRepository implements IEventRepository {
   async recordAgentRecommendationOutcome(recommendation: AgentRecommendationRecord): Promise<void> {
     this.agentRecommendations.set(recommendation.id, recommendation);
   }
+  async findAgentRecommendationByEvent(
+    workspaceId: string,
+    eventId: string,
+  ): Promise<AgentRecommendationRecord | null> {
+    return [...this.agentRecommendations.values()].find(
+      (row) => row.workspaceId === workspaceId && row.eventId === eventId,
+    ) ?? null;
+  }
   async markAgentRecommendationApproved(workspaceId: string, eventId: string, at: Date): Promise<void> {
     this.updateAgentRecommendation(eventId, workspaceId, { approvedAt: at });
   }

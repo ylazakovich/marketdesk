@@ -103,7 +103,9 @@ export class ApproveHermesEventUseCase {
         event.id,
         new Date(),
       );
-      applied = await this.applyChange(event, input.actorId);
+      applied = await this.isListingSeoReviewOnlyApproval(event)
+        ? Ok({ marketplaceUpdates: [] })
+        : await this.applyChange(event, input.actorId);
     } catch (error) {
       const failed = event.markFailed();
       if (failed.isOk()) {
@@ -218,6 +220,20 @@ export class ApproveHermesEventUseCase {
       default:
         return Ok({ marketplaceUpdates: [] });
     }
+  }
+
+  private async isListingSeoReviewOnlyApproval(event: HermesEvent): Promise<boolean> {
+    if (
+      event.proposedChange?.kind !== 'title' &&
+      event.proposedChange?.kind !== 'description'
+    ) {
+      return false;
+    }
+    const recommendation = await this.eventRepo.findAgentRecommendationByEvent(
+      event.workspaceId,
+      event.id,
+    );
+    return recommendation?.agentId === 'listing-seo';
   }
 
   private async applyPriceChange(

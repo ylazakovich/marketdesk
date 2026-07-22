@@ -28,6 +28,10 @@ export interface IEventRepository {
     since: Date,
   ): Promise<boolean>;
   recordAgentRecommendationOutcome(recommendation: AgentRecommendationRecord): Promise<void>;
+  findAgentRecommendationByEvent(
+    workspaceId: string,
+    eventId: string,
+  ): Promise<AgentRecommendationRecord | null>;
   markAgentRecommendationApproved(workspaceId: string, eventId: string, at: Date): Promise<void>;
   markAgentRecommendationDismissed(workspaceId: string, eventId: string, at: Date): Promise<void>;
   markAgentRecommendationApplied(workspaceId: string, eventId: string, at: Date): Promise<void>;

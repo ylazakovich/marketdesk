@@ -44,12 +44,30 @@ export interface MarketplaceSyncStore {
   save(marketplace: Marketplace): Promise<void>;
 }
 
+export interface PendingAnalyticsEvent {
+  listing: Listing;
+  eventType: 'view' | 'message' | 'sale';
+  quantity: number;
+  idempotencyKey: string;
+  occurredAt: Date;
+}
+
 export interface SyncMarketplaceHandlerDeps {
   listingStore?: SyncListingStore;
   marketplaceStore?: MarketplaceSyncStore;
   accessTokens?: SyncMarketplaceAccessTokenProvider;
   authenticatedHttpClient?: (accessToken: string) => MarketplaceHttpClient;
   eventPublisher?: IEventPublisher;
+  recordAnalyticsEvents?: (input: {
+    workspaceId: string;
+    events: Array<{
+      listing: Listing;
+      eventType: 'view' | 'message' | 'sale';
+      quantity: number;
+      idempotencyKey: string;
+      occurredAt: Date;
+    }>;
+  }) => Promise<void>;
   recommendCategoryMismatch?: (input: {
     listing: Listing;
     workspaceId: string;
@@ -67,6 +85,7 @@ export interface SyncMarketplaceHandlerDeps {
       proposedCategory: MarketplaceCategoryMetadata | null;
     }>;
     marketplaceAccount: { id: string; revision: number } | null;
+    analyticsEvents: PendingAnalyticsEvent[];
     job: SyncMarketplaceJobData;
   }) => Promise<void>;
 }
@@ -186,9 +205,30 @@ export class SyncMarketplaceHandler {
       proposedCategory: MarketplaceCategoryMetadata | null;
     }> = [];
     const statusEvents: DomainEvent[] = [];
+    const analyticsEvents: PendingAnalyticsEvent[] = [];
+    const occurredAt = new Date();
     for (const s of synced) {
       const listing = byExternalId.get(s.externalListingId);
       if (!listing) continue;
+      const nextViews = Number(s.views ?? listing.views ?? 0);
+      const nextMessages = Number(s.messages ?? listing.messages ?? 0);
+      const viewDelta = Math.max(0, nextViews - Number(listing.views ?? 0));
+      const messageDelta = Math.max(0, nextMessages - Number(listing.messages ?? 0));
+      if (viewDelta > 0) analyticsEvents.push({
+        listing, eventType: 'view', quantity: viewDelta,
+        idempotencyKey: `sync:view:${listing.id}:${nextViews}`, occurredAt,
+      });
+      if (messageDelta > 0) analyticsEvents.push({
+        listing, eventType: 'message', quantity: messageDelta,
+        idempotencyKey: `sync:message:${listing.id}:${nextMessages}`, occurredAt,
+      });
+      const remoteStatus = (s.remoteStatus ?? s.status).toLowerCase();
+      if (['sold', 'completed'].includes(remoteStatus) && listing.status !== 'expired') {
+        analyticsEvents.push({
+          listing, eventType: 'sale', quantity: 1,
+          idempotencyKey: `sync:sale:${listing.id}:${remoteStatus}`, occurredAt,
+        });
+      }
       listing.recordSyncStats({
         views: s.views,
         watchers: s.watchers,
@@ -234,10 +274,20 @@ export class SyncMarketplaceHandler {
           expectedUpdatedAt,
           mismatchCandidates,
           marketplaceAccount: reconciliationAccount,
+          analyticsEvents,
           job: data,
         });
       } else {
         await store.saveAll(updated);
+        // Custom/non-PostgreSQL stores cannot share the production transaction.
+        // Append after the durable listing checkpoint so a failed save cannot
+        // overcount the same remote delta on retry.
+        if (marketplace && analyticsEvents.length > 0) {
+          await this.deps.recordAnalyticsEvents?.({
+            workspaceId: marketplace.workspaceId,
+            events: analyticsEvents,
+          });
+        }
         if (marketplace && this.deps.recommendCategoryMismatch) {
           if (!reconciliationAccount) {
             throw new InvalidStateError(
@@ -311,7 +361,7 @@ export class SyncMarketplaceHandler {
     if (synced.missing || remoteStatus === 'missing') return 'expired';
     if (['active', 'activated', 'live', 'published'].includes(remoteStatus)) return 'live';
     if (['new', 'moderation', 'pending', 'limited'].includes(remoteStatus)) return 'observe';
-    if (['expired', 'removed', 'deactivated', 'deleted', 'closed'].includes(remoteStatus)) {
+    if (['expired', 'removed', 'deactivated', 'deleted', 'closed', 'sold', 'completed'].includes(remoteStatus)) {
       return 'expired';
     }
     if (['rejected', 'blocked', 'error'].includes(remoteStatus)) return 'error';

@@ -13,7 +13,6 @@ import type {
   SyncMode,
   MarketplaceCategoryMetadata,
   CategoryRecreationOperationAction,
-  CategoryRecreationOperationStatus,
 } from '@shared/types';
 
 // ----------------------------------------------------------------------------
@@ -302,6 +301,7 @@ export interface AnalyticsQueryParams {
   from?: string; // ISO date
   to?: string; // ISO date
   interval?: 'day' | 'week' | 'month';
+  marketplaceId?: string;
 }
 
 // GET /analytics/overview → dashboard aggregates. `previous` is always present
@@ -318,12 +318,18 @@ export interface AnalyticsOverview {
   totalWatchers: number;
   totalMessages: number;
   inventoryValue: number;
-  previous: Omit<AnalyticsOverview, 'previous'> | null;
+  revenue: number | null;
+  profit: number | null;
+  sales: number;
+  conversion: number;
+  currency: string | null;
+  previous: Pick<AnalyticsOverview, 'currency' | 'revenue' | 'profit' | 'totalViews' | 'sales' | 'conversion'> | null;
 }
 
 export interface RevenuePoint {
   date: string; // ISO date bucket
-  revenue: number;
+  revenue: number | null;
+  profit: number | null;
   previous: number | null;
 }
 
@@ -345,7 +351,12 @@ export interface ListingPerformance {
   marketplaceListingId: string | null;
   status: ListingStatus;
   price: number;
+  revenue: number | null;
+  profit: number | null;
+  currency: string | null;
+  sales: number;
   views: number;
+  conversion: number;
   watchers: number;
   messages: number;
 }

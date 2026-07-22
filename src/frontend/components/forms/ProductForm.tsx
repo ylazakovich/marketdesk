@@ -1,7 +1,7 @@
 // Single-page product create/edit form. Owns local field state + validation;
 // the parent supplies onSubmit (wired to a create/update mutation) and busy flag.
 import React, { useMemo, useState } from 'react';
-import { Alert, Button, Stack } from '@mui/material';
+import { Button, Stack } from '@mui/material';
 import {
   BelowCostConfirmationAlert,
   useBelowCostConfirmation,

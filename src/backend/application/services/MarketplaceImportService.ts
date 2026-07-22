@@ -81,14 +81,6 @@ export interface ImportPreviewResult {
   items: ImportPreviewItem[];
 }
 
-interface ImportDiscoveryContext {
-  marketplace: NonNullable<Awaited<ReturnType<IMarketplaceRepository['findByIdForWorkspace']>>>;
-  account: MarketplaceAccountRecord;
-  remoteListings: ImportedMarketplaceListing[];
-  existingListings: Awaited<ReturnType<IListingRepository['findByMarketplace']>>;
-  productsByListingId: Map<string, Product>;
-  failedItems: ImportPreviewItem[];
-}
 
 export interface MarketplaceImportRepositories {
   productRepo: IProductRepository;

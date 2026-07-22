@@ -274,7 +274,8 @@ describe('SyncMarketplaceHandler', () => {
       {
         externalListingId: 'ext-1',
         externalUrl: 'https://www.olx.pl/d/oferta/ext-1',
-        status: 'live',
+        status: 'sold',
+        remoteStatus: 'sold',
         views: 42,
         watchers: 3,
         messages: 2,
@@ -321,9 +322,11 @@ describe('SyncMarketplaceHandler', () => {
       save: jest.fn(async () => undefined),
     };
 
+    const recordAnalyticsEvents = jest.fn(async () => undefined);
     const handler = new SyncMarketplaceHandler(resolver, {
       listingStore,
       marketplaceStore,
+      recordAnalyticsEvents,
     });
 
     const result = await handler.handle({
@@ -342,6 +345,14 @@ describe('SyncMarketplaceHandler', () => {
     expect(marketplaceStore.save).toHaveBeenCalled();
     expect(marketplace.errorCount).toBe(0); // reset on success
     expect(marketplace.lastSyncAt).not.toBeNull();
+    expect(recordAnalyticsEvents).toHaveBeenCalledWith(expect.objectContaining({
+      workspaceId: 'w-1',
+      events: expect.arrayContaining([
+        expect.objectContaining({ eventType: 'view', quantity: 42 }),
+        expect.objectContaining({ eventType: 'message', quantity: 2 }),
+        expect.objectContaining({ eventType: 'sale', quantity: 1 }),
+      ]),
+    }));
   });
 
   it('persists listing evidence and product reconciliation through one atomic callback', async () => {
@@ -391,6 +402,7 @@ describe('SyncMarketplaceHandler', () => {
       listings: [expect.objectContaining({ id: 'l-atomic' })],
       expectedUpdatedAt: new Map([['l-atomic', expectedUpdatedAt]]),
       mismatchCandidates: [expect.objectContaining({ listing: expect.objectContaining({ id: 'l-atomic' }) })],
+      analyticsEvents: expect.any(Array),
       job: expect.objectContaining({ trigger: 'manual', actorId: 'user-1' }),
     }));
     expect(listing.marketplaceCategory).toEqual(synced[0].marketplaceCategory);
@@ -408,6 +420,7 @@ describe('SyncMarketplaceHandler', () => {
     };
     const sync = jest.fn(async (): Promise<SyncedListing[]> => [{
       externalListingId: 'ext-cas', status: 'expired', remoteStatus: 'removed',
+      views: 5,
       marketplaceCategory: newCategory,
     }]);
     const adapter = fakeAdapter({ sync });
@@ -421,6 +434,7 @@ describe('SyncMarketplaceHandler', () => {
     }));
     const publish = jest.fn(async () => undefined);
     const recommend = jest.fn(async () => undefined);
+    const recordAnalyticsEvents = jest.fn(async () => undefined);
     const persist = jest.fn(async () => {
       throw new Error('Listing changed concurrently; retry sync');
     });
@@ -435,6 +449,7 @@ describe('SyncMarketplaceHandler', () => {
       },
       eventPublisher: { publish },
       recommendCategoryMismatch: recommend,
+      recordAnalyticsEvents,
       persistAndReconcileProductCategories: persist,
     });
 
@@ -444,7 +459,9 @@ describe('SyncMarketplaceHandler', () => {
 
     expect(persist).toHaveBeenCalledWith(expect.objectContaining({
       mismatchCandidates: [expect.objectContaining({ listing: expect.objectContaining({ id: 'l-cas' }) })],
+      analyticsEvents: [expect.objectContaining({ eventType: 'view', quantity: 5 })],
     }));
+    expect(recordAnalyticsEvents).not.toHaveBeenCalled();
     expect(recommend).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
   });

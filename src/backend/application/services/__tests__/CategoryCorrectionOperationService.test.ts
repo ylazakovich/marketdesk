@@ -142,7 +142,7 @@ function setup(decision: 'allow' | 'block' | 'override' = 'allow', options: Setu
   const delist = jest.fn(async () => undefined);
   const adapter = { publish, preparePublish, delist } as unknown as IMarketplaceAdapter;
   const resolveAdapter = jest.fn(async () => adapter);
-  const authorize = jest.fn(async (input: { override?: unknown }) => ({
+  const authorize = jest.fn(async (_input: { override?: unknown }) => ({
     applicable: true, marketplaceKey: 'olx' as const, status: decision === 'block' ? 'unknown' as const : 'available' as const,
     decision, reason: decision === 'block' ? 'quota_unknown' : 'free_unit_available', requiresOverride: decision === 'block',
     consumedUnit: false, subcategoryId: category.providerCategoryId,

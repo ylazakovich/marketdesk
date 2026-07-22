@@ -29,6 +29,7 @@ import { EventRepository } from '../../infrastructure/persistence/repositories/E
 import { WorkspaceRepository } from '../../infrastructure/persistence/repositories/WorkspaceRepository';
 import { SettingsRepository } from '../../infrastructure/persistence/repositories/SettingsRepository';
 import { ActivityLogRepository } from '../../infrastructure/persistence/repositories/ActivityLogRepository';
+import { AnalyticsEventRepository } from '../../infrastructure/persistence/repositories/AnalyticsEventRepository';
 import { AuthUserRepository } from '../../infrastructure/persistence/repositories/AuthUserRepository';
 import { PriceHistoryRepository } from '../../infrastructure/persistence/repositories/PriceHistoryRepository';
 import { OlxPublicationQuotaRepository } from '../../infrastructure/persistence/repositories/OlxPublicationQuotaRepository';
@@ -435,10 +436,12 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
     approveEventUC,
     dismissEventUC
   );
+  const analyticsEventRepo = new AnalyticsEventRepository(pool);
   const analyticsService = new AnalyticsApplicationService(
     productRepo,
     listingRepo,
-    marketplaceRepo
+    marketplaceRepo,
+    analyticsEventRepo,
   );
   const categoryCorrectionOperationService = new CategoryCorrectionOperationService(
     categoryCorrectionOperationRepo,
@@ -561,6 +564,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
       expectedUpdatedAt,
       mismatchCandidates,
       marketplaceAccount,
+      analyticsEvents,
       job,
     }) => {
       await withPoolTransaction(pool, async (client) => {
@@ -572,6 +576,7 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
           eventRepo: new EventRepository(pool, client),
           correctionOperations: new CategoryCorrectionOperationRepository(pool, client),
           accountRepo: new MarketplaceAccountRepository(pool, client),
+          analyticsEvents: new AnalyticsEventRepository(pool, client),
         };
         const productIds = [...new Set(listings.map((listing) => listing.productId))].sort();
         for (const productId of productIds) {
@@ -587,6 +592,31 @@ export function buildContainer(overrides: ContainerOverrides = {}): AppContainer
             'Marketplace account binding is required before category reconciliation'
           );
         }
+        const analyticsRecords = await Promise.all(analyticsEvents.map(async (event) => {
+          const product = event.eventType === 'sale'
+            ? await repositories.productRepo.findByIdForWorkspace(
+                event.listing.productId,
+                marketplace.workspaceId,
+              )
+            : null;
+          return {
+            idempotencyKey: `${marketplace.workspaceId}:${event.idempotencyKey}`,
+            workspaceId: marketplace.workspaceId,
+            listingId: event.listing.id,
+            marketplaceId: event.listing.marketplaceId,
+            eventType: event.eventType,
+            quantity: event.quantity,
+            amount: event.eventType === 'sale'
+              ? event.listing.price.amount * event.quantity
+              : null,
+            costAtSale: event.eventType === 'sale' && product?.costPrice
+              ? product.costPrice.amount
+              : null,
+            currency: event.eventType === 'sale' ? event.listing.price.currency : null,
+            occurredAt: event.occurredAt,
+          };
+        }));
+        await repositories.analyticsEvents.appendMany(analyticsRecords);
         for (const candidate of mismatchCandidates) {
           await marketplaceImportService.recommendSyncedCategoryMismatch(
             {

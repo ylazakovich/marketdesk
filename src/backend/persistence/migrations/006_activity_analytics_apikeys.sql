@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS analytics_events (
   workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   listing_id UUID REFERENCES listings(id) ON DELETE SET NULL,
   event_type VARCHAR(50) NOT NULL, -- 'view' | 'message' | 'sale'
-  quantity INT DEFAULT 1,
+  quantity INT NOT NULL DEFAULT 1,
   amount DECIMAL(10, 2),
   cost_at_sale DECIMAL(10, 2),
   occurred_at TIMESTAMP NOT NULL,

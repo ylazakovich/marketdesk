@@ -53,7 +53,7 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({ params, height = 300
               <stop offset="5%" stopColor={colors.primary} stopOpacity={0.35} />
               <stop offset="95%" stopColor={colors.primary} stopOpacity={0} />
             </linearGradient>
-            <linearGradient id="prevFill" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id="profitFill" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor={colors.secondary} stopOpacity={0.3} />
               <stop offset="95%" stopColor={colors.secondary} stopOpacity={0} />
             </linearGradient>
@@ -87,12 +87,11 @@ export const RevenueChart: React.FC<RevenueChartProps> = ({ params, height = 300
           />
           <Area
             type="monotone"
-            dataKey="previous"
-            name="Previous period"
+            dataKey="profit"
+            name="Profit"
             stroke={colors.secondary}
             strokeWidth={2}
-            fill="url(#prevFill)"
-            connectNulls
+            fill="url(#profitFill)"
           />
         </AreaChart>
       </ResponsiveContainer>

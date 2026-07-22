@@ -8,9 +8,7 @@ import type {
 } from '../../../domain/repositories/interfaces/IOlxPublicationQuotaRepository';
 import type { MarketplaceAccountRepository } from '../MarketplaceOAuthService';
 import {
-  InMemoryListingRepository,
   InMemoryMarketplaceRepository,
-  InMemoryProductRepository,
   money,
   unwrap,
 } from '../../../domain/testkit/support';

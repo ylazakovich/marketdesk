@@ -413,10 +413,12 @@ CREATE TABLE IF NOT EXISTS analytics_events (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
   listing_id UUID REFERENCES listings(id) ON DELETE SET NULL,
+  marketplace_id UUID REFERENCES marketplaces(id) ON DELETE SET NULL,
   event_type VARCHAR(50) NOT NULL, -- 'view' | 'message' | 'sale'
-  quantity INT DEFAULT 1,
+  quantity INT NOT NULL DEFAULT 1,
   amount DECIMAL(10, 2),
   cost_at_sale DECIMAL(10, 2),
+  currency VARCHAR(3),
   occurred_at TIMESTAMP NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -425,6 +427,8 @@ CREATE INDEX IF NOT EXISTS idx_analytics_workspace_type ON analytics_events(work
 CREATE INDEX IF NOT EXISTS idx_analytics_listing ON analytics_events(listing_id);
 CREATE INDEX IF NOT EXISTS idx_analytics_occurred ON analytics_events(occurred_at);
 CREATE INDEX IF NOT EXISTS idx_analytics_workspace_date ON analytics_events(workspace_id, occurred_at DESC);
+CREATE INDEX IF NOT EXISTS idx_analytics_workspace_marketplace_date
+  ON analytics_events(workspace_id, marketplace_id, occurred_at DESC);
 
 CREATE TABLE IF NOT EXISTS api_keys (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -94,11 +94,13 @@ describe('OLXAdapter', () => {
     ]);
   });
 
-  it('maps a synced OLX ad without metrics as unavailable rather than zero', async () => {
-    const http = mockClient(() => ({
-      status: 200,
-      data: { data: { id: 9, status: 'active', public_url: 'https://www.olx.pl/d/oferta/olx-9' } },
-    }));
+  it('maps a real empty OLX thread list to zero messages', async () => {
+    const http = mockClient((config) => config.url.endsWith('/threads')
+      ? { status: 200, data: [] }
+      : {
+          status: 200,
+          data: { data: { id: 9, status: 'active', public_url: 'https://www.olx.pl/d/oferta/olx-9' } },
+        });
     const adapter = new OLXAdapter(http, fastOptions);
 
     const [synced] = await adapter.sync(['olx-9']);
@@ -110,8 +112,8 @@ describe('OLXAdapter', () => {
       remoteStatus: 'active',
       views: null,
       watchers: null,
-      messages: null,
-      messageMetricStatus: 'unavailable',
+      messages: 0,
+      messageMetricStatus: 'available',
       marketplaceCategory: null,
     });
   });
@@ -152,16 +154,18 @@ describe('OLXAdapter', () => {
   });
 
   it('maps supported OLX engagement counters and parses numeric strings safely', async () => {
-    const http = mockClient(() => ({
-      status: 200,
-      data: {
-        data: {
-          id: 9,
-          status: 'active',
-          metrics: { views: '42', favorites: 3, messages: 0 },
-        },
-      },
-    }));
+    const http = mockClient((config) => config.url.endsWith('/threads')
+      ? { status: 200, data: [] }
+      : {
+          status: 200,
+          data: {
+            data: {
+              id: 9,
+              status: 'active',
+              metrics: { views: '42', favorites: 3, messages: 99 },
+            },
+          },
+        });
     const adapter = new OLXAdapter(http, fastOptions);
 
     const [synced] = await adapter.sync(['olx-9']);
@@ -177,18 +181,21 @@ describe('OLXAdapter', () => {
   });
 
   it('does not misclassify OLX phone views as buyer messages', async () => {
-    const http = mockClient((config) => ({
-      status: 200,
-      data: config.url.endsWith('/statistics')
-        ? { data: { advert_views: '2', users_observing: 0, phone_views: 0 } }
-        : {
-            data: {
-              id: 1085426829,
-              status: 'active',
-              public_url: 'https://www.olx.pl/d/oferta/airpods-1085426829',
+    const http = mockClient((config) => {
+      if (config.url.endsWith('/threads')) throw new HttpError(404, 'unavailable');
+      return {
+        status: 200,
+        data: config.url.endsWith('/statistics')
+          ? { data: { advert_views: '2', users_observing: 0, phone_views: 0 } }
+          : {
+              data: {
+                id: 1085426829,
+                status: 'active',
+                public_url: 'https://www.olx.pl/d/oferta/airpods-1085426829',
+              },
             },
-          },
-    }));
+      };
+    });
     const adapter = new OLXAdapter(http, fastOptions);
 
     const [synced] = await adapter.sync(['1085426829']);
@@ -204,28 +211,108 @@ describe('OLXAdapter', () => {
     });
   });
 
-  it('maps an explicit provider message counter when one is exposed', async () => {
-    const http = mockClient((config) => ({
-      status: 200,
-      data: config.url.endsWith('/statistics')
-        ? { data: { advert_views: 2, users_observing: 0, phone_views: 0 } }
-        : { data: { id: 1085783130, status: 'active', statistics: { messages: 1 } } },
-    }));
+  it('counts messages from thread metadata without fetching message content', async () => {
+    const calls: HttpRequestConfig[] = [];
+    const http = mockClient((config) => {
+      calls.push(config);
+      if (config.url.endsWith('/threads')) {
+        return {
+          status: 200,
+          data: [
+            { advert_id: 1085783130, total_count: 2 },
+            { advert_id: '1085783130', total_count: 3 },
+            { advert_id: 999, total_count: 100 },
+            { advert_id: 1085783130, total_count: -1 },
+            { advert_id: 1085783130, total_count: 'bad' },
+          ],
+        };
+      }
+      return {
+        status: 200,
+        data: config.url.endsWith('/statistics')
+          ? { data: { advert_views: 2, users_observing: 0, phone_views: 0 } }
+          : { data: { id: 1085783130, status: 'active', statistics: { messages: 99 } } },
+      };
+    });
     const adapter = new OLXAdapter(http, fastOptions);
 
     const [synced] = await adapter.sync(['1085783130']);
 
     expect(synced).toMatchObject({
-      messages: 1,
+      messages: 5,
       messageMetricStatus: 'available',
+    });
+    expect(calls).toContainEqual(expect.objectContaining({
+      method: 'GET', url: 'https://www.olx.pl/api/partner/threads',
+      query: { advert_id: '1085783130', offset: 0, limit: 100 },
+    }));
+    expect(calls.some((call) => /\/threads\/[^/]+\/messages/.test(call.url))).toBe(false);
+  });
+
+  it('paginates thread metadata and returns a real zero for an empty list', async () => {
+    const threadOffsets: unknown[] = [];
+    const http = mockClient((config) => {
+      if (config.url.endsWith('/threads')) {
+        threadOffsets.push(config.query?.offset);
+        if (config.query?.advert_id === '43') return { status: 200, data: [] };
+        const offset = Number(config.query?.offset);
+        return {
+          status: 200,
+          data: offset === 0
+            ? { data: [{ advert_id: 42, total_count: 4 }], links: { next: 'next' } }
+            : { data: [], links: { next: null } },
+        };
+      }
+      return config.url.endsWith('/statistics')
+        ? { status: 200, data: { data: {} } }
+        : { status: 200, data: { data: { id: 42, status: 'active' } } };
+    });
+    const adapter = new OLXAdapter(http, fastOptions);
+
+    await expect(adapter.fetchListing('42')).resolves.toMatchObject({ messages: 4 });
+    await expect(adapter.fetchListing('43')).resolves.toMatchObject({ messages: 0 });
+    expect(threadOffsets).toEqual([0, 100, 0]);
+  });
+
+  it('marks messages stale when the thread metadata collection is malformed', async () => {
+    const http = mockClient((config) => config.url.endsWith('/threads')
+      ? { status: 200, data: { data: {} } }
+      : { status: 200, data: { data: { id: 42, status: 'active' } } });
+    const adapter = new OLXAdapter(http, fastOptions);
+
+    await expect(adapter.fetchListing('42')).resolves.toMatchObject({
+      messages: undefined,
+      messageMetricStatus: 'error',
     });
   });
 
-  it('marks messages stale when the statistics request fails', async () => {
+  it('fails closed after the bounded thread metadata pagination limit', async () => {
+    let threadRequests = 0;
     const http = mockClient((config) => {
-      if (config.url.endsWith('/statistics')) {
-        throw new HttpError(503, 'statistics unavailable');
+      if (config.url.endsWith('/threads')) {
+        threadRequests += 1;
+        return {
+          status: 200,
+          data: {
+            data: [{ advert_id: 42, total_count: 1 }],
+            links: { next: 'next' },
+          },
+        };
       }
+      return { status: 200, data: { data: { id: 42, status: 'active' } } };
+    });
+    const adapter = new OLXAdapter(http, fastOptions);
+
+    await expect(adapter.fetchListing('42')).resolves.toMatchObject({
+      messages: undefined,
+      messageMetricStatus: 'error',
+    });
+    expect(threadRequests).toBe(1_000);
+  });
+
+  it('marks messages stale when the thread metadata request fails', async () => {
+    const http = mockClient((config) => {
+      if (config.url.endsWith('/threads')) throw new HttpError(503, 'threads unavailable');
       return { status: 200, data: { data: { id: 1085783130, status: 'active' } } };
     });
     const adapter = new OLXAdapter(http, fastOptions);
@@ -238,6 +325,19 @@ describe('OLXAdapter', () => {
     });
   });
 
+  it('does not request thread metadata when the advert is missing', async () => {
+    const calls: HttpRequestConfig[] = [];
+    const http = mockClient((config) => {
+      calls.push(config);
+      if (config.url.endsWith('/adverts/missing')) throw new HttpError(404, 'not found');
+      return { status: 200, data: { data: {} } };
+    });
+    const adapter = new OLXAdapter(http, fastOptions);
+
+    await expect(adapter.fetchListing('missing')).resolves.toBeNull();
+    expect(calls.some((call) => call.url.endsWith('/threads'))).toBe(false);
+  });
+
   it.each([
     ['empty string', ''],
     ['decimal string', '2.5'],
@@ -247,16 +347,19 @@ describe('OLXAdapter', () => {
     ['decimal number', 2.5],
     ['negative number', -1],
   ])('treats invalid OLX counter value %s as unavailable', async (_label, value) => {
-    const http = mockClient(() => ({
-      status: 200,
-      data: {
+    const http = mockClient((config) => {
+      if (config.url.endsWith('/threads')) throw new HttpError(404, 'unavailable');
+      return {
+        status: 200,
         data: {
-          id: 1085426829,
-          status: 'active',
-          statistics: { advert_views: value, favorites_count: value, contact_count: value },
+          data: {
+            id: 1085426829,
+            status: 'active',
+            statistics: { advert_views: value, favorites_count: value, contact_count: value },
+          },
         },
-      },
-    }));
+      };
+    });
     const adapter = new OLXAdapter(http, fastOptions);
 
     const [synced] = await adapter.sync(['1085426829']);
@@ -272,6 +375,14 @@ describe('OLXAdapter', () => {
     const calls: HttpRequestConfig[] = [];
     const http = mockClient((config) => {
       calls.push(config);
+      if (config.url.endsWith('/threads')) {
+        return {
+          status: 200,
+          data: config.query?.advert_id === '10'
+            ? [{ advert_id: 10, total_count: 1 }]
+            : [],
+        };
+      }
       const page = config.query?.page;
       return {
         status: 200,
@@ -311,18 +422,20 @@ describe('OLXAdapter', () => {
 
     const adverts = await adapter.listOwnedListings({ pageSize: 50, statuses: ['active'] });
 
-    expect(calls.filter((call) => call.url.endsWith('/adverts'))).toHaveLength(2);
-    expect(calls[0]).toMatchObject({
+    const advertCalls = calls.filter((call) => call.url.endsWith('/adverts'));
+    const statisticCalls = calls.filter((call) => call.url.endsWith('/statistics'));
+    expect(advertCalls).toHaveLength(2);
+    expect(advertCalls[0]).toMatchObject({
       method: 'GET',
       url: 'https://www.olx.pl/api/partner/adverts',
       query: { page: 1, limit: 50, status: 'active' },
     });
-    expect(calls[2]).toMatchObject({
+    expect(advertCalls[1]).toMatchObject({
       method: 'GET',
       url: 'https://www.olx.pl/api/partner/adverts',
       query: { page: 2, limit: 50, status: 'active' },
     });
-    expect(calls[1]).toMatchObject({
+    expect(statisticCalls[0]).toMatchObject({
       method: 'GET',
       url: 'https://www.olx.pl/api/partner/adverts/10/statistics',
     });
@@ -434,16 +547,19 @@ describe('OLXAdapter', () => {
   });
 
   it('treats invalid, negative, and schema-changed OLX counters as unavailable', async () => {
-    const http = mockClient(() => ({
-      status: 200,
-      data: {
+    const http = mockClient((config) => {
+      if (config.url.endsWith('/threads')) throw new HttpError(404, 'unavailable');
+      return {
+        status: 200,
         data: {
-          id: 9,
-          status: 'active',
-          metrics: { views: -1, favorites: 'not-a-number', messages: { count: 2 } },
+          data: {
+            id: 9,
+            status: 'active',
+            metrics: { views: -1, favorites: 'not-a-number', messages: { count: 2 } },
+          },
         },
-      },
-    }));
+      };
+    });
     const adapter = new OLXAdapter(http, fastOptions);
 
     const [synced] = await adapter.sync(['olx-9']);

@@ -896,7 +896,7 @@ describe('SyncMarketplaceHandler', () => {
     expect(listing.syncError).toBe('Remote advert missing during sync');
   });
 
-  it('preserves the last message value and marks it stale on a partial statistics failure', async () => {
+  it('preserves the last message value and marks it stale on a thread metadata failure', async () => {
     const synced: SyncedListing[] = [{
       externalListingId: 'ext-1',
       status: 'live',
@@ -933,7 +933,7 @@ describe('SyncMarketplaceHandler', () => {
     expect(listing.views).toBe(11);
     expect(listing.messages).toBe(1);
     expect(listing.syncError).toBe(
-      'Remote status observed: pending; Message metric is stale: provider statistics request failed',
+      'Remote status observed: pending; Message metric is stale: thread metadata could not be processed',
     );
     expect(listing.lastSyncAt).not.toBeNull();
   });

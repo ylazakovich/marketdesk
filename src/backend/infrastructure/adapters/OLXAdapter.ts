@@ -22,6 +22,8 @@ import { evaluateOlxCategory } from '../../domain/services/OlxCategoryGuard';
 import { OlxTaxonomyResolver, type OlxTrustedTaxonomyResolver } from './OlxTaxonomyResolver';
 
 const OLX_PARTNER_BASE_URL = 'https://www.olx.pl/api/partner';
+const OLX_THREAD_PAGE_SIZE = 100;
+const OLX_THREAD_MAX_PAGES = 1_000;
 
 // Stub/demo fallback only. Real mode sets requirePublishDetails=true and must
 // provide an approved category id instead of relying on these placeholders.
@@ -111,10 +113,26 @@ interface OlxAdvertStatisticsResponse extends Record<string, unknown> {
   users_observing?: unknown;
 }
 
+interface OlxThreadMetadata {
+  advert_id?: unknown;
+  total_count?: unknown;
+}
+
+type OlxThreadListResponse = OlxThreadMetadata[] | {
+  data: OlxThreadMetadata[];
+  links?: { next?: string | null };
+  meta?: { current_page?: number; last_page?: number };
+};
+
 type OlxAdvertStatisticsResult =
   | { status: 'success'; data: OlxAdvertStatisticsResponse }
   | { status: 'unavailable'; data: null }
   | { status: 'error'; data: null };
+
+type OlxThreadMessageCountResult =
+  | { status: 'success'; count: number }
+  | { status: 'unavailable'; count: null }
+  | { status: 'error'; count: null };
 
 interface OlxResponseEnvelope<T> {
   data: T;
@@ -244,49 +262,40 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
   }
 
   protected async doSync(externalListingIds: string[]): Promise<SyncedListing[]> {
-    const responses = await Promise.all(
-      externalListingIds.map(async (id) => {
-        try {
-          const [res, statistics] = await Promise.all([
-            this.http.request<OlxAdvertResponse | OlxResponseEnvelope<OlxAdvertResponse>>({
-              method: 'GET',
-              url: `${this.baseUrl}/adverts/${id}`,
-            }),
-            this.fetchAdvertStatistics(id),
-          ]);
-          const advert = this.unwrapAdvert(res.data);
-          return this.toSyncedListing(
-            this.withStatistics(advert, statistics.data),
-            statistics.status,
-          );
-        } catch (error) {
-          if (error instanceof HttpError && error.status === 404) {
-            return this.missingSyncedListing(id);
-          }
-          throw error;
+    return this.mapWithConcurrency(externalListingIds, 5, async (id) => {
+      try {
+        const res = await this.http.request<OlxAdvertResponse | OlxResponseEnvelope<OlxAdvertResponse>>({
+          method: 'GET', url: `${this.baseUrl}/adverts/${id}`,
+        });
+        const advert = this.unwrapAdvert(res.data);
+        const [statistics, messageCount] = await Promise.all([
+          this.fetchAdvertStatistics(id),
+          this.fetchThreadMessageCount(id),
+        ]);
+        return this.toSyncedListing(this.withStatistics(advert, statistics.data), messageCount);
+      } catch (error) {
+        if (error instanceof HttpError && error.status === 404) {
+          return this.missingSyncedListing(id);
         }
-      }),
-    );
-    return responses;
+        throw error;
+      }
+    });
   }
 
   protected async doFetchListing(
     externalListingId: string,
   ): Promise<SyncedListing | null> {
     try {
-      const [res, statistics] = await Promise.all([
-        this.http.request<OlxAdvertResponse | OlxResponseEnvelope<OlxAdvertResponse> | null>({
-          method: 'GET',
-          url: `${this.baseUrl}/adverts/${externalListingId}`,
-        }),
-        this.fetchAdvertStatistics(externalListingId),
-      ]);
+      const res = await this.http.request<OlxAdvertResponse | OlxResponseEnvelope<OlxAdvertResponse> | null>({
+        method: 'GET', url: `${this.baseUrl}/adverts/${externalListingId}`,
+      });
       if (!res.data) return null;
       const advert = this.unwrapAdvert(res.data);
-      return this.toSyncedListing(
-        this.withStatistics(advert, statistics.data),
-        statistics.status,
-      );
+      const [statistics, messageCount] = await Promise.all([
+        this.fetchAdvertStatistics(externalListingId),
+        this.fetchThreadMessageCount(externalListingId),
+      ]);
+      return this.toSyncedListing(this.withStatistics(advert, statistics.data), messageCount);
     } catch (error) {
       if (error instanceof HttpError && error.status === 404) return null;
       throw error;
@@ -321,8 +330,12 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
       });
       imported.push(
         ...(await this.mapWithConcurrency(res.data.data, 5, async (advert) => {
-          const statistics = await this.fetchAdvertStatistics(String(advert.id));
-          return this.toImportedListing(this.withStatistics(advert, statistics.data));
+          const externalListingId = String(advert.id);
+          const [statistics, messageCount] = await Promise.all([
+            this.fetchAdvertStatistics(externalListingId),
+            this.fetchThreadMessageCount(externalListingId),
+          ]);
+          return this.toImportedListing(this.withStatistics(advert, statistics.data), messageCount);
         }))
       );
       const lastPage = res.data.meta?.last_page;
@@ -361,6 +374,60 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
     }
   }
 
+  private async fetchThreadMessageCount(
+    externalListingId: string,
+  ): Promise<OlxThreadMessageCountResult> {
+    let offset = 0;
+    let count = 0;
+    let pages = 0;
+    try {
+      for (;;) {
+        if (pages >= OLX_THREAD_MAX_PAGES) {
+          throw new Error('OLX thread metadata pagination exceeded the safety limit');
+        }
+        pages += 1;
+        const res = await this.http.request<OlxThreadListResponse>({
+          method: 'GET',
+          url: `${this.baseUrl}/threads`,
+          query: { advert_id: externalListingId, offset, limit: OLX_THREAD_PAGE_SIZE },
+        });
+        const envelope = Array.isArray(res.data) ? null : res.data;
+        const threads = Array.isArray(res.data) ? res.data : envelope?.data;
+        if (!Array.isArray(threads)) throw new Error('Malformed OLX thread metadata response');
+
+        for (const thread of threads) {
+          if (String(thread.advert_id) !== externalListingId) continue;
+          const total = this.parseCounter(thread.total_count);
+          if (total !== null) {
+            if (!Number.isSafeInteger(count + total)) {
+              throw new Error('OLX thread message count exceeds the safe integer range');
+            }
+            count += total;
+          }
+        }
+
+        const explicitNext = envelope?.links?.next;
+        const currentPage = envelope?.meta?.current_page;
+        const lastPage = envelope?.meta?.last_page;
+        const hasNext = explicitNext !== undefined
+          ? explicitNext !== null && explicitNext !== ''
+          : currentPage !== undefined && lastPage !== undefined
+            ? currentPage < lastPage
+            : threads.length === OLX_THREAD_PAGE_SIZE;
+        if (!hasNext) return { status: 'success', count };
+        if (threads.length === 0) {
+          throw new Error('OLX thread metadata pagination did not advance');
+        }
+        offset += OLX_THREAD_PAGE_SIZE;
+      }
+    } catch (error) {
+      if (error instanceof HttpError && error.status === 404) {
+        return { status: 'unavailable', count: null };
+      }
+      return { status: 'error', count: null };
+    }
+  }
+
   private withStatistics(
     advert: OlxAdvertResponse,
     statistics: OlxAdvertStatisticsResponse | null,
@@ -372,10 +439,9 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
 
   private async toSyncedListing(
     data: OlxAdvertResponse,
-    statisticsStatus: OlxAdvertStatisticsResult['status'],
+    messageCount: OlxThreadMessageCountResult,
   ): Promise<SyncedListing> {
     const remoteStatus = String(data.status ?? 'unknown').toLowerCase();
-    const messages = this.extractMessages(data);
     return {
       externalListingId: String(data.id),
       externalUrl: this.extractPublicUrl(data),
@@ -383,18 +449,22 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
       remoteStatus,
       views: this.extractViews(data),
       watchers: this.extractWatchers(data),
-      messages: messages ?? (statisticsStatus === 'error' ? undefined : null),
-      messageMetricStatus:
-        messages !== null ? 'available' : statisticsStatus === 'error' ? 'error' : 'unavailable',
+      messages: messageCount.status === 'success'
+        ? messageCount.count
+        : messageCount.status === 'error' ? undefined : null,
+      messageMetricStatus: messageCount.status === 'success' ? 'available' : messageCount.status,
       marketplaceCategory: await this.extractMarketplaceCategory(data),
     };
   }
 
-  private async toImportedListing(data: OlxAdvertResponse): Promise<ImportedMarketplaceListing> {
+  private async toImportedListing(
+    data: OlxAdvertResponse,
+    messageCount: OlxThreadMessageCountResult,
+  ): Promise<ImportedMarketplaceListing> {
     const price = this.extractPrice(data.price);
     const views = this.extractViews(data);
     const watchers = this.extractWatchers(data);
-    const messages = this.extractMessages(data);
+
     return {
       externalListingId: String(data.id),
       externalUrl: this.extractPublicUrl(data),
@@ -411,7 +481,7 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
       metrics: {
         views: views ?? undefined,
         watchers: watchers ?? undefined,
-        messages: messages ?? undefined,
+        messages: messageCount.status === 'success' ? messageCount.count : undefined,
       },
     };
   }
@@ -486,13 +556,6 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
     ]);
   }
 
-  private extractMessages(data: OlxAdvertResponse): number | null {
-    return this.extractCounter(data, [
-      'messages',
-      'message_count',
-      'messages_count',
-    ]);
-  }
 
   private parseCounter(value: unknown): number | null {
     if (typeof value === 'number') {
@@ -576,6 +639,9 @@ export class OLXAdapter extends BaseMarketplaceAdapter {
     }
     if (config.method === 'PUT' || config.method === 'DELETE') {
       return { status: 204, data: {} };
+    }
+    if (config.method === 'GET' && config.url.endsWith('/threads')) {
+      return { status: 200, data: [] };
     }
     if (config.method === 'GET' && config.url.endsWith('/adverts')) {
       return {

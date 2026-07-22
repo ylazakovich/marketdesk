@@ -94,7 +94,7 @@
     "@typescript-eslint/parser": "8.64.0",
     "@vitejs/plugin-react": "6.0.3",
     "allure-jest": "3.10.2",
-    "@swc/core": "1.15.43",
+    "@swc/core": "1.15.46",
     "@swc/jest": "0.2.39",
     "concurrently": "10.0.3",
     "docker-compose": "1.4.2",

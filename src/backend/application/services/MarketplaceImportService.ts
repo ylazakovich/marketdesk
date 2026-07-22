@@ -587,6 +587,11 @@ export class MarketplaceImportService {
       changes.push('views');
     if (remote.metrics?.watchers !== undefined && listing.watchers !== remote.metrics.watchers)
       changes.push('watchers');
+    if (
+      remote.metrics?.conversations !== undefined &&
+      listing.conversations !== remote.metrics.conversations
+    )
+      changes.push('conversations');
     if (remote.metrics?.messages !== undefined && listing.messages !== remote.metrics.messages)
       changes.push('messages');
     if (product) {

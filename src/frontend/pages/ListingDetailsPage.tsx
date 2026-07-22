@@ -1,6 +1,7 @@
 // Product / listing detail: gallery, attributes, per-marketplace listings,
 // price editing (PricingForm), publish + relist actions, and price history.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { skipToken } from '@reduxjs/toolkit/query';
 import {
   Alert,
   Box,
@@ -41,6 +42,7 @@ import {
   useHermesEvents,
   useRunHermes,
 } from '../services/hooks/index.js';
+import { settingsPrincipalKey, useGetHermesSettingsQuery } from '../state/api/settingsApi.js';
 import { useMarketplaceLookup } from '../hooks/useMarketplaceLookup.js';
 import { useAppDispatch, useAppSelector } from '../state/hooks.js';
 import { enqueueToast } from '../state/slices/uiSlice.js';
@@ -77,6 +79,28 @@ export const PUBLICATION_READINESS_CHECKING_LABEL = 'Checking…';
 
 export function productScopedHermesRunInput(productId: string): HermesRunInput {
   return { trigger: 'manual', productId };
+}
+
+export type ProductHermesAnalysisState =
+  | { status: 'idle' }
+  | { status: 'success'; message: string }
+  | { status: 'error'; message: string };
+
+export function productHermesDisabledReason(input: {
+  settingsLoaded: boolean;
+  listingSeoEnabled: boolean;
+  productId: string;
+}): string | null {
+  if (!input.productId) return 'Select one product before running Hermes analysis.';
+  if (!input.settingsLoaded) return 'Hermes settings are still loading.';
+  if (!input.listingSeoEnabled) return 'Enable the listing SEO agent in Hermes settings first.';
+  return null;
+}
+
+export function productHermesSuccessMessage(eventCount: number): string {
+  return eventCount
+    ? 'Hermes SEO suggestion is ready for human review.'
+    : 'Hermes found no new SEO suggestion for this product.';
 }
 
 export const PublicationReadinessAction: React.FC<{
@@ -381,7 +405,11 @@ const ListingDetailsPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
-  const currency = useAppSelector((s) => s.workspace.currency);
+  const workspace = useAppSelector((s) => s.workspace);
+  const user = useAppSelector((s) => s.auth.user);
+  const currency = workspace.currency;
+  const principal = workspace.id && user?.id ? { workspaceId: workspace.id, userId: user.id } : null;
+  const principalCacheKey = principal ? settingsPrincipalKey(principal) : '';
 
   const product = useProduct(productId, { skip: !productId });
   const listings = useProductListings(productId, { skip: !productId });
@@ -389,6 +417,7 @@ const ListingDetailsPage: React.FC = () => {
     { productId, status: ['pending_review'], sort: '-createdAt', limit: 20 },
     { skip: !productId }
   );
+  const hermesSettings = useGetHermesSettingsQuery(principal ?? skipToken);
   const { marketplaces, resolveMarketplaceName, resolveMarketplaceKey } = useMarketplaceLookup();
 
   const [updateProduct, { isLoading: updating }] = useUpdateProduct();
@@ -414,6 +443,7 @@ const ListingDetailsPage: React.FC = () => {
   const [previewingPublication, setPreviewingPublication] = useState(false);
   const [submittingPublication, setSubmittingPublication] = useState(false);
   const [activeImage, setActiveImage] = useState(0);
+  const [analysisState, setAnalysisState] = useState<ProductHermesAnalysisState>({ status: 'idle' });
   const consumedNavigationReview = useRef<string | null>(null);
   const previewInFlight = useRef(false);
   const publicationReviewOpen = useRef(false);
@@ -438,6 +468,11 @@ const ListingDetailsPage: React.FC = () => {
     : 'Marketplace';
   const remoteMarketplace = remoteMarketplacePresentation(primaryListing, primaryMarketplaceName);
   const recommendations = selectProductRecommendations(hermesEvents.data?.items ?? [], productId);
+  const analyzeDisabledReason = productHermesDisabledReason({
+    settingsLoaded: Boolean(hermesSettings.currentData),
+    listingSeoEnabled: hermesSettings.currentData?.agents.listingSeo.enabled ?? false,
+    productId,
+  });
   const publicationBusy =
     previewingPublication || submittingPublication || publishing || relisting || delisting;
   const publicationActionsLocked = publicationBusy || Boolean(publishCandidate);
@@ -532,26 +567,39 @@ const ListingDetailsPage: React.FC = () => {
   };
 
   const handleAnalyzeWithHermes = async () => {
+    const disabledReason = productHermesDisabledReason({
+      settingsLoaded: Boolean(hermesSettings.currentData),
+      listingSeoEnabled: hermesSettings.currentData?.agents.listingSeo.enabled ?? false,
+      productId,
+    });
+    if (disabledReason) {
+      setAnalysisState({ status: 'error', message: disabledReason });
+      return;
+    }
+    setAnalysisState({ status: 'idle' });
     try {
       const events = await runHermes(productScopedHermesRunInput(productId)).unwrap();
       await hermesEvents.refetch();
+      const message = productHermesSuccessMessage(events.length);
+      setAnalysisState({ status: 'success', message });
       dispatch(
         enqueueToast({
-          message: events.length
-            ? 'Hermes SEO suggestion is ready for review.'
-            : 'Hermes found no new SEO suggestion.',
+          message,
           severity: 'success',
         })
       );
     } catch (err) {
-      dispatch(enqueueToast({ message: errorMessage(err), severity: 'error' }));
+      const message = errorMessage(err);
+      setAnalysisState({ status: 'error', message });
+      dispatch(enqueueToast({ message, severity: 'error' }));
     }
   };
 
   useEffect(() => {
     recheckRequestIdentity.current += 1;
     setRecheckResult(null);
-  }, [productId]);
+    setAnalysisState({ status: 'idle' });
+  }, [productId, principalCacheKey]);
 
   const beginPublicationReview = useCallback(
     async (listing: Listing, mode: 'publish' | 'relist') => {
@@ -686,12 +734,19 @@ const ListingDetailsPage: React.FC = () => {
       <ProductIdentityHero product={p} onEdit={() => setEditOpen(true)} />
       <Button
         variant="outlined"
-        disabled={analyzing}
+        disabled={analyzing || Boolean(analyzeDisabledReason)}
         onClick={handleAnalyzeWithHermes}
         sx={{ mt: 2 }}
       >
         {analyzing ? 'Analyzing with Hermes…' : 'Analyze with Hermes'}
       </Button>
+      <Alert severity={analysisState.status === 'error' ? 'error' : 'info'} sx={{ mt: 1.5 }}>
+        {analyzing
+          ? 'Hermes is analyzing this product only. Any recommendation will remain review-only.'
+          : analysisState.status === 'idle'
+            ? (analyzeDisabledReason ?? 'Runs only the enabled listing SEO agent for this product; no catalogue run or automatic apply is started.')
+            : analysisState.message}
+      </Alert>
 
       <Card
         title="Publication readiness check"

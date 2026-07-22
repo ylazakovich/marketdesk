@@ -1,11 +1,7 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { HermesEvent } from '@shared/types';
-import HermesActivityPage, {
-  HERMES_SETTINGS_PATH,
-  HermesHero,
-  HermesMetrics,
-} from './HermesActivityPage';
+import HermesActivityPage, { HERMES_SETTINGS_PATH, HermesHero, HermesMetrics } from './HermesActivityPage';
 
 const event: HermesEvent = {
   id: 'event-1',
@@ -38,7 +34,6 @@ jest.mock('../services/hooks/index.js', () => ({
     error: undefined,
     refetch: jest.fn(),
   }),
-  useRunHermes: () => [jest.fn(), { isLoading: false }],
   useApproveHermesEvent: () => [jest.fn(), { isLoading: false }],
   useDismissHermesEvent: () => [jest.fn(), { isLoading: false }],
   useExecuteCategoryRecreationOperation: () => [jest.fn(), { isLoading: false }],
@@ -51,7 +46,8 @@ describe('HermesActivityPage dashboard', () => {
     expect(HERMES_SETTINGS_PATH).toBe('/settings#hermes');
     expect(html).toContain('Hermes AI agent');
     expect(html).toContain('Configure');
-    expect(html).toContain('Run Hermes');
+    expect(html).toContain('Select product to analyze');
+    expect(html).toContain('Whole-catalogue runs are not started from the UI');
     expect(html).toContain('All activity');
     expect(html).toContain('Suggestions');
     expect(html).toContain('Alerts');
@@ -60,32 +56,14 @@ describe('HermesActivityPage dashboard', () => {
     expect(html).toContain('All severities');
   });
 
-  it('keeps running, success, and error results visibly in the hero', () => {
-    const running = renderToStaticMarkup(
-      <HermesHero runState={{ status: 'running' }} onConfigure={jest.fn()} onRun={jest.fn()} />
-    );
-    const success = renderToStaticMarkup(
-      <HermesHero
-        runState={{
-          status: 'success',
-          message: 'Hermes run complete — 2 new activity item(s) recorded.',
-        }}
-        onConfigure={jest.fn()}
-        onRun={jest.fn()}
-      />
-    );
-    const failure = renderToStaticMarkup(
-      <HermesHero
-        runState={{ status: 'error', message: 'Analysis request failed.' }}
-        onConfigure={jest.fn()}
-        onRun={jest.fn()}
-      />
+  it('routes analysis initiation to product selection instead of a global run', () => {
+    const html = renderToStaticMarkup(
+      <HermesHero onConfigure={jest.fn()} onSelectProduct={jest.fn()} />
     );
 
-    expect(running).toContain('Hermes analysis is running');
-    expect(running).toContain('Running…');
-    expect(success).toContain('2 new activity item(s) recorded');
-    expect(failure).toContain('Analysis request failed.');
+    expect(html).toContain('New analysis starts from one explicitly selected product');
+    expect(html).toContain('Analyze with Hermes');
+    expect(html).not.toContain('Run Hermes');
   });
 
   it('uses an authoritative pending-review total and marks unsupported metrics unavailable', () => {

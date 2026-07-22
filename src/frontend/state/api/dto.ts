@@ -271,13 +271,13 @@ export interface HermesEventListParams {
   offset?: number;
 }
 
-// POST /hermes/run body — workspace is derived from the authenticated session.
+// Product-scoped Hermes run body — workspace is derived from the authenticated session.
 export interface HermesRunInput {
   trigger?: 'scheduled' | 'manual' | 'event';
-  productId?: string;
+  productId: string;
 }
 
-// POST /hermes/run responds with the array of generated events (HermesEventView[]).
+// POST /hermes/products/:productId/run responds with the array of generated events (HermesEventView[]).
 
 export type HermesEventResolution = HermesEvent;
 

@@ -413,10 +413,10 @@ Auth is public; every other resource is JWT-protected and workspace-scoped
 - **Products**: `GET|POST /api/products`, `GET|PATCH|DELETE /api/products/:id`, `GET /api/products/:id/listings`
 - **Listings**: `GET /api/listings`, `GET /api/listings/:id`, `GET /api/listings/:id/price-history`, `PATCH /api/listings/:id`, `POST /api/listings/:id/publish`, `POST /api/listings/:id/relist`
 - **Marketplaces**: `GET /api/marketplaces`, `GET /api/marketplaces/:id`, `POST /api/marketplaces/:id/sync`, `POST /api/marketplaces/:id/connect`, `PATCH /api/marketplaces/:id`
-- **Hermes** (autonomous agent): `GET /api/hermes/events`, `GET /api/hermes/events/:id`, `POST /api/hermes/events/:id/approve`, `POST /api/hermes/events/:id/dismiss`, `POST /api/hermes/run`
+- **Hermes** (review-only recommendations): `GET /api/hermes/events`, `GET /api/hermes/events/:id`, `POST /api/hermes/events/:id/approve`, `POST /api/hermes/events/:id/dismiss`, `POST /api/hermes/products/:productId/run` for explicit product analysis. Legacy `POST /api/hermes/run` remains for compatible existing clients only.
 - **Analytics**: `GET /api/analytics/overview`, `GET /api/analytics/revenue`, `GET /api/analytics/listings`
 - **Workspaces**: `GET /api/workspaces/:id`, `PATCH /api/workspaces/:id`
-- **Realtime**: Hermes live updates WebSocket at `/api/hermes/live`
+
 
 ### Frontend
 

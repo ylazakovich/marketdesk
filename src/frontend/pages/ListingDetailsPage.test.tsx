@@ -9,6 +9,8 @@ import {
   PUBLICATION_READINESS_CHECKING_LABEL,
   PUBLICATION_READINESS_RECHECK_LABEL,
   PublicationReadinessAction,
+  productHermesDisabledReason,
+  productHermesSuccessMessage,
   ProductRecheckReview,
   PublishPreviewReview,
   productScopedHermesRunInput,
@@ -65,6 +67,39 @@ describe('ListingDetailsPage presentation', () => {
       trigger: 'manual',
       productId: 'product-1',
     });
+  });
+
+  it('keeps the product Hermes action disabled until settings allow listing SEO', () => {
+    expect(
+      productHermesDisabledReason({
+        productId: 'product-1',
+        settingsLoaded: false,
+        listingSeoEnabled: false,
+      })
+    ).toBe('Hermes settings are still loading.');
+    expect(
+      productHermesDisabledReason({
+        productId: 'product-1',
+        settingsLoaded: true,
+        listingSeoEnabled: false,
+      })
+    ).toBe('Enable the listing SEO agent in Hermes settings first.');
+    expect(
+      productHermesDisabledReason({
+        productId: 'product-1',
+        settingsLoaded: true,
+        listingSeoEnabled: true,
+      })
+    ).toBeNull();
+  });
+
+  it('uses review-only product-scoped success copy for analysis results', () => {
+    expect(productHermesSuccessMessage(1)).toBe(
+      'Hermes SEO suggestion is ready for human review.'
+    );
+    expect(productHermesSuccessMessage(0)).toBe(
+      'Hermes found no new SEO suggestion for this product.'
+    );
   });
 
   it('marks a recheck stale immediately when the saved product version changes', () => {

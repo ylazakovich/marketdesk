@@ -1,5 +1,5 @@
-// Hermes activity feed: filter by status/severity, review event cards with
-// approval actions, and trigger a fresh analysis run.
+// Hermes activity feed: filter by status/severity and review event cards.
+// Product analysis is launched only from an explicitly selected product.
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Box, Button, Chip, MenuItem, Select, Stack, Tab, Tabs, Typography } from '@mui/material';
@@ -7,10 +7,8 @@ import type { SelectChangeEvent } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import type { HermesEvent, HermesEventStatus, HermesSeverity } from '@shared/types';
 import { HERMES_EVENT_STATUS_LIST, HERMES_SEVERITY_LIST } from '@shared/constants';
-import { useHermesEvents, useRunHermes } from '../services/hooks/index.js';
+import { useHermesEvents } from '../services/hooks/index.js';
 import type { HermesEventListParams } from '../state/api/index.js';
-import { useAppDispatch } from '../state/hooks.js';
-import { enqueueToast } from '../state/slices/uiSlice.js';
 import { Card } from '../components/common/Card.js';
 import { EmptyState } from '../components/common/EmptyState.js';
 import { ErrorRetry } from '../components/common/ErrorRetry.js';
@@ -36,19 +34,12 @@ const SEVERITY_LABELS: Record<HermesSeverity, string> = {
   critical: 'Critical',
 };
 
-export type HermesRunState =
-  | { status: 'idle' }
-  | { status: 'running' }
-  | { status: 'success'; message: string }
-  | { status: 'error'; message: string };
-
 export const HERMES_SETTINGS_PATH = '/settings#hermes';
 
 export const HermesHero: React.FC<{
-  runState: HermesRunState;
   onConfigure: () => void;
-  onRun: () => void;
-}> = ({ runState, onConfigure, onRun }) => (
+  onSelectProduct: () => void;
+}> = ({ onConfigure, onSelectProduct }) => (
   <Card
     sx={{ mb: 2.5, background: (t) => `linear-gradient(135deg, ${t.palette.primary.dark}, ${t.palette.primary.main})`, color: 'primary.contrastText' }}
     contentSx={{ p: 3 }}
@@ -62,23 +53,19 @@ export const HermesHero: React.FC<{
             <Chip size="small" label="Ready on demand" sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: 'inherit' }} />
           </Stack>
           <Typography variant="body2" sx={{ opacity: 0.9 }}>
-            Review recorded suggestions and run a new analysis without implying unverified marketplace completion.
+            Review recorded suggestions. New analysis starts from one explicitly selected product.
           </Typography>
         </Stack>
         <Stack direction="row" spacing={1}>
           <Button variant="contained" color="secondary" onClick={onConfigure}>Configure</Button>
-          <Button variant="outlined" color="inherit" startIcon={<AutoAwesomeIcon />} onClick={onRun} disabled={runState.status === 'running'}>
-            {runState.status === 'running' ? 'Running…' : 'Run Hermes'}
+          <Button variant="outlined" color="inherit" startIcon={<AutoAwesomeIcon />} onClick={onSelectProduct}>
+            Select product to analyze
           </Button>
         </Stack>
       </Stack>
-      {runState.status !== 'idle' && (
-        <Alert severity={runState.status === 'error' ? 'error' : runState.status === 'success' ? 'success' : 'info'} sx={{ bgcolor: 'rgba(255,255,255,0.92)' }}>
-          {runState.status === 'running'
-            ? 'Hermes analysis is running. Results will appear in the activity feed when the request completes.'
-            : runState.message}
-        </Alert>
-      )}
+      <Alert severity="info" sx={{ bgcolor: 'rgba(255,255,255,0.92)' }}>
+        Whole-catalogue runs are not started from the UI. Choose a product and use Analyze with Hermes for review-only recommendations.
+      </Alert>
     </Stack>
   </Card>
 );
@@ -103,22 +90,12 @@ export const HermesMetrics: React.FC<{ awaitingReview?: number }> = ({ awaitingR
   );
 };
 
-function errorMessage(err: unknown): string {
-  if (err && typeof err === 'object') {
-    const e = err as { data?: { error?: { message?: string } }; message?: string };
-    return e.data?.error?.message ?? e.message ?? 'Request failed';
-  }
-  return 'Request failed';
-}
-
 const HermesActivityPage: React.FC = () => {
-  const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
   const [statusFilter, setStatusFilter] = useState<HermesEventStatus[]>([]);
   const [severityFilter, setSeverityFilter] = useState<HermesSeverity[]>([]);
   const [activityTab, setActivityTab] = useState<'all' | 'suggestions' | 'alerts' | 'completed'>('all');
-  const [runState, setRunState] = useState<HermesRunState>({ status: 'idle' });
 
   const params = useMemo<HermesEventListParams>(() => {
     const p: HermesEventListParams = { sort: '-createdAt', limit: 50 };
@@ -129,7 +106,6 @@ const HermesActivityPage: React.FC = () => {
 
   const { data, isLoading, isFetching, isError, error, refetch } = useHermesEvents(params);
   const { data: pendingReviewData } = useHermesEvents({ sort: '-createdAt', limit: 1, status: ['pending_review'] });
-  const [runHermes] = useRunHermes();
 
   const events: HermesEvent[] = data?.items ?? [];
   const isCompletedEvent = (event: HermesEvent): boolean =>
@@ -154,28 +130,9 @@ const HermesActivityPage: React.FC = () => {
     setSeverityFilter(typeof value === 'string' ? (value.split(',') as HermesSeverity[]) : value);
   };
 
-  const handleRun = async () => {
-    setRunState({ status: 'running' });
-    try {
-      const events = await runHermes({ trigger: 'manual' }).unwrap();
-      const message = `Hermes run complete — ${events.length} new activity item(s) recorded.`;
-      setRunState({ status: 'success', message });
-      dispatch(
-        enqueueToast({
-          message,
-          severity: 'success',
-        }),
-      );
-    } catch (err) {
-      const message = errorMessage(err);
-      setRunState({ status: 'error', message });
-      dispatch(enqueueToast({ message, severity: 'error' }));
-    }
-  };
-
   return (
     <Box>
-      <HermesHero runState={runState} onConfigure={() => navigate(HERMES_SETTINGS_PATH)} onRun={() => void handleRun()} />
+      <HermesHero onConfigure={() => navigate(HERMES_SETTINGS_PATH)} onSelectProduct={() => navigate('/products')} />
       <HermesMetrics awaitingReview={pendingReviewData?.total} />
 
       <Card sx={{ mb: 2.5 }} contentSx={{ p: 2 }}>

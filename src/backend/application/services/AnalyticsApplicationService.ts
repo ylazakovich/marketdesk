@@ -14,6 +14,7 @@ export interface AnalyticsRange {
 }
 
 export interface PeriodMetrics {
+  currency: string | null;
   revenue: number | null;
   profit: number | null;
   totalViews: number;
@@ -53,6 +54,7 @@ export interface ListingPerformance {
   price: number;
   revenue: number | null;
   profit: number | null;
+  currency: string | null;
   sales: number;
   views: number;
   conversion: number;
@@ -65,12 +67,17 @@ function aggregate(events: AnalyticsEventRecord[]): PeriodMetrics {
   let cost = 0;
   let revenueComplete = true;
   let costComplete = true;
+  let currency: string | null = null;
   let totalViews = 0;
   let sales = 0;
   for (const event of events) {
     if (event.eventType === 'view') totalViews += event.quantity;
     if (event.eventType === 'sale') {
       sales += event.quantity;
+      if (!event.currency || (currency !== null && currency !== event.currency)) {
+        revenueComplete = false;
+        costComplete = false;
+      } else currency = event.currency;
       if (event.amount === null) revenueComplete = false;
       else revenue += event.amount;
       if (event.costAtSale === null) costComplete = false;
@@ -78,6 +85,7 @@ function aggregate(events: AnalyticsEventRecord[]): PeriodMetrics {
     }
   }
   return {
+    currency: revenueComplete ? currency : null,
     revenue: revenueComplete ? revenue : null,
     profit: revenueComplete && costComplete ? revenue - cost : null,
     totalViews,
@@ -141,7 +149,7 @@ export class AnalyticsApplicationService {
 
     const currentEvents = range ? await this.periodEvents(workspaceId, range) : [];
     const current = range ? aggregate(currentEvents) : {
-      revenue: 0, profit: 0,
+      currency: null, revenue: 0, profit: 0,
       totalViews: listings.reduce((sum, listing) => sum + counter(listing.views), 0),
       sales: 0, conversion: 0,
     };
@@ -154,6 +162,9 @@ export class AnalyticsApplicationService {
         to: range.from,
       });
       previous = aggregate(previousEvents);
+      if (previous.currency !== current.currency) {
+        previous = { ...previous, currency: null, revenue: null, profit: null };
+      }
     }
     const eventMessages = range
       ? currentEvents.filter((event) => event.eventType === 'message').reduce((sum, event) => sum + event.quantity, 0)
@@ -185,15 +196,17 @@ export class AnalyticsApplicationService {
     }
     const byBucket = new Map([...eventsByBucket.entries()]
       .map(([key, bucketEvents]) => [key, aggregate(bucketEvents)]));
-    const previousRevenue = aggregate(previous).revenue;
+    const previousPeriod = aggregate(previous);
+    const currentPeriod = aggregate(current);
+    const previousRevenue = previousPeriod.currency === currentPeriod.currency ? previousPeriod.revenue : null;
+    const financialsUnavailable = currentPeriod.sales > 0 && currentPeriod.currency === null;
     const series = [...byBucket.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([date, metrics], index) => ({
-      date, revenue: metrics.revenue, profit: metrics.profit,
+      date,
+      revenue: financialsUnavailable ? null : metrics.revenue,
+      profit: financialsUnavailable ? null : metrics.profit,
       previous: index === 0 ? previousRevenue : null,
     }));
-    const saleCurrencies = new Set(current
-      .filter((event) => event.eventType === 'sale' && event.amount !== null && event.currency)
-      .map((event) => event.currency as string));
-    return { series, currency: saleCurrencies.size === 1 ? [...saleCurrencies][0] : null };
+    return { series, currency: currentPeriod.currency };
   }
 
   async getListingPerformance(workspaceId: string, range?: AnalyticsRange): Promise<ListingPerformance[]> {
@@ -226,6 +239,7 @@ export class AnalyticsApplicationService {
         status: listing.status, price: listing.price.amount,
         revenue: metrics ? metrics.revenue : 0,
         profit: metrics ? metrics.profit : 0,
+        currency: metrics ? metrics.currency : listing.price.currency,
         sales: metrics?.sales ?? 0, views,
         conversion: metrics?.conversion ?? 0, watchers: counter(listing.watchers), messages,
       };

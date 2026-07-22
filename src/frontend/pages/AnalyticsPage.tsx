@@ -33,12 +33,12 @@ export function analyticsRangeForPreset(preset: Exclude<AnalyticsPreset, 'custom
 export function analyticsCsv(rows: ListingPerformance[]): string {
   const escape = (value: unknown) => {
     const raw = String(value ?? '');
-    const safe = /^[=+\-@]/.test(raw) ? `'${raw}` : raw;
+    const safe = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
     return `"${safe.replace(/"/g, '""')}"`;
   };
-  const header = ['Listing', 'Product', 'Marketplace', 'Revenue', 'Profit', 'Sales', 'Views', 'Conversion'];
+  const header = ['Listing', 'Product', 'Marketplace', 'Currency', 'Revenue', 'Profit', 'Sales', 'Views', 'Conversion'];
   return [header, ...rows.map((row) => [
-    row.listingId, row.productName ?? row.productId, row.marketplaceName ?? row.marketplaceId,
+    row.listingId, row.productName ?? row.productId, row.marketplaceName ?? row.marketplaceId, row.currency,
     row.revenue, row.profit, row.sales, row.views, row.conversion,
   ])].map((row) => row.map(escape).join(',')).join('\n');
 }
@@ -91,7 +91,10 @@ const AnalyticsPage: React.FC = () => {
 
   const updateQuery = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(searchParams);
-    for (const [key, value] of Object.entries(patch)) value ? next.set(key, value) : next.delete(key);
+    for (const [key, value] of Object.entries(patch)) {
+      if (value) next.set(key, value);
+      else next.delete(key);
+    }
     setSearchParams(next, { replace: true });
   };
   const selectPreset = (value: AnalyticsPreset) => {
@@ -114,14 +117,19 @@ const AnalyticsPage: React.FC = () => {
   const best = [...observedRows].sort((a, b) => (b.revenue ?? 0) - (a.revenue ?? 0) || b.sales - a.sales || b.views - a.views).slice(0, 5);
   const worst = [...observedRows].sort((a, b) => (a.revenue ?? 0) - (b.revenue ?? 0) || a.sales - b.sales || a.views - b.views).slice(0, 5);
   const marketplaceSummary = useMemo(() => {
-    const totals = new Map<string, { name: string; revenue: number | null; views: number; sales: number; listings: number }>();
+    const totals = new Map<string, { name: string; currency: string | null; revenue: number | null; views: number; sales: number; listings: number }>();
     for (const row of rows) {
       const key = row.marketplaceId;
-      const total = totals.get(key) ?? { name: row.marketplaceName ?? key, revenue: 0, views: 0, sales: 0, listings: 0 };
-      total.revenue = total.revenue === null || row.revenue === null ? null : total.revenue + row.revenue;
+      const total = totals.get(key) ?? { name: row.marketplaceName ?? key, currency: row.currency, revenue: 0, views: 0, sales: 0, listings: 0 };
+      if (total.currency !== row.currency) total.currency = null;
+      total.revenue = total.revenue === null || row.revenue === null || total.currency === null ? null : total.revenue + row.revenue;
       total.views += row.views; total.sales += row.sales; total.listings += 1; totals.set(key, total);
     }
-    const knownRevenue = [...totals.values()].reduce((sum, item) => sum + (item.revenue ?? 0), 0);
+    const comparableCurrencies = new Set([...totals.values()].map((item) => item.currency).filter(Boolean));
+    const comparable = comparableCurrencies.size <= 1
+      && [...totals.values()].every((item) => item.sales === 0 || item.currency !== null);
+    const knownRevenue = comparable
+      ? [...totals.values()].reduce((sum, item) => sum + (item.revenue ?? 0), 0) : 0;
     return [...totals.values()].map((item) => ({
       ...item,
       conversion: item.views > 0 ? (item.sales / item.views) * 100 : 0,
@@ -163,15 +171,15 @@ const AnalyticsPage: React.FC = () => {
 
       {(overview.isError || listings.isError) && <Alert severity="error" sx={{ mb: 2 }}>Analytics could not be loaded for the selected range.</Alert>}
       <Box sx={{ display: 'grid', gap: 2.5, gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', lg: 'repeat(4, 1fr)' }, mb: 2.5 }}>
-        <StatCard label="Revenue" value={formatCurrency(ov?.revenue, currency)} deltaPct={pct(ov?.revenue, ov?.previous?.revenue)} icon={<PaidIcon fontSize="small" />} loading={overview.isLoading} />
-        <StatCard label="Profit" value={formatCurrency(ov?.profit, currency)} deltaPct={pct(ov?.profit, ov?.previous?.profit)} icon={<TrendingUpIcon fontSize="small" />} loading={overview.isLoading} />
+        <StatCard label="Revenue" value={formatCurrency(ov?.revenue, ov?.currency ?? currency)} deltaPct={pct(ov?.revenue, ov?.previous?.revenue)} icon={<PaidIcon fontSize="small" />} loading={overview.isLoading} />
+        <StatCard label="Profit" value={formatCurrency(ov?.profit, ov?.currency ?? currency)} deltaPct={pct(ov?.profit, ov?.previous?.profit)} icon={<TrendingUpIcon fontSize="small" />} loading={overview.isLoading} />
         <StatCard label="Total views" value={formatNumber(ov?.totalViews)} deltaPct={pct(ov?.totalViews, ov?.previous?.totalViews)} icon={<VisibilityIcon fontSize="small" />} loading={overview.isLoading} />
         <StatCard label="Avg conversion" value={`${formatNumber(ov?.conversion)}%`} deltaPct={pct(ov?.conversion, ov?.previous?.conversion)} icon={<PercentIcon fontSize="small" />} loading={overview.isLoading} />
       </Box>
 
       <Card title="Revenue & profit" subtitle="Canonical sale events over the selected period" sx={{ mb: 2.5 }}>
         <Typography variant="caption" color="text.secondary" role="status">
-          {ov ? `${formatCurrency(ov.revenue, currency)} revenue, ${formatCurrency(ov.profit, currency)} profit, ${formatNumber(ov.totalViews)} views.` : 'Loading revenue and profit summary.'}
+          {ov ? `${formatCurrency(ov.revenue, ov.currency ?? currency)} revenue, ${formatCurrency(ov.profit, ov.currency ?? currency)} profit, ${formatNumber(ov.totalViews)} views.` : 'Loading revenue and profit summary.'}
         </Typography>
         <RevenueChart params={params} height={320} />
       </Card>
@@ -183,7 +191,7 @@ const AnalyticsPage: React.FC = () => {
               : !marketplaceSummary.length ? <Typography color="text.secondary">No marketplace events in this range.</Typography> : marketplaceSummary.map((item) => (
             <Stack key={item.name} direction="row" justifyContent="space-between" sx={{ py: 0.75 }}>
               <Typography>{item.name}</Typography><Typography sx={{ textAlign: 'right' }}>
-                {formatNumber(item.listings)} listings · {formatCurrency(item.revenue, currency)} · {formatNumber(item.sales)} sales<br />
+                {formatNumber(item.listings)} listings · {formatCurrency(item.revenue, item.currency ?? currency)} · {formatNumber(item.sales)} sales<br />
                 {formatNumber(item.conversion)}% conversion · {item.share === null ? '—' : `${formatNumber(item.share)}%`} revenue share
               </Typography>
             </Stack>
@@ -204,12 +212,12 @@ const AnalyticsPage: React.FC = () => {
         <Card title="Best listings">{listings.isLoading ? <Typography role="status">Loading ranked listings…</Typography>
           : listings.isError ? <Button onClick={listings.refetch}>Retry ranked listings</Button>
             : best.length ? best.map((row, index) => <Typography key={row.listingId} variant="body2" sx={{ py: 0.4 }}>
-          #{index + 1} <Link to={`/products/${row.productId}`}>{row.productName ?? row.listingId}</Link> · {formatNumber(row.sales)} sold · {formatCurrency(row.revenue, currency)} · {formatNumber(row.conversion)}%
+          #{index + 1} <Link to={`/products/${row.productId}`}>{row.productName ?? row.listingId}</Link> · {formatNumber(row.sales)} sold · {formatCurrency(row.revenue, row.currency ?? currency)} · {formatNumber(row.conversion)}%
         </Typography>) : <Typography variant="body2">Insufficient observed data for this range.</Typography>}</Card>
         <Card title="Needs attention">{listings.isLoading ? <Typography role="status">Loading listings needing attention…</Typography>
           : listings.isError ? <Button onClick={listings.refetch}>Retry listings needing attention</Button>
             : worst.length ? worst.map((row, index) => <Typography key={row.listingId} variant="body2" sx={{ py: 0.4 }}>
-          #{index + 1} <Link to={`/products/${row.productId}`}>{row.productName ?? row.listingId}</Link> · {formatNumber(row.sales)} sold · {formatCurrency(row.revenue, currency)} · {formatNumber(row.conversion)}%
+          #{index + 1} <Link to={`/products/${row.productId}`}>{row.productName ?? row.listingId}</Link> · {formatNumber(row.sales)} sold · {formatCurrency(row.revenue, row.currency ?? currency)} · {formatNumber(row.conversion)}%
         </Typography>) : <Typography variant="body2">Insufficient observed data for this range.</Typography>}</Card>
       </Box>
 

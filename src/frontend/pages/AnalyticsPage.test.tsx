@@ -70,25 +70,26 @@ describe('analytics report helpers', () => {
     const row: ListingPerformance = {
       listingId: 'listing-1', productId: 'product-1', productName: 'Camera, "Pro"', productSku: 'SKU-1',
       marketplaceId: 'marketplace-1', marketplaceName: 'OLX', marketplaceListingId: 'remote-1',
-      status: 'live', price: 120, revenue: 200, profit: 100, sales: 2, views: 100,
+      status: 'live', price: 120, revenue: 200, profit: 100, currency: 'PLN', sales: 2, views: 100,
       conversion: 2, watchers: 3, messages: 4,
     };
     const csv = analyticsCsv([row]);
-    expect(csv).toContain('"Revenue","Profit"');
+    expect(csv).toContain('"Currency","Revenue","Profit"');
+    expect(csv).toContain('"PLN","200","100"');
     expect(csv).toContain('"Camera, ""Pro"""');
     expect(csv.split('\n')).toHaveLength(2);
   });
 
   it('neutralizes spreadsheet formulas in provider and user controlled cells', () => {
     const row: ListingPerformance = {
-      listingId: '=HYPERLINK("https://evil")', productId: 'product-1', productName: '+cmd|calc', productSku: null,
+      listingId: '\t=HYPERLINK("https://evil")', productId: 'product-1', productName: '\r+cmd|calc', productSku: null,
       marketplaceId: 'marketplace-1', marketplaceName: '@SUM(1+1)', marketplaceListingId: null,
-      status: 'live', price: 1, revenue: null, profit: null, sales: 0, views: 1,
+      status: 'live', price: 1, revenue: null, profit: null, currency: null, sales: 0, views: 1,
       conversion: 0, watchers: 0, messages: 0,
     };
     const csv = analyticsCsv([row]);
-    expect(csv).toContain('"\'=HYPERLINK(""https://evil"")"');
-    expect(csv).toContain('"\'+cmd|calc"');
+    expect(csv).toContain('"\'\t=HYPERLINK(""https://evil"")"');
+    expect(csv).toContain('"\'\r+cmd|calc"');
     expect(csv).toContain('"\'@SUM(1+1)"');
   });
 });

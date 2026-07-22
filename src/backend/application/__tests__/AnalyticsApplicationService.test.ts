@@ -118,7 +118,7 @@ describe('AnalyticsApplicationService', () => {
       marketplaceId = marketplace.id,
     ): AnalyticsEventRecord => ({
       id, workspaceId: 'ws-1', listingId: listing.id, marketplaceId,
-      currency: eventType === 'sale' ? 'PLN' : null,
+      currency: eventType === 'sale' ? (marketplaceId === 'marketplace-2' ? 'USD' : 'PLN') : null,
       eventType, occurredAt: new Date(occurredAt), quantity, amount, costAtSale,
     });
     const events = [
@@ -154,8 +154,15 @@ describe('AnalyticsApplicationService', () => {
     ]));
     const performance = await service.getListingPerformance('ws-1', range);
     expect(performance[0]).toMatchObject({
-      listingId: listing.id, revenue: 200, profit: 100, views: 100, sales: 2, conversion: 2,
+      listingId: listing.id, revenue: 200, profit: 100, currency: 'PLN', views: 100, sales: 2, conversion: 2,
     });
+
+    const mixedCurrencyRange = { ...range, marketplaceId: undefined };
+    const mixedOverview = await service.getDashboardMetrics('ws-1', mixedCurrencyRange);
+    expect(mixedOverview).toMatchObject({ currency: null, revenue: null, profit: null, sales: 3 });
+    const mixedRevenue = await service.getRevenue('ws-1', mixedCurrencyRange);
+    expect(mixedRevenue.currency).toBeNull();
+    expect(mixedRevenue.series.every((point) => point.revenue === null && point.profit === null)).toBe(true);
 
     events[1].costAtSale = null;
     const incompleteOverview = await service.getDashboardMetrics('ws-1', range);

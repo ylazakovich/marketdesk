@@ -90,7 +90,7 @@ export class MarketplaceController {
     ok(res, result.value, 202);
   };
 
-  connect = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+  connect = async (req: Request, res: Response, _next: NextFunction): Promise<void> => {
     const marketplaceId = routeParam(req.params.id);
     const result = await this.oauth.start({
       marketplaceId,

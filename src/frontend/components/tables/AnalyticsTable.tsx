@@ -125,10 +125,10 @@ export const AnalyticsTable: React.FC<AnalyticsTableProps> = ({
                   </TableCell>
                   <TableCell align="right">
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {formatCurrency(m.revenue, currency)}
+                      {formatCurrency(m.revenue, m.currency ?? currency)}
                     </Typography>
                   </TableCell>
-                  <TableCell align="right">{formatCurrency(m.profit, currency)}</TableCell>
+                  <TableCell align="right">{formatCurrency(m.profit, m.currency ?? currency)}</TableCell>
                   <TableCell align="right">{formatNumber(m.views)}</TableCell>
                   <TableCell align="right">{formatNumber(m.conversion)}%</TableCell>
                   <TableCell align="right">{formatNumber(m.messages)}</TableCell>

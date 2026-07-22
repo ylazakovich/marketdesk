@@ -13,7 +13,6 @@ import type {
   SyncMode,
   MarketplaceCategoryMetadata,
   CategoryRecreationOperationAction,
-  CategoryRecreationOperationStatus,
 } from '@shared/types';
 
 // ----------------------------------------------------------------------------
@@ -323,7 +322,8 @@ export interface AnalyticsOverview {
   profit: number | null;
   sales: number;
   conversion: number;
-  previous: Pick<AnalyticsOverview, 'revenue' | 'profit' | 'totalViews' | 'sales' | 'conversion'> | null;
+  currency: string | null;
+  previous: Pick<AnalyticsOverview, 'currency' | 'revenue' | 'profit' | 'totalViews' | 'sales' | 'conversion'> | null;
 }
 
 export interface RevenuePoint {
@@ -353,6 +353,7 @@ export interface ListingPerformance {
   price: number;
   revenue: number | null;
   profit: number | null;
+  currency: string | null;
   sales: number;
   views: number;
   conversion: number;

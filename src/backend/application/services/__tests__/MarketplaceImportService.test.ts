@@ -641,7 +641,7 @@ describe('MarketplaceImportService', () => {
       description: 'LED HD 720p HDMI projector in good condition.',
       marketplaceCategory: headphonesCategory,
     });
-    const { service, productRepo, eventRepo, listingRepo, adapter, correctionOperations } = createService([remote], [existing]);
+    const { service, productRepo, eventRepo, adapter, correctionOperations } = createService([remote], [existing]);
     productRepo.items.set(product.id, product);
 
     const first = await service.import({

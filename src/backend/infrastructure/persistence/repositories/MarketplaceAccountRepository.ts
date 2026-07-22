@@ -56,6 +56,17 @@ export class MarketplaceAccountRepository implements MarketplaceAccountRepositor
     return rows[0] ? MarketplaceAccountMapper.toRecord(rows[0]) : null;
   }
 
+  async findByMarketplaceIdForUpdate(
+    marketplaceId: string,
+  ): Promise<MarketplaceAccountRecord | null> {
+    const { rows } = await query<MarketplaceAccountRow>(
+      `${ACCOUNT_SELECT} WHERE marketplace_id = $1 LIMIT 1 FOR UPDATE`,
+      [marketplaceId],
+      this.queryClient
+    );
+    return rows[0] ? MarketplaceAccountMapper.toRecord(rows[0]) : null;
+  }
+
   async upsert(account: MarketplaceAccountWrite): Promise<MarketplaceAccountRecord> {
     const { rows } = await query<MarketplaceAccountRow>(
       `INSERT INTO marketplace_accounts

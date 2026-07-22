@@ -4,6 +4,7 @@ export type DomainErrorCode =
   | 'VALIDATION_ERROR'
   | 'CONFIGURATION_ERROR'
   | 'INVALID_STATE'
+  | 'RECONCILIATION_REQUIRED'
   | 'NOT_FOUND'
   | 'CONFLICT'
   | 'GUARDRAIL_VIOLATION'
@@ -39,6 +40,12 @@ export class ConfigurationError extends DomainError {
 export class InvalidStateError extends DomainError {
   constructor(message: string) {
     super(message, 'INVALID_STATE');
+  }
+}
+
+export class ReconciliationRequiredError extends DomainError {
+  constructor(message = 'Marketplace account changed; reconciliation is required') {
+    super(message, 'RECONCILIATION_REQUIRED');
   }
 }
 

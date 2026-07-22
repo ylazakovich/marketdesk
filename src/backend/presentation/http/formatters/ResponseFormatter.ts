@@ -46,6 +46,7 @@ export function statusForError(error: unknown): number {
       case 'NOT_FOUND':
         return 404;
       case 'CONFLICT':
+      case 'RECONCILIATION_REQUIRED':
         return 409;
       case 'INVALID_STATE':
       case 'GUARDRAIL_VIOLATION':

@@ -23,6 +23,7 @@ import {
   NotFoundError,
   ServiceUnavailableError,
   InvalidStateError,
+  ReconciliationRequiredError,
 } from '../../../domain/shared/DomainError';
 import type { MarketplaceHttpClient } from '../../adapters/MarketplaceHttpClient';
 import { unwrap, money } from '../../../domain/testkit/support';
@@ -187,7 +188,10 @@ describe('SyncMarketplaceHandler', () => {
     const adapter = fakeAdapter({ sync: jest.fn(async () => synced) });
     const create = jest.fn(() => adapter);
     const tokenProvider = {
-      getValidAccessToken: jest.fn(async () => 'workspace-access-token'),
+      getValidAccessTokenContext: jest.fn(async () => ({
+        accessToken: 'workspace-access-token',
+        account: { id: 'account-1', revision: 7 },
+      })),
     };
     const authenticatedClient: MarketplaceHttpClient = { request: jest.fn() };
     const clientFactory = jest.fn(() => authenticatedClient);
@@ -202,7 +206,7 @@ describe('SyncMarketplaceHandler', () => {
       externalListingIds: ['olx-1'],
     });
 
-    expect(tokenProvider.getValidAccessToken).toHaveBeenCalledWith('m-1');
+    expect(tokenProvider.getValidAccessTokenContext).toHaveBeenCalledWith('m-1');
     expect(clientFactory).toHaveBeenCalledWith('workspace-access-token');
     expect(create).toHaveBeenCalledWith('olx', authenticatedClient);
     expect(adapter.sync).toHaveBeenCalledWith(['olx-1']);
@@ -212,7 +216,10 @@ describe('SyncMarketplaceHandler', () => {
     const adapter = fakeAdapter({ sync: jest.fn(async () => []) });
     const create = jest.fn(() => adapter);
     const tokenProvider = {
-      getValidAccessToken: jest.fn(async () => 'unused-token'),
+      getValidAccessTokenContext: jest.fn(async () => ({
+        accessToken: 'unused-token',
+        account: { id: 'account-unused', revision: 1 },
+      })),
     };
     const clientFactory = jest.fn(() => ({ request: jest.fn() }));
     const handler = new SyncMarketplaceHandler(
@@ -226,7 +233,7 @@ describe('SyncMarketplaceHandler', () => {
       externalListingIds: ['allegro-1'],
     });
 
-    expect(tokenProvider.getValidAccessToken).not.toHaveBeenCalled();
+    expect(tokenProvider.getValidAccessTokenContext).not.toHaveBeenCalled();
     expect(clientFactory).not.toHaveBeenCalled();
     expect(create).toHaveBeenCalledWith('allegro');
   });
@@ -234,7 +241,7 @@ describe('SyncMarketplaceHandler', () => {
   it('records marketplace error when OLX credentials are unavailable', async () => {
     const create = jest.fn(() => fakeAdapter());
     const tokenProvider = {
-      getValidAccessToken: jest.fn(async () => {
+      getValidAccessTokenContext: jest.fn(async () => {
         throw new InvalidStateError('OLX account is not connected');
       }),
     };
@@ -440,6 +447,95 @@ describe('SyncMarketplaceHandler', () => {
     }));
     expect(recommend).not.toHaveBeenCalled();
     expect(publish).not.toHaveBeenCalled();
+  });
+
+  it('rechecks exact OLX account binding before mismatch recommendation', async () => {
+    const projectorCategory = {
+      providerCategoryId: '100',
+      source: 'provider_taxonomy',
+      name: 'Projectors',
+      path: ['Electronics', 'Video'],
+      confidence: 0.99,
+      isLeaf: true,
+      taxonomyVerifiedAt: '2026-07-21T00:00:00.000Z',
+      taxonomyStaleAt: '2026-07-22T00:00:00.000Z',
+    };
+    const headphonesCategory = {
+      providerCategoryId: '200',
+      source: 'provider_taxonomy',
+      name: 'Headphones',
+      path: ['Electronics', 'Audio'],
+      confidence: 0.99,
+      isLeaf: true,
+      taxonomyVerifiedAt: '2026-07-21T00:00:00.000Z',
+      taxonomyStaleAt: '2026-07-22T00:00:00.000Z',
+    };
+    const synced: SyncedListing[] = [{
+      externalListingId: 'ext-stale',
+      status: 'live',
+      remoteStatus: 'active',
+      marketplaceCategory: projectorCategory,
+      views: 10,
+      watchers: 0,
+      messages: 1,
+    }];
+    const adapter = fakeAdapter({ sync: jest.fn(async () => synced) });
+    const { resolver } = resolverFor(adapter);
+    const marketplace = unwrap(
+      Marketplace.create({
+        id: 'm-stale',
+        workspaceId: 'w-stale',
+        key: 'olx',
+        name: 'OLX',
+      })
+    );
+    const listing = unwrap(
+      Listing.create({
+        id: 'l-stale',
+        productId: 'p-stale',
+        marketplaceId: 'm-stale',
+        price: money(50),
+        status: 'live',
+        marketplaceListingId: 'ext-stale',
+        marketplaceCategory: headphonesCategory,
+        publishedAt: new Date(),
+      })
+    );
+    const tokenProvider = {
+      getValidAccessTokenContext: jest
+        .fn()
+        .mockResolvedValueOnce({ accessToken: 'fresh-token', account: { id: 'acc-stale', revision: 1 } })
+        .mockRejectedValueOnce(new ReconciliationRequiredError('OLX account changed after the operation was reviewed')),
+    };
+    const recommend = jest.fn(async () => undefined);
+    const listingStore = {
+      findByMarketplace: jest.fn(async () => [listing]),
+      saveAll: jest.fn(async () => undefined),
+    };
+    const handler = new SyncMarketplaceHandler(
+      resolver,
+      {
+        listingStore,
+        marketplaceStore: {
+          findById: jest.fn(async () => marketplace),
+          save: jest.fn(async () => undefined),
+        },
+        accessTokens: tokenProvider,
+        authenticatedHttpClient: () => ({ request: jest.fn() }),
+        recommendCategoryMismatch: recommend,
+      },
+    );
+
+    await expect(handler.handle({
+      marketplaceKey: 'olx',
+      marketplaceId: 'm-stale',
+      externalListingIds: ['ext-stale'],
+    })).rejects.toThrow(ReconciliationRequiredError);
+
+    expect(tokenProvider.getValidAccessTokenContext).toHaveBeenCalledTimes(2);
+    expect(tokenProvider.getValidAccessTokenContext).toHaveBeenCalledWith('m-stale', { id: 'acc-stale', revision: 1 });
+    expect(recommend).not.toHaveBeenCalled();
+    expect(listingStore.saveAll).not.toHaveBeenCalled();
   });
 
   it('fails closed when the job provider key differs from the persisted marketplace', async () => {

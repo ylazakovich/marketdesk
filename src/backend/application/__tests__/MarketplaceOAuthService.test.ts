@@ -305,6 +305,31 @@ describe('MarketplaceOAuthService', () => {
     expect(savedTokens.refreshToken).toBe('rotated-refresh-token');
   });
 
+  it('returns the persisted account revision with a refreshed access token', async () => {
+    const { service, marketplace, accountRepo } = setup();
+    const beforeRefresh = await accountRepo.upsert({
+      id: 'account-1',
+      marketplaceId: marketplace.id,
+      handle: 'OLX account',
+      credentials: {
+        payload: {
+          ...initialTokens,
+          expiresAt: new Date('2026-07-14T11:59:00.000Z'),
+        },
+      },
+      status: 'connected',
+      scopes: ['basic'],
+    });
+
+    const resolved = await service.getValidAccessTokenContext(marketplace.id);
+
+    expect(resolved).toEqual({
+      accessToken: 'refreshed-access-token',
+      account: { id: beforeRefresh.id, revision: beforeRefresh.revision + 1 },
+    });
+    expect(accountRepo.accounts.get(marketplace.id)?.revision).toBe(resolved.account.revision);
+  });
+
   it('rejects access-token resolution when the reviewed account identity changed', async () => {
     const { service, marketplace, accountRepo, refreshAccessToken } = setup();
     await accountRepo.upsert({

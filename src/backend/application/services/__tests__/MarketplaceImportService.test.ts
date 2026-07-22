@@ -68,6 +68,7 @@ function createService(
   runUnitOfWork?: ConstructorParameters<typeof MarketplaceImportService>[9],
   productCategorySync?: ConstructorParameters<typeof MarketplaceImportService>[12],
   marketplaceAccount: typeof connectedAccount | null = connectedAccount,
+  beforeUnitOfWork?: () => void,
 ) {
   const marketplace = unwrap(
     Marketplace.create({
@@ -98,18 +99,43 @@ function createService(
     listOwnedListings: jest.fn(async () => remote),
   } as unknown as IMarketplaceAdapter;
   const create = jest.fn(() => adapter);
-  const getValidAccessToken = jest.fn(async () => 'access-token');
+  let currentMarketplaceAccount = marketplaceAccount;
+  const findMarketplaceAccount = jest.fn(async () => currentMarketplaceAccount);
+  const accountRepo = {
+    findByMarketplaceId: findMarketplaceAccount,
+    findByMarketplaceIdForUpdate: findMarketplaceAccount,
+  };
+  const getValidAccessTokenContext = jest.fn(async () => {
+    if (!currentMarketplaceAccount) throw new Error('OLX account is not connected');
+    return {
+      accessToken: 'access-token',
+      account: {
+        id: currentMarketplaceAccount.id,
+        revision: currentMarketplaceAccount.revision,
+      },
+    };
+  });
   const authenticatedHttpClient = jest.fn(() => ({ request: jest.fn() }));
   const defaultUnitOfWork: ConstructorParameters<typeof MarketplaceImportService>[9] = async (
     work
-  ) => work({ productRepo, listingRepo, activityLog, eventRepo, correctionOperations });
+  ) => {
+    beforeUnitOfWork?.();
+    return work({
+      productRepo,
+      listingRepo,
+      activityLog,
+      eventRepo,
+      correctionOperations,
+      accountRepo,
+    });
+  };
   const service = new MarketplaceImportService(
     marketplaceRepo,
     productRepo,
     listingRepo,
-    { findByMarketplaceId: jest.fn(async () => marketplaceAccount) } as any,
+    accountRepo as any,
     { create },
-    { getValidAccessToken },
+    { getValidAccessTokenContext },
     authenticatedHttpClient,
     activityLog,
     idFactory('import'),
@@ -122,13 +148,17 @@ function createService(
     service,
     adapter,
     create,
-    getValidAccessToken,
+    getValidAccessToken: getValidAccessTokenContext,
     authenticatedHttpClient,
     productRepo,
     listingRepo,
     activityLog,
     eventRepo,
     correctionOperations,
+    accountRepo,
+    setMarketplaceAccount: (account: typeof connectedAccount | null) => {
+      currentMarketplaceAccount = account;
+    },
   };
 }
 
@@ -172,6 +202,87 @@ describe('MarketplaceImportService', () => {
     expect(adapter.publish).not.toHaveBeenCalled();
     expect(adapter.updateListing).not.toHaveBeenCalled();
     expect(adapter.delist).not.toHaveBeenCalled();
+  });
+
+  it('rejects a reconnect that races token resolution before any remote read', async () => {
+    const context = createService([remoteListing()]);
+    context.getValidAccessToken.mockImplementationOnce(async () => {
+      context.setMarketplaceAccount({ ...connectedAccount, revision: 2 });
+      return {
+        accessToken: 'stale-account-token',
+        account: { id: connectedAccount.id, revision: connectedAccount.revision },
+      };
+    });
+
+    const result = await context.service.preview({
+      workspaceId: 'workspace-1', marketplaceId: 'marketplace-1',
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isOk()) throw new Error('expected account fencing failure');
+    expect(result.error.code).toBe('RECONCILIATION_REQUIRED');
+    expect(result.error.message).toContain('reconciliation is required');
+    expect(context.adapter.listOwnedListings).not.toHaveBeenCalled();
+  });
+
+  it('rejects an account revision change after remote discovery and before persistence', async () => {
+    const context = createService([remoteListing()]);
+    (context.adapter.listOwnedListings as jest.Mock).mockImplementationOnce(async () => {
+      context.setMarketplaceAccount({ ...connectedAccount, revision: 2 });
+      return [remoteListing()];
+    });
+
+    const result = await context.service.import({
+      workspaceId: 'workspace-1', marketplaceId: 'marketplace-1',
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isOk()) throw new Error('expected account fencing failure');
+    expect(result.error.code).toBe('RECONCILIATION_REQUIRED');
+    expect(result.error.message).toContain('reconciliation is required');
+    expect(context.productRepo.items.size).toBe(0);
+    expect(context.correctionOperations.createPair).not.toHaveBeenCalled();
+  });
+
+  it('fails an import item when the account changes at the transaction boundary', async () => {
+    const context = createService([remoteListing()]);
+    context.accountRepo.findByMarketplaceId
+      .mockResolvedValueOnce(connectedAccount)
+      .mockResolvedValueOnce(connectedAccount)
+      .mockResolvedValueOnce({ ...connectedAccount, revision: 2 });
+
+    const result = await context.service.import({
+      workspaceId: 'workspace-1', marketplaceId: 'marketplace-1',
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isOk()) throw new Error('expected reconciliation failure');
+    expect(result.error.code).toBe('RECONCILIATION_REQUIRED');
+    expect(result.error.message).toContain('reconciliation is required');
+    expect(context.productRepo.items.size).toBe(0);
+    expect(context.correctionOperations.createPair).not.toHaveBeenCalled();
+  });
+
+  it('aborts the entire import batch with a typed stale-binding error', async () => {
+    const context = createService([
+      remoteListing({ externalListingId: 'olx-1' }),
+      remoteListing({ externalListingId: 'olx-2', externalUrl: 'https://www.olx.pl/d/oferta/olx-2' }),
+    ]);
+    context.accountRepo.findByMarketplaceId
+      .mockResolvedValueOnce(connectedAccount)
+      .mockResolvedValueOnce(connectedAccount)
+      .mockResolvedValueOnce({ ...connectedAccount, revision: 2 });
+
+    const result = await context.service.import({
+      workspaceId: 'workspace-1',
+      marketplaceId: 'marketplace-1',
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isOk()) throw new Error('expected reconciliation failure');
+    expect(result.error.code).toBe('RECONCILIATION_REQUIRED');
+    expect(result.error.message).toContain('reconciliation is required');
+    expect(context.accountRepo.findByMarketplaceId).toHaveBeenCalledTimes(3);
   });
 
   it('creates an atomic durable pair for a new mismatched import before a target category is selected', async () => {
@@ -562,7 +673,7 @@ describe('MarketplaceImportService', () => {
     expect(adapter.publish).not.toHaveBeenCalled();
   });
 
-  it('does not roll back synchronization when no executable account binding exists', async () => {
+  it('fails closed when synchronization has no executable account binding', async () => {
     const product = unwrap(Product.create({
       id: 'product-disconnected', workspaceId: 'workspace-1', sku: 'DISCONNECTED-1',
       name: 'Disconnected listing', description: 'Existing synchronized listing.',
@@ -583,7 +694,8 @@ describe('MarketplaceImportService', () => {
       workspaceId: 'workspace-1',
       currentCategory: headphonesCategory,
       proposedCategory: projectorCategory,
-    })).resolves.toBeUndefined();
+      marketplaceAccount: { id: connectedAccount.id, revision: connectedAccount.revision },
+    })).rejects.toThrow('reconciliation is required');
     expect(correctionOperations.createPair).not.toHaveBeenCalled();
   });
 

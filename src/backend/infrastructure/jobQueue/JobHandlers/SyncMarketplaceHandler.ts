@@ -23,7 +23,13 @@ export interface MarketplaceAdapterResolver {
 }
 
 export interface SyncMarketplaceAccessTokenProvider {
-  getValidAccessToken(marketplaceId: string): Promise<string>;
+  getValidAccessTokenContext(
+    marketplaceId: string,
+    expectedAccount?: { id: string; revision: number },
+  ): Promise<{
+    accessToken: string;
+    account: { id: string; revision: number };
+  }>;
 }
 
 // Structural persistence ports. Satisfied by IListingRepository /
@@ -49,6 +55,7 @@ export interface SyncMarketplaceHandlerDeps {
     workspaceId: string;
     currentCategory: MarketplaceCategoryMetadata | null;
     proposedCategory: MarketplaceCategoryMetadata | null;
+    marketplaceAccount: { id: string; revision: number };
   }) => Promise<void>;
   persistAndReconcileProductCategories?: (input: {
     marketplace: Marketplace;
@@ -59,6 +66,7 @@ export interface SyncMarketplaceHandlerDeps {
       currentCategory: MarketplaceCategoryMetadata | null;
       proposedCategory: MarketplaceCategoryMetadata | null;
     }>;
+    marketplaceAccount: { id: string; revision: number } | null;
     job: SyncMarketplaceJobData;
   }) => Promise<void>;
 }
@@ -88,8 +96,11 @@ export class SyncMarketplaceHandler {
 
   async handle(data: SyncMarketplaceJobData): Promise<SyncMarketplaceResult> {
     let synced: SyncedListing[];
+    let marketplaceAccount: { id: string; revision: number } | null = null;
     try {
-      const adapter = await this.createAdapter(data);
+      const resolved = await this.createAdapter(data);
+      const adapter = resolved.adapter;
+      marketplaceAccount = resolved.marketplaceAccount;
       const externalListingIds = await this.resolveExternalListingIds(data);
       synced = await adapter.sync(externalListingIds);
     } catch (error) {
@@ -99,7 +110,7 @@ export class SyncMarketplaceHandler {
       throw error;
     }
 
-    const persisted = await this.persistStats(data, synced);
+    const persisted = await this.persistStats(data, synced, marketplaceAccount);
     const marketplaceUpdated = await this.recordMarketplaceSuccess(data.marketplaceId);
 
     return {
@@ -110,7 +121,10 @@ export class SyncMarketplaceHandler {
     };
   }
 
-  private async createAdapter(data: SyncMarketplaceJobData): Promise<IMarketplaceAdapter> {
+  private async createAdapter(data: SyncMarketplaceJobData): Promise<{
+    adapter: IMarketplaceAdapter;
+    marketplaceAccount: { id: string; revision: number } | null;
+  }> {
     const marketplace = await this.deps.marketplaceStore?.findById(data.marketplaceId);
     if (this.deps.marketplaceStore && !marketplace) {
       throw new InvalidStateError(`Marketplace not found for sync job: ${data.marketplaceId}`);
@@ -122,13 +136,16 @@ export class SyncMarketplaceHandler {
       if (!data.marketplaceId) {
         throw new InvalidStateError('Sync job is missing marketplaceId for OLX OAuth');
       }
-      const accessToken = await this.deps.accessTokens.getValidAccessToken(data.marketplaceId);
-      return this.adapters.create(
-        data.marketplaceKey,
-        this.deps.authenticatedHttpClient(accessToken)
-      );
+      const resolved = await this.deps.accessTokens.getValidAccessTokenContext(data.marketplaceId);
+      return {
+        adapter: this.adapters.create(
+          data.marketplaceKey,
+          this.deps.authenticatedHttpClient(resolved.accessToken)
+        ),
+        marketplaceAccount: resolved.account,
+      };
     }
-    return this.adapters.create(data.marketplaceKey);
+    return { adapter: this.adapters.create(data.marketplaceKey), marketplaceAccount: null };
   }
 
   private async resolveExternalListingIds(data: SyncMarketplaceJobData): Promise<string[]> {
@@ -147,6 +164,7 @@ export class SyncMarketplaceHandler {
   private async persistStats(
     data: SyncMarketplaceJobData,
     synced: SyncedListing[],
+    marketplaceAccount: { id: string; revision: number } | null,
   ): Promise<number> {
     const store = this.deps.listingStore;
     if (!store || synced.length === 0) return 0;
@@ -199,6 +217,15 @@ export class SyncMarketplaceHandler {
       updated.push(listing);
     }
 
+    let reconciliationAccount: { id: string; revision: number } | null = marketplaceAccount;
+    if (marketplace && mismatchCandidates.length > 0 && this.deps.accessTokens) {
+      const resolved = await this.deps.accessTokens.getValidAccessTokenContext(
+        marketplace.id,
+        marketplaceAccount ?? undefined,
+      );
+      reconciliationAccount = resolved.account;
+    }
+
     if (updated.length > 0) {
       if (marketplace && this.deps.persistAndReconcileProductCategories) {
         await this.deps.persistAndReconcileProductCategories({
@@ -206,15 +233,22 @@ export class SyncMarketplaceHandler {
           listings: updated,
           expectedUpdatedAt,
           mismatchCandidates,
+          marketplaceAccount: reconciliationAccount,
           job: data,
         });
       } else {
         await store.saveAll(updated);
         if (marketplace && this.deps.recommendCategoryMismatch) {
+          if (!reconciliationAccount) {
+            throw new InvalidStateError(
+              'Marketplace account binding is required before category reconciliation'
+            );
+          }
           for (const candidate of mismatchCandidates) {
             await this.deps.recommendCategoryMismatch({
               ...candidate,
               workspaceId: marketplace.workspaceId,
+              marketplaceAccount: reconciliationAccount,
             });
           }
         }

@@ -53,6 +53,25 @@ describe('MarketplaceAccountRepository', () => {
     ]);
   });
 
+  it('locks the account row on the transaction client before fenced writes', async () => {
+    const poolQuery = jest.fn(async () => {
+      throw new Error('shared pool must not be used for a transactional fence');
+    });
+    const clientQuery = jest.fn(async () => ({ rows: [row], rowCount: 1 }));
+    const repo = new MarketplaceAccountRepository(
+      { query: poolQuery } as unknown as Pool,
+      { query: clientQuery } as never,
+    );
+
+    const account = await repo.findByMarketplaceIdForUpdate('marketplace-1');
+
+    expect(account?.revision).toBe(7);
+    expect(poolQuery).not.toHaveBeenCalled();
+    expect(clientQuery).toHaveBeenCalledTimes(1);
+    expect(String(clientQuery.mock.calls[0][0])).toContain('FOR UPDATE');
+    expect(clientQuery.mock.calls[0][1]).toEqual(['marketplace-1']);
+  });
+
   it('uses an integer revision for refresh CAS instead of a lossy JavaScript timestamp', async () => {
     const microsecondRow: MarketplaceAccountRow = {
       ...row,

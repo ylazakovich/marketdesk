@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.17.2](https://github.com/ylazakovich/marketdesk/compare/marketdesk-v0.17.1...marketdesk-v0.17.2) (2026-07-22)
+
+
+### 🐛 Bug Fixes
+
+* **analytics:** reconcile signed view baseline ([#253](https://github.com/ylazakovich/marketdesk/issues/253)) ([a2fc008](https://github.com/ylazakovich/marketdesk/commit/a2fc00885ab796950866e91d472c5799dc48f8a3))
+
 ## [0.17.1](https://github.com/ylazakovich/marketdesk/compare/marketdesk-v0.17.0...marketdesk-v0.17.1) (2026-07-22)
 
 

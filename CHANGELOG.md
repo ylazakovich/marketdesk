@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.18.0](https://github.com/ylazakovich/marketdesk/compare/marketdesk-v0.17.3...marketdesk-v0.18.0) (2026-07-22)
+
+
+### ✨ Features
+
+* **hermes:** add product-scoped listing SEO analysis ([#263](https://github.com/ylazakovich/marketdesk/issues/263)) ([846beb3](https://github.com/ylazakovich/marketdesk/commit/846beb3eff7a0b27e05e9307dd72ce8fe4c9e05a))
+* **olx:** add conversations metric ([#262](https://github.com/ylazakovich/marketdesk/issues/262)) ([d812b6d](https://github.com/ylazakovich/marketdesk/commit/d812b6de385f964fd178085e17708159b8bfdc0a))
+
 ## [0.17.3](https://github.com/ylazakovich/marketdesk/compare/marketdesk-v0.17.2...marketdesk-v0.17.3) (2026-07-22)
 
 

@@ -18,6 +18,32 @@ export interface OlxCategoryGuardResult {
 const PROJECTOR_TERMS = ['projector', 'projektor', 'beamer'];
 const HEADPHONE_TERMS = ['headphone', 'headphones', 'słuchawki', 'sluchawki', 'earbuds', 'airpods'];
 const MAX_TAXONOMY_TTL_MS = 24 * 60 * 60 * 1000;
+const MIN_SEMANTIC_TERM_LENGTH = 3;
+const STOP_WORDS = new Set([
+  'and',
+  'or',
+  'with',
+  'without',
+  'for',
+  'in',
+  'on',
+  'from',
+  'to',
+  'the',
+  'a',
+  'an',
+  'of',
+  'at',
+  'new',
+  'used',
+  'very',
+  'good',
+  'great',
+  'excellent',
+  'condition',
+  'light',
+  'ultra',
+]);
 
 export function parseMarketplaceCategoryMetadata(value: unknown): MarketplaceCategoryMetadata | null {
   if (!value || typeof value !== 'object') return null;
@@ -47,6 +73,55 @@ export function parseMarketplaceCategoryMetadata(value: unknown): MarketplaceCat
 
 function containsAny(value: string, terms: string[]): boolean {
   return terms.some((term) => value.includes(term));
+}
+
+function normalizeToken(token: string): string {
+  return token
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pl')
+    .trim();
+}
+
+function extractTerms(value: string): string[] {
+  const terms = value
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pl')
+    .match(/[\p{L}\p{N}]+/gu) ?? [];
+
+  const output = new Set<string>();
+  for (const rawTerm of terms) {
+    const term = normalizeToken(rawTerm);
+    if (term.length < MIN_SEMANTIC_TERM_LENGTH || STOP_WORDS.has(term)) {
+      continue;
+    }
+    output.add(term);
+    if (term.endsWith('es') && term.length > MIN_SEMANTIC_TERM_LENGTH + 2) {
+      output.add(term.slice(0, -2));
+    }
+    if (term.endsWith('s') && term.length > MIN_SEMANTIC_TERM_LENGTH + 1) {
+      output.add(term.slice(0, -1));
+    }
+  }
+
+  return [...output];
+}
+
+function hasSemanticOverlap(productText: string, categoryText: string): boolean {
+  const productTerms = extractTerms(productText);
+  const categoryTerms = extractTerms(categoryText);
+  if (!productTerms.length || !categoryTerms.length) {
+    return true;
+  }
+
+  const categorySet = new Set(categoryTerms);
+  return productTerms.some((productTerm) => {
+    if (categorySet.has(productTerm)) {
+      return true;
+    }
+    return [...categorySet].some((categoryTerm) => categoryTerm.includes(productTerm) || productTerm.includes(categoryTerm));
+  });
 }
 
 /**
@@ -102,5 +177,15 @@ export function evaluateOlxCategory(
       message: `Product identity contradicts OLX category ${category.path.join(' → ')}`,
     };
   }
+
+  if (!hasSemanticOverlap(productText, categoryText)) {
+    return {
+      allowed: false,
+      requiresReview: true,
+      reason: 'semantic_mismatch',
+      message: `Product identity contradicts OLX category ${category.path.join(' → ')}`,
+    };
+  }
+
   return { allowed: true, requiresReview: false };
 }

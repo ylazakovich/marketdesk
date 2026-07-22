@@ -41,6 +41,20 @@ describe('evaluateOlxCategory', () => {
     expect(result).toMatchObject({ allowed: false, reason: 'semantic_mismatch' });
   });
 
+  it('blocks a product/category semantic mismatch even when it is outside projector-headphone terms', () => {
+    const result = evaluateOlxCategory({
+      name: 'Vintage running sneakers',
+      description: 'Used but in good condition',
+      category: 'men\'s shoes',
+    }, category({
+      providerCategoryId: 'televisions-900',
+      name: 'Televisions',
+      path: ['Electronics', 'Audio and video', 'Televisions'],
+    }), now);
+
+    expect(result).toMatchObject({ allowed: false, reason: 'semantic_mismatch' });
+  });
+
   it.each([
     ['missing', null, 'category_missing'],
     ['unknown leaf', category({ isLeaf: false }), 'category_not_leaf'],

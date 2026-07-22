@@ -290,7 +290,6 @@ const ListingDetailsPage: React.FC = () => {
 
   const [editOpen, setEditOpen] = useState(false);
   const [recheckResult, setRecheckResult] = useState<ProductRecheckResult | null>(null);
-  const [recheckObservedVersion, setRecheckObservedVersion] = useState<string | null>(null);
   const [priceListing, setPriceListing] = useState<Listing | null>(null);
   const [publishCandidate, setPublishCandidate] = useState<{
     listing: Listing;
@@ -385,14 +384,12 @@ const ListingDetailsPage: React.FC = () => {
   const handleRecheck = async () => {
     const requestIdentity = ++recheckRequestIdentity.current;
     setRecheckResult(null);
-    setRecheckObservedVersion(null);
     try {
       if (!primaryListing) throw new Error('Create or select an OLX listing before recheck');
       const result = await recheckProduct({ productId, listingId: primaryListing.id }).unwrap();
       const refreshed = await product.refetch();
       if (!refreshed.data) throw new Error('Unable to refresh the product after recheck');
       if (requestIdentity !== recheckRequestIdentity.current || result.productId !== productId) return;
-      setRecheckObservedVersion(refreshed.data.updatedAt);
       setRecheckResult(result);
     } catch (err) {
       if (requestIdentity !== recheckRequestIdentity.current) return;
@@ -403,7 +400,6 @@ const ListingDetailsPage: React.FC = () => {
   useEffect(() => {
     recheckRequestIdentity.current += 1;
     setRecheckResult(null);
-    setRecheckObservedVersion(null);
   }, [productId]);
 
   const beginPublicationReview = useCallback(async (
@@ -550,7 +546,7 @@ const ListingDetailsPage: React.FC = () => {
         ) : (
           <ProductRecheckReview
             result={recheckResult}
-            currentProductUpdatedAt={recheckObservedVersion ?? p.updatedAt}
+            currentProductUpdatedAt={p.updatedAt}
             currentListingUpdatedAt={primaryListing?.updatedAt}
             onEdit={() => setEditOpen(true)}
           />

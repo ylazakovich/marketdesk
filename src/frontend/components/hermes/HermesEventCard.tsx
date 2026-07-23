@@ -1,7 +1,7 @@
 // Card for a single Hermes event: severity, type, title/detail, the typed
 // proposedChange diff, autonomy decision, and (optionally) approval controls.
 import React from 'react';
-import { Alert, Box, Button, Card, Chip, Divider, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Card, Chip, Divider, Stack, Tooltip, Typography } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import CategoryIcon from '@mui/icons-material/CategoryOutlined';
@@ -26,7 +26,11 @@ import { useExecuteCategoryRecreationOperation } from '../../services/hooks/inde
 import { useAppDispatch } from '../../state/hooks.js';
 import { enqueueToast } from '../../state/slices/uiSlice.js';
 import { formatCurrency, formatDate, formatRelativeTime } from '../../utils/formatters.js';
-import { hermesTypeLabel } from '../../utils/labels.js';
+import {
+  hermesTypeLabel,
+  isSeoRecommendation,
+  recommendationFieldLabel,
+} from '../../utils/labels.js';
 import { HermesSeverityBadge, HermesStatusBadge, AutonomyDecisionBadge } from '../common/Badge.js';
 import { ApprovalButtons } from './ApprovalButtons.js';
 import { ConfirmDialog } from '../common/ConfirmDialog.js';
@@ -37,10 +41,7 @@ export interface HermesEventCardProps {
   onResolved?: () => void;
   approveLabel?: string;
   successMessage?: string;
-}
-
-function truncate(value: string, max = 60): string {
-  return value.length > max ? `${value.slice(0, max)}…` : value;
+  variant?: 'default' | 'compactReview';
 }
 
 const operationStatusLabel = (status: string) => status.replace(/_/g, ' ');
@@ -257,23 +258,34 @@ export const ProposedChangeDiff: React.FC<{
         </Stack>,
       );
     case 'title':
-      return wrap(
-        <Stack spacing={0.5}>
-          <Typography variant="caption" color="text.secondary">Title</Typography>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-            <Typography variant="body2" color="text.secondary">{truncate(change.from)}</Typography>
-            {arrow}
-            <Typography variant="body2" sx={{ fontWeight: 600 }}>{truncate(change.to)}</Typography>
-          </Stack>
-        </Stack>,
+    case 'description': {
+      const field = change.kind === 'title' ? 'Title' : 'Description';
+      return (
+        <Box
+          aria-label={`${field} proposed change`}
+          sx={{
+            mt: 1.25,
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: 2,
+            overflow: 'hidden',
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
+          }}
+        >
+          <Typography variant="caption" sx={{ display: 'block', px: 1.25, py: 0.75, bgcolor: 'action.hover', fontWeight: 800 }}>
+            {field} · proposed diff
+          </Typography>
+          <Box sx={{ px: 1.25, py: 1, bgcolor: 'error.main', color: 'error.contrastText', overflowWrap: 'anywhere' }}>
+            <Typography component="span" variant="caption" sx={{ display: 'inline-block', minWidth: 72, fontWeight: 900 }}>− Before</Typography>
+            <Typography component="span" variant="body2" sx={{ fontFamily: 'inherit' }}>{change.from}</Typography>
+          </Box>
+          <Box sx={{ px: 1.25, py: 1, bgcolor: 'success.main', color: 'success.contrastText', overflowWrap: 'anywhere' }}>
+            <Typography component="span" variant="caption" sx={{ display: 'inline-block', minWidth: 72, fontWeight: 900 }}>+ After</Typography>
+            <Typography component="span" variant="body2" sx={{ fontFamily: 'inherit' }}>{change.to}</Typography>
+          </Box>
+        </Box>
       );
-    case 'description':
-      return wrap(
-        <Stack spacing={0.5}>
-          <Typography variant="caption" color="text.secondary">Description</Typography>
-          <Typography variant="body2">{truncate(change.to, 140)}</Typography>
-        </Stack>,
-      );
+    }
     case 'relist':
       return wrap(
         <Typography variant="body2">
@@ -313,6 +325,7 @@ export const HermesEventCard: React.FC<HermesEventCardProps> = ({
   onResolved,
   approveLabel,
   successMessage,
+  variant = 'default',
 }) => {
   const currency = useAppSelector((s) => s.workspace.currency);
   const dispatch = useAppDispatch();
@@ -348,6 +361,60 @@ export const HermesEventCard: React.FC<HermesEventCardProps> = ({
       dispatch(enqueueToast({ message: message ?? 'Category operation was not accepted.', severity: 'error' }));
     }
   };
+
+  if (variant === 'compactReview') {
+    const fieldLabel = recommendationFieldLabel(event);
+    return (
+      <Card data-variant="compact-review" sx={{ p: 1.5, borderColor: 'primary.main' }}>
+        <Stack spacing={1.25}>
+          <Stack direction="row" spacing={1} alignItems="center" useFlexGap flexWrap="wrap">
+            {isSeoRecommendation(event) ? (
+              <Tooltip title="SEO · listing search optimization" arrow>
+                <Chip
+                  size="small"
+                  label="SEO"
+                  aria-label="SEO, listing search optimization"
+                  color="primary"
+                  variant="outlined"
+                  sx={{ fontWeight: 900 }}
+                />
+              </Tooltip>
+            ) : (
+              <Chip size="small" label={hermesTypeLabel(event.type)} variant="outlined" />
+            )}
+            <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 800 }}>
+              {fieldLabel}
+            </Typography>
+            <Box sx={{ flexGrow: 1 }} />
+            <HermesSeverityBadge severity={event.severity} />
+            <HermesStatusBadge status={event.status} />
+          </Stack>
+          <Typography variant="body2" sx={{ fontWeight: 800, overflowWrap: 'anywhere' }}>
+            {event.title}
+          </Typography>
+          <ProposedChangeDiff
+            change={event.proposedChange}
+            currency={currency}
+          />
+          {!event.proposedChange && (
+            <Alert severity="info">No directly applicable product change. Review and dismiss this item.</Alert>
+          )}
+          <Stack direction="row" spacing={1} alignItems="center" justifyContent="space-between" useFlexGap flexWrap="wrap">
+            <Typography variant="caption" color="text.secondary">{formatRelativeTime(event.createdAt)}</Typography>
+            {showActions && canReview && !isCategoryRecreation && (
+              <ApprovalButtons
+                event={event}
+                onResolved={onResolved}
+                approveLabel={approveLabel}
+                successMessage={successMessage}
+                dismissOnly={dismissOnly}
+              />
+            )}
+          </Stack>
+        </Stack>
+      </Card>
+    );
+  }
 
   return (
     <Card sx={{ p: 2.25 }}>

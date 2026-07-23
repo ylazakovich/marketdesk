@@ -3,6 +3,7 @@ import {
   DASHBOARD_EVENT_LIMIT,
   DASHBOARD_QUICK_ACTIONS,
   DASHBOARD_SECTION_LIMIT,
+  dashboardActivityEvents,
   dashboardRevenueRange,
   isHermesRunActive,
   marketplaceOperationalSummary,
@@ -104,13 +105,32 @@ describe('dashboard presentation contracts', () => {
     const result = splitDashboardEvents(events);
 
     expect(result.latest).toHaveLength(DASHBOARD_SECTION_LIMIT);
-    expect(result.timeline).toHaveLength(DASHBOARD_EVENT_LIMIT);
+    expect(result.timeline).toHaveLength(DASHBOARD_EVENT_LIMIT - DASHBOARD_SECTION_LIMIT);
     expect(result.latest.map((item) => item.id)).toEqual([
       'event-0',
       'event-1',
       'event-2',
       'event-3',
     ]);
-    expect(result.timeline.at(-1)?.id).toBe('event-7');
+    expect(result.timeline.map((item) => item.id)).toEqual([
+      'event-4',
+      'event-5',
+      'event-6',
+      'event-7',
+    ]);
+  });
+
+  it('keeps pending SEO recommendations in the compact review queue instead of duplicating them in activity', () => {
+    const pendingSeo = event(1, 'pending_review');
+    const appliedSeo = event(2, 'applied');
+    const operational = {
+      ...event(3, 'pending_review'),
+      type: 'price_decreased' as const,
+      proposedChange: { kind: 'price' as const, from: 100, to: 90, currency: 'PLN' },
+    };
+
+    expect(
+      dashboardActivityEvents([pendingSeo, appliedSeo, operational]).map((item) => item.id)
+    ).toEqual([appliedSeo.id, operational.id]);
   });
 });

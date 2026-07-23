@@ -1,5 +1,6 @@
 import type { HermesEvent, Marketplace } from '@shared/types';
 import type { AnalyticsQueryParams } from '../state/api/index.js';
+import { isSeoRecommendation } from '../utils/labels.js';
 
 export const DASHBOARD_EVENT_LIMIT = 8;
 export const DASHBOARD_SECTION_LIMIT = 4;
@@ -61,6 +62,12 @@ export function splitDashboardEvents(events: readonly HermesEvent[]): {
 } {
   return {
     latest: events.slice(0, DASHBOARD_SECTION_LIMIT),
-    timeline: events.slice(0, DASHBOARD_EVENT_LIMIT),
+    timeline: events.slice(DASHBOARD_SECTION_LIMIT, DASHBOARD_EVENT_LIMIT),
   };
+}
+
+export function dashboardActivityEvents(events: readonly HermesEvent[]): HermesEvent[] {
+  return events.filter(
+    (event) => !(event.status === 'pending_review' && isSeoRecommendation(event))
+  );
 }

@@ -83,6 +83,8 @@ describe('product detail redesign sections', () => {
     expect(html).toContain('125');
     expect(html).toContain('Unknown');
     expect(html).toContain('Conversations');
+    expect(html).toContain('grid-template-columns:repeat(2, minmax(0, 1fr))');
+    expect(html).toContain('data-testid="olx-insights-metrics"');
     expect(html).toContain('OLX chats');
     expect(html).toContain('Conversion is not shown');
     expect(html).toContain('Recorded price history chart');

@@ -235,10 +235,19 @@ export const OlxInsightsCard: React.FC<{
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.75 }}>{statusExplanation}</Typography>
           {listing.lastSyncAt && <Typography variant="caption" color="text.secondary">Last checked {formatDateTime(listing.lastSyncAt)}</Typography>}
         </Box>
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 1 }}>
+        <Box
+          data-testid="olx-insights-metrics"
+          sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1 }}
+        >
           {(['views', 'watchers', 'conversations', 'messages'] as const).map((key) => (
             <Box key={key} sx={{ p: 1.25, borderRadius: 2, bgcolor: 'action.hover', minWidth: 0 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'capitalize' }}>{key}</Typography>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: 'block', textTransform: 'capitalize', lineHeight: 1.25, overflowWrap: 'anywhere' }}
+              >
+                {key}
+              </Typography>
               <Typography variant="h6" sx={{ overflowWrap: 'anywhere' }}>{metricValue(listing, key)}</Typography>
             </Box>
           ))}

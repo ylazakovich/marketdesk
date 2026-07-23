@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.2](https://github.com/ylazakovich/marketdesk/compare/marketdesk-v0.19.1...marketdesk-v0.19.2) (2026-07-23)
+
+
+### 🐛 Bug Fixes
+
+* **olx:** release failed update checkpoints ([#276](https://github.com/ylazakovich/marketdesk/issues/276)) ([3ff3bd1](https://github.com/ylazakovich/marketdesk/commit/3ff3bd1420965ac16b30f90b70135f4f85260ad4))
+
 ## [0.19.1](https://github.com/ylazakovich/marketdesk/compare/marketdesk-v0.19.0...marketdesk-v0.19.1) (2026-07-23)
 
 

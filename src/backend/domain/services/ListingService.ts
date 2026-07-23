@@ -121,6 +121,7 @@ export class ListingService {
         price: listing.price.amount,
         currency: listing.price.currency,
         category: product.category,
+        marketplaceCategory: listing.marketplaceCategory,
         condition: product.condition,
         imageUrls: [...product.images],
       },

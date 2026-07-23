@@ -18,6 +18,7 @@ import type { DomainEvent, IEventPublisher } from '../../../domain/ports/IEventP
 import type { MarketplaceKey } from '../../../../shared/types';
 import { Listing } from '../../../domain/entities/Listing';
 import { Marketplace } from '../../../domain/entities/Marketplace';
+import { Product } from '../../../domain/entities/Product';
 import { Ok, Err } from '../../../domain/shared/Result';
 import {
   NotFoundError,
@@ -26,7 +27,16 @@ import {
   ReconciliationRequiredError,
 } from '../../../domain/shared/DomainError';
 import type { MarketplaceHttpClient } from '../../adapters/MarketplaceHttpClient';
-import { unwrap, money } from '../../../domain/testkit/support';
+import {
+  InMemoryListingRepository,
+  InMemoryMarketplaceRepository,
+  InMemoryProductRepository,
+  RecordingEventPublisher,
+  unwrap,
+  money,
+} from '../../../domain/testkit/support';
+import { ListingService } from '../../../domain/services/ListingService';
+import type { MarketplaceCategoryMetadata } from '../../../../shared/types';
 
 function fakeAdapter(overrides: Partial<IMarketplaceAdapter> = {}): IMarketplaceAdapter {
   return {
@@ -1259,6 +1269,159 @@ describe('PublishListingHandler', () => {
     );
     expect(result).toMatchObject({ listingId: 'l-oauth', finalized: true });
     expect(result.result.externalListingId).toBe('olx-123');
+  });
+
+  it('abandons a deterministic OLX update failure so a later update can use the real ListingService category snapshot', async () => {
+    const productRepo = new InMemoryProductRepository();
+    const listingRepo = new InMemoryListingRepository();
+    const marketplaceRepo = new InMemoryMarketplaceRepository();
+    const listingService = new ListingService(
+      listingRepo,
+      productRepo,
+      marketplaceRepo,
+      new RecordingEventPublisher(),
+    );
+    const product = unwrap(Product.create({
+      id: 'p-real-state',
+      workspaceId: 'w-1',
+      sku: 'sku-real-state',
+      name: 'Original widget',
+      description: 'A complete product description for update regression testing.',
+      costPrice: null,
+      sellingPrice: money(40),
+      condition: 'good',
+      category: 'electronics',
+      status: 'active',
+      images: ['https://example.test/image.jpg'],
+    }));
+    const marketplace = unwrap(Marketplace.create({
+      id: 'm-real-state',
+      workspaceId: 'w-1',
+      key: 'olx',
+      name: 'OLX',
+      connected: true,
+    }));
+    const listing = unwrap(Listing.create({
+      id: 'l-real-state',
+      productId: product.id,
+      marketplaceId: marketplace.id,
+      price: money(44),
+      status: 'live',
+      marketplaceListingId: 'olx-123',
+      externalUrl: 'https://www.olx.pl/d/oferta/olx-123',
+      publishedAt: new Date('2026-07-10T00:00:00.000Z'),
+      marketplaceCategory: null,
+    }));
+    productRepo.items.set(product.id, product);
+    marketplaceRepo.items.set(marketplace.id, marketplace);
+    listingRepo.items.set(listing.id, listing);
+
+    unwrap(product.rename('First approved title'));
+    await productRepo.save(product);
+    const attempts = memoryPublishAttempts();
+    const markAbandoned = jest.spyOn(attempts, 'markAbandoned');
+    const updateListing = jest.fn(async (_externalId, _changes, current) => {
+      if (!current.marketplaceCategory) throw new Error('missing exact persisted category');
+    });
+    const adapter = fakeAdapter({ updateListing });
+    const handler = makePublishHandler(
+      { create: jest.fn(() => adapter) },
+      undefined,
+      listingService,
+      { getValidAccessToken: jest.fn(async () => 'token') },
+      () => ({ request: jest.fn() }),
+      attempts,
+    );
+
+    await expect(
+      handler.handle({
+        operationId: 'op-update-missing-category',
+        mode: 'update',
+        listingUpdatedAt: listing.updatedAt.toISOString(),
+        productUpdatedAt: product.updatedAt.toISOString(),
+        marketplaceKey: 'olx',
+        marketplaceId: marketplace.id,
+        listingId: listing.id,
+        input,
+        changes: { productName: product.name },
+      }),
+    ).rejects.toThrow('missing exact persisted category');
+    expect(markAbandoned).toHaveBeenCalledWith('op-update-missing-category');
+
+    const exactCategory: MarketplaceCategoryMetadata = {
+      providerCategoryId: '5091',
+      name: 'Akcesoria samochodowe',
+      path: ['Motoryzacja', 'Akcesoria samochodowe'],
+      source: 'provider_taxonomy',
+      confidence: 1,
+      isLeaf: true,
+      taxonomyVerifiedAt: '2026-07-15T00:00:00.000Z',
+      taxonomyStaleAt: '2026-08-15T00:00:00.000Z',
+    };
+    listing.recordMarketplaceCategory(exactCategory);
+    await listingRepo.save(listing);
+    unwrap(product.rename('Second approved title'));
+    await productRepo.save(product);
+
+    await expect(
+      handler.handle({
+        operationId: 'op-update-with-category',
+        mode: 'update',
+        listingUpdatedAt: listing.updatedAt.toISOString(),
+        productUpdatedAt: product.updatedAt.toISOString(),
+        marketplaceKey: 'olx',
+        marketplaceId: marketplace.id,
+        listingId: listing.id,
+        input,
+        changes: { productName: product.name },
+      }),
+    ).resolves.toMatchObject({ listingId: listing.id, finalized: true });
+    expect(updateListing).toHaveBeenLastCalledWith(
+      'olx-123',
+      { productName: 'Second approved title' },
+      expect.objectContaining({ marketplaceCategory: exactCategory }),
+    );
+  });
+
+  it('preserves the original update error when checkpoint abandonment fails', async () => {
+    const updateError = new Error('provider rejected full update payload');
+    const updateListing = jest.fn(async () => {
+      throw updateError;
+    });
+    const adapter = fakeAdapter({ updateListing });
+    const attempts = memoryPublishAttempts();
+    jest.spyOn(attempts, 'markAbandoned').mockRejectedValue(new Error('checkpoint already changed'));
+    const handler = makePublishHandler(
+      { create: jest.fn(() => adapter) },
+      undefined,
+      {
+        publishListing: jest.fn(),
+        getPublishState: jest.fn(async () => ({
+          isPublished: true,
+          externalListingId: 'olx-123',
+          externalUrl: null,
+          publishedAt: new Date('2026-07-10T00:00:00.000Z'),
+          productUpdatedAt: new Date('2026-07-15T12:00:00.000Z'),
+          currentInput: { ...input, productName: 'Better Widget' },
+        })),
+      },
+      { getValidAccessToken: jest.fn(async () => 'token') },
+      () => ({ request: jest.fn() }),
+      attempts,
+    );
+
+    await expect(
+      handler.handle({
+        operationId: 'op-abandon-fails',
+        mode: 'update',
+        listingUpdatedAt: '2026-07-15T11:00:00.000Z',
+        marketplaceKey: 'olx',
+        marketplaceId: 'm-1',
+        listingId: 'l-abandon-fails',
+        input,
+        changes: { productName: 'Better Widget' },
+      }),
+    ).rejects.toBe(updateError);
   });
 
   it('rejects a stale update snapshot instead of overwriting newer product data', async () => {

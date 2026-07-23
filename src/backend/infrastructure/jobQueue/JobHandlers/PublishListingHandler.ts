@@ -18,10 +18,12 @@ import type {
   ListingUpdateJobChanges,
   PublishListingJob,
 } from '../../../application/ports/IJobQueue';
+import { MarketplaceError } from '../../adapters/MarketplaceError';
 
 export type PublishListingJobData = PublishListingJob;
 
 function isTransientInfrastructureError(error: unknown): boolean {
+  if (error instanceof MarketplaceError && error.retryable) return true;
   if (error instanceof ServiceUnavailableError) return true;
   if (!error || typeof error !== 'object' || !('code' in error)) return false;
   const code = String((error as { code?: unknown }).code ?? '');
@@ -39,6 +41,10 @@ function isTransientInfrastructureError(error: unknown): boolean {
       'EPIPE',
     ].includes(code)
   );
+}
+
+function shouldAbandonUpdateCheckpoint(error: unknown): boolean {
+  return !isTransientInfrastructureError(error);
 }
 
 async function retryTransientPhase<T>(
@@ -310,7 +316,18 @@ export class PublishListingHandler {
         externalUrl: state.externalUrl,
         publishedAt: state.publishedAt ?? new Date(),
       };
-      await adapter.updateListing(state.externalListingId, changes, state.currentInput);
+      try {
+        await adapter.updateListing(state.externalListingId, changes, state.currentInput);
+      } catch (error) {
+        if (shouldAbandonUpdateCheckpoint(error)) {
+          try {
+            await retryTransientPhase(() => this.publishAttempts!.markAbandoned(operationId));
+          } catch {
+            // Preserve the original marketplace update failure for retry/error handling.
+          }
+        }
+        throw error;
+      }
       await retryTransientPhase(() =>
         this.publishAttempts!.markPublished(operationId, updateResult)
       );

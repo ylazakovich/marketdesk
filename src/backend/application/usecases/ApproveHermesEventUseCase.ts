@@ -266,12 +266,28 @@ export class ApproveHermesEventUseCase {
     );
     if (!sourceStillMatches) return null;
 
-    const applied = await this.applyChange(event, actorId);
-    if (applied.isErr()) return applied;
+    const replayTargetsReady = await this.ensureListingSeoReplayTargetsReady(event, listings);
+    if (replayTargetsReady.isErr()) return replayTargetsReady;
+
+    let applied: Result<ApplyChangeOutcome>;
+    try {
+      applied = await this.applyChange(event, actorId);
+    } catch (error) {
+      await this.restoreListingSeoProductValue(product.value, change);
+      await this.recordListingSeoReconciliationFailure(event, 'queue_acceptance_failed');
+      throw error;
+    }
+    if (applied.isErr()) {
+      await this.restoreListingSeoProductValue(product.value, change);
+      await this.recordListingSeoReconciliationFailure(event, 'apply_failed');
+      return applied;
+    }
     if (
       applied.value.marketplaceUpdates.length === 0 &&
       listings.some((listing) => listing.isLive())
     ) {
+      await this.restoreListingSeoProductValue(product.value, change);
+      await this.recordListingSeoReconciliationFailure(event, 'missing_live_listing_update');
       return Err(
         new InvalidStateError(
           'Listing SEO reconciliation requires a queued marketplace update for live listings'
@@ -299,6 +315,70 @@ export class ApproveHermesEventUseCase {
       createdAt: new Date(),
     });
     return Ok(event);
+  }
+
+  private async ensureListingSeoReplayTargetsReady(
+    event: HermesEvent,
+    listings: Listing[]
+  ): Promise<Result<void>> {
+    for (const listing of listings) {
+      if (!listing.isLive() || !listing.marketplaceListingId) continue;
+      const marketplace = await this.marketplaceRepo.findById(listing.marketplaceId);
+      if (!marketplace || !marketplace.isConnected()) {
+        await this.recordListingSeoReconciliationFailure(event, 'marketplace_not_connected');
+        return Err(
+          new InvalidStateError(
+            'Listing SEO reconciliation requires connected marketplace for live listing replay'
+          )
+        );
+      }
+      if (this.marketplaceAccountRepo) {
+        const account = await this.marketplaceAccountRepo.findByMarketplaceId(marketplace.id);
+        if (!account || account.status !== 'connected') {
+          await this.recordListingSeoReconciliationFailure(
+            event,
+            'marketplace_account_not_connected'
+          );
+          return Err(
+            new InvalidStateError(
+              'Listing SEO reconciliation requires connected marketplace account for live listing replay'
+            )
+          );
+        }
+      }
+    }
+    return Ok(undefined);
+  }
+
+  private async restoreListingSeoProductValue(
+    product: Product,
+    change: Extract<ProposedChange, { kind: 'title' | 'description' }>
+  ): Promise<void> {
+    const restored =
+      change.kind === 'title'
+        ? product.rename(change.from)
+        : product.updateDescription(change.from);
+    if (restored.isOk()) await this.productRepo.save(product);
+  }
+
+  private async recordListingSeoReconciliationFailure(
+    event: HermesEvent,
+    reason: string
+  ): Promise<void> {
+    await this.activityLog.record({
+      id: this.idGenerator(),
+      workspaceId: event.workspaceId,
+      entityType: 'hermes_event',
+      entityId: event.id,
+      actorType: 'hermes',
+      action: 'hermes_event.reconciliation_failed',
+      metadata: {
+        eventType: event.type,
+        proposedChange: event.proposedChange as unknown as Record<string, unknown> | null,
+        reason,
+      },
+      createdAt: new Date(),
+    });
   }
 
   private listingSeoSourceFor(product: Product, listing: Listing | null): string {

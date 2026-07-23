@@ -413,45 +413,6 @@ describe('ApproveHermesEventUseCase', () => {
     }
   );
 
-  it('keeps listing-seo generation recommendation-only with no product or queue side effects', async () => {
-    const { eventRepo, productRepo, product, listingRepo, publishQueue } = setup();
-    const saveProduct = jest.spyOn(productRepo, 'save');
-    const event = unwrap(
-      HermesEvent.create({
-        id: 'evt-generation-only',
-        workspaceId: 'ws-1',
-        productId: 'prod-1',
-        type: 'suggested_better_title',
-        severity: 'info',
-        title: 'Generated listing-seo suggestion',
-        proposedChange: {
-          kind: 'title',
-          field: 'title',
-          from: 'Lamp',
-          to: 'Generated Better Lamp',
-        },
-      })
-    );
-    await eventRepo.save(event);
-    await eventRepo.recordAgentRecommendationOutcome({
-      id: 'evt-generation-only-recommendation',
-      workspaceId: 'ws-1',
-      productId: 'prod-1',
-      eventId: event.id,
-      agentId: 'listing-seo',
-      agentVersion: '1.0.0',
-      creativityPreset: 'balanced',
-      sourceFingerprint: listingSeoSourceFor(product, listingRepo.items.get('lst-1') ?? null),
-      recommendationFingerprint: '4'.repeat(64),
-      outcome: 'suggested',
-      suggestedAt: new Date(),
-    });
-
-    expect(product.name).toBe('Lamp');
-    expect(saveProduct).not.toHaveBeenCalled();
-    expect(publishQueue.jobs).toHaveLength(0);
-  });
-
   it('does not mark a listing-seo Apply applied when queue acceptance fails', async () => {
     const { useCase, eventRepo, product, listingRepo, publishQueue } = setup();
     const liveListing = unwrap(
@@ -563,6 +524,125 @@ describe('ApproveHermesEventUseCase', () => {
     });
     expect(staleReplay.isErr()).toBe(true);
     expect(publishQueue.jobs).toHaveLength(1);
+  });
+
+  it('does not partially mutate product when listing-seo reconciliation cannot queue a live update', async () => {
+    const { useCase, eventRepo, product, listingRepo, publishQueue, activityLog } =
+      setup('missing');
+    const liveListing = unwrap(
+      Listing.create({
+        id: 'lst-live-reconcile-disconnected',
+        productId: 'prod-1',
+        marketplaceId: 'mp-1',
+        marketplaceListingId: 'olx-reconcile-disconnected',
+        price: money(100),
+        status: 'live',
+      })
+    );
+    listingRepo.items.set(liveListing.id, liveListing);
+    const source = listingSeoSourceFor(product, liveListing);
+    const event = unwrap(
+      HermesEvent.create({
+        id: 'evt-listing-seo-reconcile-disconnected',
+        workspaceId: 'ws-1',
+        productId: 'prod-1',
+        type: 'suggested_better_title',
+        severity: 'info',
+        title: 'Listing SEO suggestion: title',
+        proposedChange: { kind: 'title', field: 'title', from: 'Lamp', to: 'Unsafe Lamp' },
+      })
+    );
+    unwrap(event.approve());
+    unwrap(event.markApplied());
+    await eventRepo.save(event);
+    await eventRepo.recordAgentRecommendationOutcome({
+      id: 'evt-listing-seo-reconcile-disconnected-recommendation',
+      workspaceId: 'ws-1',
+      productId: 'prod-1',
+      eventId: event.id,
+      agentId: 'listing-seo',
+      agentVersion: '1.0.0',
+      creativityPreset: 'balanced',
+      sourceFingerprint: source,
+      recommendationFingerprint: listingSeoRecommendationFingerprint(source, 'Unsafe Lamp'),
+      outcome: 'suggested',
+      suggestedAt: new Date(),
+      approvedAt: new Date(),
+      appliedAt: new Date(),
+    });
+
+    const result = await useCase.execute({
+      eventId: event.id,
+      workspaceId: 'ws-1',
+      actorId: 'user-1',
+    });
+
+    expect(result.isErr()).toBe(true);
+    expect(product.name).toBe('Lamp');
+    expect(publishQueue.jobs).toHaveLength(0);
+    expect(activityLog.entries).toEqual([
+      expect.objectContaining({
+        action: 'hermes_event.reconciliation_failed',
+        metadata: expect.objectContaining({ reason: 'marketplace_account_not_connected' }),
+      }),
+    ]);
+  });
+
+  it('rolls back listing-seo reconciliation product changes when queue acceptance throws', async () => {
+    const { useCase, eventRepo, product, listingRepo, publishQueue, activityLog } = setup();
+    const liveListing = unwrap(
+      Listing.create({
+        id: 'lst-live-reconcile-queue-throws',
+        productId: 'prod-1',
+        marketplaceId: 'mp-1',
+        marketplaceListingId: 'olx-reconcile-queue-throws',
+        price: money(100),
+        status: 'live',
+      })
+    );
+    listingRepo.items.set(liveListing.id, liveListing);
+    const source = listingSeoSourceFor(product, liveListing);
+    const event = unwrap(
+      HermesEvent.create({
+        id: 'evt-listing-seo-reconcile-queue-throws',
+        workspaceId: 'ws-1',
+        productId: 'prod-1',
+        type: 'suggested_better_title',
+        severity: 'info',
+        title: 'Listing SEO suggestion: title',
+        proposedChange: { kind: 'title', field: 'title', from: 'Lamp', to: 'Unsafe Lamp' },
+      })
+    );
+    unwrap(event.approve());
+    unwrap(event.markApplied());
+    await eventRepo.save(event);
+    await eventRepo.recordAgentRecommendationOutcome({
+      id: 'evt-listing-seo-reconcile-queue-throws-recommendation',
+      workspaceId: 'ws-1',
+      productId: 'prod-1',
+      eventId: event.id,
+      agentId: 'listing-seo',
+      agentVersion: '1.0.0',
+      creativityPreset: 'balanced',
+      sourceFingerprint: source,
+      recommendationFingerprint: listingSeoRecommendationFingerprint(source, 'Unsafe Lamp'),
+      outcome: 'suggested',
+      suggestedAt: new Date(),
+      approvedAt: new Date(),
+      appliedAt: new Date(),
+    });
+    jest.spyOn(publishQueue, 'enqueue').mockRejectedValueOnce(new Error('queue unavailable'));
+
+    await expect(
+      useCase.execute({ eventId: event.id, workspaceId: 'ws-1', actorId: 'user-1' })
+    ).rejects.toThrow('queue unavailable');
+    expect(product.name).toBe('Lamp');
+    expect(activityLog.entries).toEqual([
+      expect.objectContaining({
+        action: 'hermes_event.reconciliation_failed',
+        metadata: expect.objectContaining({ reason: 'queue_acceptance_failed' }),
+      }),
+    ]);
   });
 
   it('keeps draft listings local-only for approved description changes', async () => {

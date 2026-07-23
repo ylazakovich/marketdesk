@@ -108,7 +108,10 @@ describe('RunHermesUseCase', () => {
   });
 
   it('runs listing-seo for exactly one product and keeps it review-only', async () => {
-    const { runHermes, eventRepo } = setup();
+    const { runHermes, eventRepo, productRepo } = setup();
+    const product = productRepo.items.get('prod-1');
+    expect(product).toBeDefined();
+    const saveProduct = jest.spyOn(productRepo, 'save');
     const result = await runHermes.execute({ workspaceId: 'ws-1', productId: 'prod-1' });
     const events = unwrap(result);
     expect(events).toHaveLength(1);
@@ -118,6 +121,9 @@ describe('RunHermesUseCase', () => {
       autonomyDecision: 'pending_review',
     });
     expect(events[0].detail).toContain('listing-seo@1.0.0');
+    expect(product?.name).toBe('Lamp');
+    expect(product?.description).toBe('A beautiful vintage brass lamp in excellent condition.');
+    expect(saveProduct).not.toHaveBeenCalled();
     expect(
       unwrap(await runHermes.execute({ workspaceId: 'ws-1', productId: 'prod-1' }))
     ).toHaveLength(0);
@@ -181,11 +187,14 @@ describe('RunHermesUseCase', () => {
         condition: 'good',
         category: 'home',
         tags: Array.from({ length: 51 }, (_unused, index) => `tag-${index}`),
-      }),
+      })
     );
     productRepo.items.set(invalidTagsProduct.id, invalidTagsProduct);
 
-    const result = await runHermes.execute({ workspaceId: 'ws-1', productId: invalidTagsProduct.id });
+    const result = await runHermes.execute({
+      workspaceId: 'ws-1',
+      productId: invalidTagsProduct.id,
+    });
 
     expect(result.isErr()).toBe(true);
     expect(eventRepo.items.size).toBe(0);
@@ -214,7 +223,7 @@ describe('RunHermesUseCase', () => {
         sellingPrice: money(100),
         condition: 'good',
         category: 'home',
-      }),
+      })
     );
     productRepo.items.set(longNameProduct.id, longNameProduct);
 

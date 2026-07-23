@@ -56,6 +56,23 @@ describe('runMigrationFile', () => {
     expect(query.mock.calls[1][0]).toContain("attname = 'conversations'");
   });
 
+  it('allows formatting-only differences when recognizing the published conversations migration shape', async () => {
+    const query = jest
+      .fn<Promise<{ rows: unknown[] }>, [string, unknown[]?]>()
+      .mockRejectedValueOnce(duplicateColumnError())
+      .mockResolvedValueOnce({ rows: [{ exists: true }] });
+
+    await expect(
+      runMigrationFile(
+        clientWithQuery(query),
+        '040_listing_conversations.sql',
+        'ALTER   TABLE listings\n\n  ADD COLUMN conversations INT;'
+      )
+    ).resolves.toBeUndefined();
+
+    expect(query).toHaveBeenCalledTimes(2);
+  });
+
   it('does not suppress duplicate-column errors from other migrations', async () => {
     const query = jest
       .fn<Promise<{ rows: unknown[] }>, [string, unknown[]?]>()
@@ -94,6 +111,11 @@ describe('runMigrationFile', () => {
       .mockRejectedValueOnce(duplicateColumnError())
       .mockResolvedValueOnce({ rows: [{ exists: false }] });
 
+    const originalError = duplicateColumnError();
+    query.mockReset()
+      .mockRejectedValueOnce(originalError)
+      .mockResolvedValueOnce({ rows: [{ exists: false }] });
+
     await expect(
       runMigrationFile(
         clientWithQuery(query),
@@ -101,6 +123,19 @@ describe('runMigrationFile', () => {
         listingConversationsSql
       )
     ).rejects.toThrow(/listings\.conversations is not present/);
+
+    await expect(
+      runMigrationFile(
+        clientWithQuery(
+          jest
+            .fn<Promise<{ rows: unknown[] }>, [string, unknown[]?]>()
+            .mockRejectedValueOnce(originalError)
+            .mockResolvedValueOnce({ rows: [{ exists: false }] })
+        ),
+        '040_listing_conversations.sql',
+        listingConversationsSql
+      )
+    ).rejects.toMatchObject({ cause: originalError });
 
     expect(query).toHaveBeenCalledTimes(2);
   });

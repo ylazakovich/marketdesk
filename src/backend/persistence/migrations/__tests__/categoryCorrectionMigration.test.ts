@@ -75,14 +75,17 @@ describe('category correction operation migration', () => {
     const lock = runner.indexOf("pg_advisory_lock(hashtext($1))");
     const loop = runner.indexOf('for (const file of files)');
     const runFile = runner.indexOf('await runMigrationFile(client, file, sql)', loop);
+    const fileRunner = runner.indexOf('export async function runMigrationFile');
+    const invalidInspection = runner.indexOf('index.indisvalid', fileRunner);
+    const invalidDrop = runner.indexOf('DROP INDEX CONCURRENTLY IF EXISTS', fileRunner);
     const unlock = runner.indexOf('pg_advisory_unlock(hashtext($1))');
 
     expect(lock).toBeGreaterThan(-1);
     expect(loop).toBeGreaterThan(lock);
     expect(runFile).toBeGreaterThan(loop);
     expect(unlock).toBeGreaterThan(runFile);
-    expect(runner).toContain('index.indisvalid');
-    expect(runner).toContain('DROP INDEX CONCURRENTLY IF EXISTS');
+    expect(invalidInspection).toBeGreaterThan(fileRunner);
+    expect(invalidDrop).toBeGreaterThan(invalidInspection);
     expect(runner).toContain('await client.query(sql)');
     expect(runner).not.toContain('await pool.query(sql)');
   });

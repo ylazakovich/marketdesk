@@ -21,6 +21,10 @@ const sensitiveValues = [process.env.DATABASE_URL, process.env.DB_PASSWORD];
 const LISTING_CONVERSATIONS_MIGRATION = '040_listing_conversations.sql';
 const LISTING_CONVERSATIONS_SQL = 'ALTER TABLE listings\n  ADD COLUMN conversations INT;';
 
+function normalizedSql(sql: string): string {
+  return sql.replace(/\s+/g, ' ').trim();
+}
+
 async function connectWithRetry(pool: Pool): Promise<PoolClient> {
   for (let attempt = 1; attempt <= CONNECTION_ATTEMPTS; attempt += 1) {
     try {
@@ -49,7 +53,7 @@ async function shouldSkipAlreadyAppliedListingConversationsMigration(
 ): Promise<boolean> {
   if (file !== LISTING_CONVERSATIONS_MIGRATION || !isDuplicateColumnError(error)) return false;
 
-  if (sql.trim() !== LISTING_CONVERSATIONS_SQL) {
+  if (normalizedSql(sql) !== normalizedSql(LISTING_CONVERSATIONS_SQL)) {
     throw new Error(
       `${LISTING_CONVERSATIONS_MIGRATION} has an unexpected shape; refusing duplicate-column replay skip`,
     );
@@ -67,9 +71,11 @@ async function shouldSkipAlreadyAppliedListingConversationsMigration(
 
   if (column.rows[0]?.exists === true) return true;
 
-  throw new Error(
+  const replayError = new Error(
     `${LISTING_CONVERSATIONS_MIGRATION} raised duplicate_column but listings.conversations is not present`,
-  );
+  ) as Error & { cause?: unknown };
+  replayError.cause = error;
+  throw replayError;
 }
 
 export async function runMigrationFile(

@@ -27,6 +27,7 @@ import { Card } from '../components/common/Card.js';
 import { EmptyState } from '../components/common/EmptyState.js';
 import { LoadingSkeleton } from '../components/common/Skeleton.js';
 import { RevenueChart } from '../components/charts/index.js';
+import { SeoReviewSummary } from '../components/hermes/index.js';
 import {
   HermesSeverityBadge,
   HermesStatusBadge,
@@ -224,7 +225,7 @@ const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const currency = useAppSelector((state) => state.workspace.currency);
   const overview = useAnalyticsOverview();
-  const pending = useHermesEvents({ status: ['pending_review'], limit: 1 });
+  const pending = useHermesEvents({ status: ['pending_review'], limit: 1, sort: '-createdAt' });
   const recent = useHermesEvents({ limit: DASHBOARD_EVENT_LIMIT, sort: '-createdAt' });
   const activeHermes = useHermesEvents({ status: ['applying', 'reverting'], limit: 1 });
   const attention = useProducts({ status: ['attention'], limit: 5 });
@@ -439,6 +440,17 @@ const DashboardPage: React.FC = () => {
         </Card>
 
         <Stack spacing={2.5}>
+          <SeoReviewSummary
+            event={pending.data?.items[0]}
+            total={pending.data?.total ?? 0}
+            loading={pending.isLoading}
+            error={pending.isError ? pending.error : undefined}
+            onRetry={() => pending.refetch()}
+            onReview={(event) =>
+              navigate(event.productId ? `/products/${encodeURIComponent(event.productId)}` : '/hermes')
+            }
+            onViewAll={() => navigate('/hermes')}
+          />
           <Card title="Quick actions" subtitle="Common operator shortcuts">
             <Box
               sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 1.25 }}

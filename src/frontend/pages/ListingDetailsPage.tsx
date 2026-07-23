@@ -55,7 +55,7 @@ import { ListingsTable } from '../components/tables/index.js';
 import { ProductForm } from '../components/forms/index.js';
 import type { ProductFormValues } from '../components/forms/index.js';
 import { PricingForm } from '../components/forms/index.js';
-import { HermesEventCard } from '../components/hermes/index.js';
+import { SeoRecommendationQueue } from '../components/hermes/index.js';
 import {
   mainPreviewImageSx,
   OlxInsightsCard,
@@ -468,6 +468,7 @@ const ListingDetailsPage: React.FC = () => {
     : 'Marketplace';
   const remoteMarketplace = remoteMarketplacePresentation(primaryListing, primaryMarketplaceName);
   const recommendations = selectProductRecommendations(hermesEvents.data?.items ?? [], productId);
+  const recommendationTotal = hermesEvents.data?.total ?? recommendations.length;
   const analyzeDisabledReason = productHermesDisabledReason({
     settingsLoaded: Boolean(hermesSettings.currentData),
     listingSeoEnabled: hermesSettings.currentData?.agents.listingSeo.enabled ?? false,
@@ -902,25 +903,20 @@ const ListingDetailsPage: React.FC = () => {
               <Alert severity="info">No pending recommendations for this product.</Alert>
             ) : (
               <Stack spacing={1.5}>
-                {recommendations.map((event) => (
-                  <HermesEventCard
-                    key={event.id}
-                    event={event}
-                    onResolved={refreshAfterRecommendation}
-                    approveLabel={
-                      event.proposedChange && event.proposedChange.kind !== 'category_recreation'
-                        ? 'Apply'
-                        : undefined
-                    }
-                    successMessage={
-                      !event.proposedChange || event.proposedChange.kind === 'category_recreation'
-                        ? undefined
-                        : primaryListing?.status === 'live' && primaryListing.marketplaceListingId
-                          ? 'Suggestion applied locally. Connected live listing updates were queued.'
-                          : 'Suggestion applied to the product.'
-                    }
-                  />
-                ))}
+                <SeoRecommendationQueue
+                  events={recommendations}
+                  total={recommendationTotal}
+                  onResolved={refreshAfterRecommendation}
+                  onViewAll={() => navigate('/hermes')}
+                  approveLabel="Apply"
+                  successMessage={(event) =>
+                    !event.proposedChange || event.proposedChange.kind === 'category_recreation'
+                      ? undefined
+                      : primaryListing?.status === 'live' && primaryListing.marketplaceListingId
+                        ? 'Suggestion applied locally. Connected live listing updates were queued.'
+                        : 'Suggestion applied to the product.'
+                  }
+                />
                 <Typography variant="caption" color="text.secondary">
                   Category correction always uses separate audited delist and recreate reviews.
                 </Typography>

@@ -1,5 +1,5 @@
 // Human-readable labels for domain enums used across the UI.
-import type { ProductCondition, SyncMode, AutonomyLevel, HermesEventType } from '@shared/types';
+import type { ProductCondition, SyncMode, AutonomyLevel, HermesEventType, HermesEvent } from '@shared/types';
 
 export const CONDITION_LABELS: Record<ProductCondition, string> = {
   new: 'New',
@@ -62,4 +62,20 @@ export function conditionLabel(condition: ProductCondition): string {
 
 export function hermesTypeLabel(type: HermesEventType): string {
   return HERMES_TYPE_LABELS[type] ?? type;
+}
+
+export function isSeoRecommendation(event: Pick<HermesEvent, 'type' | 'proposedChange'>): boolean {
+  return (
+    event.type === 'suggested_better_title' ||
+    event.type === 'update_description' ||
+    event.proposedChange?.kind === 'title' ||
+    event.proposedChange?.kind === 'description'
+  );
+}
+
+export function recommendationFieldLabel(event: Pick<HermesEvent, 'type' | 'proposedChange'>): string {
+  if (event.proposedChange?.kind === 'title') return 'Title';
+  if (event.proposedChange?.kind === 'description') return 'Description';
+  if (event.proposedChange?.kind === 'price') return 'Price';
+  return hermesTypeLabel(event.type);
 }

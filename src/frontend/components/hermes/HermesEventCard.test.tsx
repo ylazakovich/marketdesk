@@ -212,4 +212,33 @@ describe('HermesEventCard activity presentation', () => {
     expect(html).not.toContain('>Approve<');
     expect(html).toContain('>Dismiss<');
   });
+
+  it('renders compact SEO review with explicit Git-style before and after labels', () => {
+    const html = renderToStaticMarkup(
+      <HermesEventCard
+        variant="compactReview"
+        approveLabel="Apply"
+        event={{
+          ...pendingEvent,
+          type: 'suggested_better_title',
+          severity: 'info',
+          title: 'Improve listing title',
+          proposedChange: {
+            kind: 'title',
+            field: 'title',
+            from: 'Old title',
+            to: 'Long improved title with marketplace search intent',
+          },
+        }}
+      />
+    );
+
+    expect(html).toContain('data-variant="compact-review"');
+    expect(html).toContain('SEO, listing search optimization');
+    expect(html).toContain('Title · proposed diff');
+    expect(html).toContain('− Before');
+    expect(html).toContain('+ After');
+    expect(html).toContain('>Apply<');
+    expect(html).not.toContain('Product context');
+  });
 });

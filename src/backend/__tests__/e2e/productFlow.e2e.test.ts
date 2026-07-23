@@ -117,7 +117,15 @@ class SyncPublishQueue implements IJobQueue<PublishListingJob> {
   async enqueue(data: PublishListingJob): Promise<void> {
     await this.handler.handle(data);
   }
-  async enqueueAll(items: Array<{ data: PublishListingJob }>): Promise<void> {
+  async enqueueAll(
+    items: Array<{ data: PublishListingJob; options?: { jobId?: string } }>
+  ): Promise<void> {
+    const jobIds = items
+      .map((item) => item.options?.jobId)
+      .filter((jobId): jobId is string => !!jobId);
+    if (jobIds.length !== items.length || new Set(jobIds).size !== jobIds.length) {
+      throw new Error('SyncPublishQueue bulk enqueue requires unique jobIds');
+    }
     for (const item of items) await this.enqueue(item.data);
   }
 }

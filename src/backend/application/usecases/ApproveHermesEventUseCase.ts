@@ -12,6 +12,7 @@ import {
   GuardrailViolationError,
   NotFoundError,
   InvalidStateError,
+  ServiceUnavailableError,
 } from '../../domain/shared/DomainError';
 import { Money } from '../../domain/valueObjects/Money';
 import type { HermesEvent } from '../../domain/entities/HermesEvent';
@@ -260,25 +261,46 @@ export class ApproveHermesEventUseCase {
     const replayTargetsReady = await this.ensureListingSeoReplayTargetsReady(event, listings);
     if (replayTargetsReady.isErr()) return replayTargetsReady;
 
+    const rollbackValue = currentValue;
     let applied: Result<ApplyChangeOutcome>;
     try {
       applied = await this.applyChange(event, actorId);
     } catch (error) {
-      await this.restoreListingSeoProductValue(product.value, change);
+      await this.restoreOrRecordListingSeoRollbackFailure(
+        event,
+        product.value,
+        change,
+        rollbackValue,
+        'queue_acceptance_failed'
+      );
       await this.recordListingSeoReconciliationFailure(event, 'queue_acceptance_failed');
       throw error;
     }
     if (applied.isErr()) {
-      await this.restoreListingSeoProductValue(product.value, change);
+      const restored = await this.restoreOrRecordListingSeoRollbackFailure(
+        event,
+        product.value,
+        change,
+        rollbackValue,
+        'apply_failed'
+      );
       await this.recordListingSeoReconciliationFailure(event, 'apply_failed');
+      if (restored.isErr()) return restored;
       return applied;
     }
     if (
       applied.value.marketplaceUpdates.length === 0 &&
-      listings.some((listing) => listing.isLive())
+      listings.some((listing) => this.isListingSeoLiveTarget(listing))
     ) {
-      await this.restoreListingSeoProductValue(product.value, change);
+      const restored = await this.restoreOrRecordListingSeoRollbackFailure(
+        event,
+        product.value,
+        change,
+        rollbackValue,
+        'missing_live_listing_update'
+      );
       await this.recordListingSeoReconciliationFailure(event, 'missing_live_listing_update');
+      if (restored.isErr()) return restored;
       return Err(
         new InvalidStateError(
           'Listing SEO reconciliation requires a queued marketplace update for live listings'
@@ -313,7 +335,7 @@ export class ApproveHermesEventUseCase {
     listings: Listing[]
   ): Promise<Result<void>> {
     for (const listing of listings) {
-      if (!listing.isLive() || !listing.marketplaceListingId) continue;
+      if (!this.isListingSeoLiveTarget(listing)) continue;
       const marketplace = await this.marketplaceRepo.findById(listing.marketplaceId);
       if (!marketplace || !marketplace.isConnected()) {
         await this.recordListingSeoReconciliationFailure(event, 'marketplace_not_connected');
@@ -341,15 +363,38 @@ export class ApproveHermesEventUseCase {
     return Ok(undefined);
   }
 
+  private isListingSeoLiveTarget(listing: Listing): boolean {
+    return listing.isLive() && Boolean(listing.marketplaceListingId);
+  }
+
   private async restoreListingSeoProductValue(
     product: Product,
-    change: Extract<ProposedChange, { kind: 'title' | 'description' }>
-  ): Promise<void> {
+    change: Extract<ProposedChange, { kind: 'title' | 'description' }>,
+    value: string
+  ): Promise<Result<void>> {
     const restored =
-      change.kind === 'title'
-        ? product.rename(change.from)
-        : product.updateDescription(change.from);
-    if (restored.isOk()) await this.productRepo.save(product);
+      change.kind === 'title' ? product.rename(value) : product.updateDescription(value);
+    if (restored.isErr()) return restored;
+    try {
+      await this.productRepo.save(product);
+      return Ok(undefined);
+    } catch (error) {
+      return Err(new ServiceUnavailableError('Listing SEO rollback save failed', error));
+    }
+  }
+
+  private async restoreOrRecordListingSeoRollbackFailure(
+    event: HermesEvent,
+    product: Product,
+    change: Extract<ProposedChange, { kind: 'title' | 'description' }>,
+    value: string,
+    reason: string
+  ): Promise<Result<void>> {
+    const restored = await this.restoreListingSeoProductValue(product, change, value);
+    if (restored.isErr()) {
+      await this.recordListingSeoRollbackFailure(event, reason, restored.error);
+    }
+    return restored;
   }
 
   private async recordListingSeoReconciliationFailure(
@@ -370,6 +415,32 @@ export class ApproveHermesEventUseCase {
       },
       createdAt: new Date(),
     });
+  }
+
+  private async recordListingSeoRollbackFailure(
+    event: HermesEvent,
+    reason: string,
+    error: Error
+  ): Promise<void> {
+    await this.activityLog.record({
+      id: this.idGenerator(),
+      workspaceId: event.workspaceId,
+      entityType: 'hermes_event',
+      entityId: event.id,
+      actorType: 'hermes',
+      action: 'hermes_event.reconciliation_rollback_failed',
+      metadata: {
+        eventType: event.type,
+        proposedChange: event.proposedChange as unknown as Record<string, unknown> | null,
+        reason,
+        rollbackError: this.errorMessage(error),
+      },
+      createdAt: new Date(),
+    });
+  }
+
+  private errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
   }
 
   private listingSeoSourceFor(product: Product, listing: Listing | null): string {
@@ -440,6 +511,7 @@ export class ApproveHermesEventUseCase {
     const loaded = await this.requireProduct(event.productId);
     if (loaded.isErr()) return loaded;
     const product = loaded.value;
+    const rollbackValue = change.kind === 'title' ? product.name : product.description;
     const changed =
       change.kind === 'title' ? product.rename(change.to) : product.updateDescription(change.to);
     if (changed.isErr()) return changed;
@@ -453,16 +525,37 @@ export class ApproveHermesEventUseCase {
         { requireAllLiveTargets: true }
       );
     } catch (error) {
-      await this.restoreListingSeoProductValue(product, change);
+      const restored = await this.restoreOrRecordListingSeoRollbackFailure(
+        event,
+        product,
+        change,
+        rollbackValue,
+        'queue_acceptance_failed'
+      );
+      if (restored.isErr()) throw restored.error;
       throw error;
     }
 
     if (queued.isErr()) {
-      await this.restoreListingSeoProductValue(product, change);
+      const restored = await this.restoreOrRecordListingSeoRollbackFailure(
+        event,
+        product,
+        change,
+        rollbackValue,
+        'apply_failed'
+      );
+      if (restored.isErr()) return restored;
       return queued;
     }
     if ((queued.value.skippedLiveListings?.length ?? 0) > 0) {
-      await this.restoreListingSeoProductValue(product, change);
+      const restored = await this.restoreOrRecordListingSeoRollbackFailure(
+        event,
+        product,
+        change,
+        rollbackValue,
+        'missing_live_listing_update'
+      );
+      if (restored.isErr()) return restored;
       return Err(
         new InvalidStateError(
           'Product text changes require connected marketplace updates for every live listing'
@@ -598,7 +691,7 @@ export class ApproveHermesEventUseCase {
     const skippedLiveListings: Array<{ listingId: string; reason: string }> = [];
     const listings = await this.listingRepo.findByProduct(product.id);
     for (const listing of listings) {
-      if (!listing.isLive() || !listing.marketplaceListingId) continue;
+      if (!this.isListingSeoLiveTarget(listing)) continue;
 
       const marketplace = await this.marketplaceRepo.findById(listing.marketplaceId);
       if (!marketplace || !marketplace.isConnected()) {

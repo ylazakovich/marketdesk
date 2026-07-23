@@ -129,6 +129,12 @@ export class RecordingJobQueue<T = unknown> implements IJobQueue<T> {
   }
 
   async enqueueAll(items: Array<{ data: T; options?: JobEnqueueOptions }>): Promise<void> {
+    const jobIds = items
+      .map((item) => item.options?.jobId)
+      .filter((jobId): jobId is string => !!jobId);
+    if (jobIds.length !== items.length || new Set(jobIds).size !== jobIds.length) {
+      throw new Error('RecordingJobQueue bulk enqueue requires unique jobIds');
+    }
     this.jobs.push(...items);
   }
 }

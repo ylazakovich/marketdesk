@@ -555,6 +555,64 @@ describe('ApproveHermesEventUseCase', () => {
     expect(publishQueue.jobs).toHaveLength(1);
   });
 
+  it('does not require a marketplace update for live reconciliation targets missing marketplaceListingId', async () => {
+    const { useCase, eventRepo, product, listingRepo, publishQueue, activityLog } = setup();
+    const localOnlyLiveListing = unwrap(
+      Listing.create({
+        id: 'lst-live-reconcile-local-only',
+        productId: 'prod-1',
+        marketplaceId: 'mp-1',
+        price: money(100),
+        status: 'live',
+      })
+    );
+    listingRepo.items.set(localOnlyLiveListing.id, localOnlyLiveListing);
+    const source = listingSeoSourceFor(product, localOnlyLiveListing);
+    const event = unwrap(
+      HermesEvent.create({
+        id: 'evt-listing-seo-reconcile-local-only',
+        workspaceId: 'ws-1',
+        productId: 'prod-1',
+        type: 'suggested_better_title',
+        severity: 'info',
+        title: 'Listing SEO suggestion: title',
+        proposedChange: { kind: 'title', field: 'title', from: 'Lamp', to: 'Local-only Lamp' },
+      })
+    );
+    unwrap(event.approve());
+    unwrap(event.markApplied());
+    await eventRepo.save(event);
+    await eventRepo.recordAgentRecommendationOutcome({
+      id: 'evt-listing-seo-reconcile-local-only-recommendation',
+      workspaceId: 'ws-1',
+      productId: 'prod-1',
+      eventId: event.id,
+      agentId: 'listing-seo',
+      agentVersion: '1.0.0',
+      creativityPreset: 'balanced',
+      sourceFingerprint: source,
+      recommendationFingerprint: listingSeoRecommendationFingerprint(source, 'Local-only Lamp'),
+      outcome: 'suggested',
+      suggestedAt: new Date(),
+      approvedAt: new Date(),
+      appliedAt: new Date(),
+    });
+
+    const result = await useCase.execute({
+      eventId: event.id,
+      workspaceId: 'ws-1',
+      actorId: 'user-1',
+    });
+
+    expect(result.isOk()).toBe(true);
+    expect(product.name).toBe('Local-only Lamp');
+    expect(publishQueue.jobs).toHaveLength(0);
+    expect(activityLog.entries[0]).toMatchObject({
+      action: 'hermes_event.reconciled',
+      metadata: expect.objectContaining({ marketplaceSync: { status: 'not_required' } }),
+    });
+  });
+
   it('does not partially mutate product when listing-seo reconciliation cannot queue a live update', async () => {
     const { useCase, eventRepo, product, listingRepo, publishQueue, activityLog } =
       setup('missing');
@@ -615,6 +673,123 @@ describe('ApproveHermesEventUseCase', () => {
         metadata: expect.objectContaining({ reason: 'marketplace_account_not_connected' }),
       }),
     ]);
+  });
+
+  it.each([
+    {
+      kind: 'title' as const,
+      current: 'Current Lamp',
+      from: 'Lamp',
+      to: 'Queued Lamp',
+      eventType: 'suggested_better_title' as const,
+    },
+    {
+      kind: 'description' as const,
+      current: 'Current rich lamp copy for buyers.',
+      from: 'A beautiful vintage brass lamp in excellent condition.',
+      to: 'Queued rich lamp copy for buyers.',
+      eventType: 'update_description' as const,
+    },
+  ])(
+    'restores the actual pre-apply product $kind when proposed from is stale and live queueing fails',
+    async (change) => {
+      const { useCase, eventRepo, product, listingRepo } = setup('missing');
+      if (change.kind === 'title') {
+        unwrap(product.rename(change.current));
+      } else {
+        unwrap(product.updateDescription(change.current));
+      }
+      const liveListing = unwrap(
+        Listing.create({
+          id: `lst-live-stale-${change.kind}`,
+          productId: 'prod-1',
+          marketplaceId: 'mp-1',
+          marketplaceListingId: `olx-stale-${change.kind}`,
+          price: money(100),
+          status: 'live',
+        })
+      );
+      listingRepo.items.set(liveListing.id, liveListing);
+      const event = unwrap(
+        HermesEvent.create({
+          id: `evt-stale-${change.kind}`,
+          workspaceId: 'ws-1',
+          productId: 'prod-1',
+          type: change.eventType,
+          severity: 'info',
+          title: `Listing SEO suggestion: ${change.kind}`,
+          proposedChange: {
+            kind: change.kind,
+            field: change.kind,
+            from: change.from,
+            to: change.to,
+          },
+        })
+      );
+      await eventRepo.save(event);
+
+      const result = await useCase.execute({
+        eventId: event.id,
+        workspaceId: 'ws-1',
+        actorId: 'user-1',
+      });
+
+      expect(result.isErr()).toBe(true);
+      expect(change.kind === 'title' ? product.name : product.description).toBe(change.current);
+      expect(change.kind === 'title' ? product.name : product.description).not.toBe(change.from);
+      expect((await eventRepo.findById(event.id))?.status).toBe('failed');
+    }
+  );
+
+  it('records and propagates rollback persistence failure when listing-seo apply cannot queue', async () => {
+    const { useCase, eventRepo, product, productRepo, listingRepo, activityLog } = setup('missing');
+    const liveListing = unwrap(
+      Listing.create({
+        id: 'lst-live-rollback-save-fails',
+        productId: 'prod-1',
+        marketplaceId: 'mp-1',
+        marketplaceListingId: 'olx-rollback-save-fails',
+        price: money(100),
+        status: 'live',
+      })
+    );
+    listingRepo.items.set(liveListing.id, liveListing);
+    const event = unwrap(
+      HermesEvent.create({
+        id: 'evt-rollback-save-fails',
+        workspaceId: 'ws-1',
+        productId: 'prod-1',
+        type: 'suggested_better_title',
+        severity: 'info',
+        title: 'Listing SEO suggestion: title',
+        proposedChange: { kind: 'title', field: 'title', from: 'Lamp', to: 'Queued Lamp' },
+      })
+    );
+    await eventRepo.save(event);
+    jest
+      .spyOn(productRepo, 'save')
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('rollback write failed'));
+
+    const result = await useCase.execute({
+      eventId: event.id,
+      workspaceId: 'ws-1',
+      actorId: 'user-1',
+    });
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) expect(result.error.message).toBe('Listing SEO rollback save failed');
+    expect(product.name).toBe('Lamp');
+    expect(activityLog.entries).toEqual([
+      expect.objectContaining({
+        action: 'hermes_event.reconciliation_rollback_failed',
+        metadata: expect.objectContaining({
+          reason: 'missing_live_listing_update',
+          rollbackError: 'Listing SEO rollback save failed',
+        }),
+      }),
+    ]);
+    expect((await eventRepo.findById(event.id))?.status).toBe('failed');
   });
 
   it('rolls back listing-seo reconciliation product changes when queue acceptance throws', async () => {

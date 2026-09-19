@@ -138,7 +138,7 @@ jobs:
           path: allure-results
 
       - name: Build Allure report (with history)
-        uses: simple-elf/allure-report-action@e463a472d3b1d750f9544369d60589ff1964c820 # master
+        uses: simple-elf/allure-report-action@385367cde61ac68c2568a117f7579f7f148dc459 # master
         with:
           allure_results: allure-results
           gh_pages: gh-pages

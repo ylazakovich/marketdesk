@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.19.3](https://github.com/quokkify/marketdesk/compare/marketdesk-v0.19.2...marketdesk-v0.19.3) (2026-09-19)
+
+
+### 🧹 Chores
+
+* standardize project metadata and showcase links ([5746274](https://github.com/quokkify/marketdesk/commit/574627482ebba81c218540acec4c08eae8464b99))
+
 ## [0.19.2](https://github.com/ylazakovich/marketdesk/compare/marketdesk-v0.19.1...marketdesk-v0.19.2) (2026-07-23)
 
 
